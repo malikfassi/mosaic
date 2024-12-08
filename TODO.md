@@ -31,7 +31,9 @@
 - [x] Development Environment
   - [x] Fix package.json dependencies
   - [x] Add PostCSS configuration
-  - [ ] Install dependencies
+  - [x] Install dependencies
+  - [x] Update to Next.js 14
+  - [x] Update CosmJS packages
   - [ ] Fix TypeScript linting errors
   - [ ] Configure environment variables
 - [x] Stargaze Integration
@@ -73,10 +75,10 @@
   - [ ] Usage analytics
 
 ## Current Focus
-1. Install frontend dependencies
-2. Fix remaining TypeScript issues
-3. Complete contract testing
-4. Implement core contract features
+1. Fix remaining TypeScript issues
+2. Complete contract testing
+3. Implement core contract features
+4. Set up development environment
 
 ## Recently Completed
 - Basic contract structure
@@ -87,3 +89,5 @@
 - PostCSS configuration
 - Stargaze chain configuration
 - Updated Keplr integration
+- Package updates to latest versions
+- Next.js 14 upgrade
