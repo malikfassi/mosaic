@@ -21,6 +21,7 @@ coverage/
 *.swp
 *.swo
 .DS_Store
+.history/
 
 # Environment variables
 .env
