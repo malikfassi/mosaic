@@ -1,8 +1,21 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import WalletConnect from '../../WalletConnect'
 import { simulateSuccessfulConnection, simulateFailedConnection } from './setup'
+import { toast } from 'react-hot-toast'
+
+jest.mock('react-hot-toast', () => ({
+  __esModule: true,
+  toast: {
+    success: jest.fn(),
+    error: jest.fn(),
+  },
+}))
 
 describe('WalletConnect Interactions', () => {
+  beforeEach(() => {
+    jest.clearAllMocks()
+  })
+
   it('calls onConnected when wallet connects successfully', async () => {
     const onConnected = jest.fn()
     render(<WalletConnect onConnected={onConnected} />)
@@ -13,6 +26,7 @@ describe('WalletConnect Interactions', () => {
     
     await waitFor(() => {
       expect(onConnected).toHaveBeenCalledWith('stars1mock...')
+      expect(toast.success).toHaveBeenCalledWith('Wallet connected!', expect.any(Object))
     }, { timeout: 3000 })
   })
 
@@ -25,7 +39,8 @@ describe('WalletConnect Interactions', () => {
     fireEvent.click(connectButton)
     
     await waitFor(() => {
-      expect(screen.getByText(/Failed to connect wallet/i)).toBeInTheDocument()
+      expect(toast.error).toHaveBeenCalledWith('Connection failed', expect.any(Object))
+      expect(onConnected).not.toHaveBeenCalled()
     }, { timeout: 3000 })
   })
 }) 
