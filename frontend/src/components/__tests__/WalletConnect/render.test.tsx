@@ -8,9 +8,16 @@ describe('WalletConnect Rendering', () => {
   })
 
   it('shows loading state while connecting', () => {
-    render(<WalletConnect onConnected={() => {}} />)
+    const { rerender } = render(<WalletConnect onConnected={() => {}} />)
+    
+    // Initial state
     const button = screen.getByRole('button')
-    expect(button).toHaveAttribute('disabled', '')
+    expect(button).not.toHaveAttribute('disabled')
+    expect(button).not.toHaveClass('disabled:opacity-50')
+    
+    // Loading state
+    rerender(<WalletConnect onConnected={() => {}} connecting={true} />)
+    expect(button).toHaveAttribute('disabled')
     expect(button).toHaveClass('disabled:opacity-50')
   })
 }) 
