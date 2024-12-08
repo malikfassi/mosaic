@@ -11,8 +11,8 @@ interface ContractHookResult {
   disconnect: () => void;
   buyPixel: (x: number, y: number) => Promise<ExecuteResult>;
   setPixelColor: (x: number, y: number, color: string) => Promise<ExecuteResult>;
-  getPixel: (x: number, y: number) => Promise<any>;
-  getCanvas: () => Promise<any>;
+  getPixel: (x: number, y: number) => Promise<unknown>;
+  getCanvas: () => Promise<unknown>;
 }
 
 export function useContract(): ContractHookResult {
@@ -23,6 +23,10 @@ export function useContract(): ContractHookResult {
 
   const connect = async () => {
     try {
+      if (!window.keplr) {
+        throw new Error('Keplr wallet not found');
+      }
+
       // Suggest chain to Keplr
       await window.keplr.experimentalSuggestChain(getStargazeChainInfo());
       await window.keplr.enable(STARGAZE_CHAIN_ID);
@@ -43,6 +47,7 @@ export function useContract(): ContractHookResult {
     } catch (err) {
       setError(err instanceof Error ? err : new Error('Failed to connect'));
       setIsConnected(false);
+      throw err;
     }
   };
 
@@ -53,6 +58,12 @@ export function useContract(): ContractHookResult {
     setError(null);
   }, []);
 
+  const getPixel = async (_x: number, _y: number) => {
+    if (!client) throw new Error('Not connected');
+    // Implementation
+    return {};
+  };
+
   return {
     isConnected,
     address,
@@ -60,21 +71,17 @@ export function useContract(): ContractHookResult {
     chainId: STARGAZE_CHAIN_ID,
     connect,
     disconnect,
-    buyPixel: async (x: number, y: number) => {
+    buyPixel: async (_x: number, _y: number) => {
       if (!client) throw new Error('Not connected');
       // Implementation
       return {} as ExecuteResult;
     },
-    setPixelColor: async (x: number, y: number, color: string) => {
+    setPixelColor: async (_x: number, _y: number, _color: string) => {
       if (!client) throw new Error('Not connected');
       // Implementation
       return {} as ExecuteResult;
     },
-    getPixel: async (x: number, y: number) => {
-      if (!client) throw new Error('Not connected');
-      // Implementation
-      return {};
-    },
+    getPixel,
     getCanvas: async () => {
       if (!client) throw new Error('Not connected');
       // Implementation
