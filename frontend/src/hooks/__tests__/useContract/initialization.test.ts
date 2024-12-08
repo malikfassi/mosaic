@@ -10,10 +10,8 @@ describe('useContract Initialization', () => {
     expect(result.current.error).toBe(null)
   })
 
-  it('initializes with custom chain ID', () => {
-    const customChainId = 'stargaze-custom-1'
-    const { result } = renderHook(() => useContract(customChainId))
-    
-    expect(result.current.chainId).toBe(customChainId)
+  it('uses default chain ID', () => {
+    const { result } = renderHook(() => useContract())
+    expect(result.current.chainId).toBe('stargaze-1')
   })
 }) 
