@@ -1,0 +1,27 @@
+[package]
+name = "pixel-canvas"
+version = "0.1.0"
+authors = ["Your Name <your.email@example.com>"]
+edition = "2021"
+description = "A pixel canvas smart contract for Stargaze chain"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[features]
+backtraces = ["cosmwasm-std/backtraces"]
+library = []
+
+[dependencies]
+cosmwasm-std = { version = "1.5.0" }
+cosmwasm-storage = { version = "1.5.0" }
+cw-storage-plus = "1.1.0"
+cw2 = "1.1.1"
+schemars = "0.8.15"
+serde = { version = "1.0.189", default-features = false, features = ["derive"] }
+thiserror = "1.0.49"
+cw-utils = "1.0.1"
+
+[dev-dependencies]
+cw-multi-test = "0.17.0"
+cosmwasm-schema = "1.5.0" 
