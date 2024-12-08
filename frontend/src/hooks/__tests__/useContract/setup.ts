@@ -1,23 +1,18 @@
 import '@testing-library/jest-dom'
+import { jest } from '@jest/globals'
 
 beforeEach(() => {
-  // Reset all mocks before each test
-  window.keplr.enable.mockClear()
-  window.keplr.getKey.mockClear()
+  window.keplr.enable.mockResolvedValueOnce(undefined)
 })
 
 // Helper function to simulate successful connection
 export const simulateSuccessfulConnection = () => {
-  window.keplr.enable.mockResolvedValueOnce(true)
-  window.keplr.getKey.mockResolvedValueOnce({
-    bech32Address: 'stars1mock...',
-    pubKey: new Uint8Array([1, 2, 3]),
-  })
+  window.keplr.enable.mockResolvedValueOnce(undefined)
 }
 
 // Helper function to simulate connection error
-export const simulateConnectionError = (errorMessage: string = 'Connection failed') => {
-  window.keplr.enable.mockRejectedValueOnce(new Error(errorMessage))
+export const simulateFailedConnection = () => {
+  window.keplr.enable.mockRejectedValueOnce(new Error('Connection failed'))
 }
 
 // Helper function to simulate successful transaction
