@@ -6,17 +6,13 @@ import { STARGAZE_CHAIN_ID, getStargazeChainInfo } from '@/config/chain';
 import type { WalletInfo } from '@/types';
 
 interface WalletConnectProps {
-  onConnected: (address: string) => void
-  initialAddress?: string
+  onConnected: (address: string) => void;
+  connecting?: boolean;
 }
 
-export default function WalletConnect({ onConnected, initialAddress }: WalletConnectProps) {
-  const [connecting, setConnecting] = useState(false);
-
+export default function WalletConnect({ onConnected, connecting = false }: WalletConnectProps) {
   const connectWallet = async () => {
     try {
-      setConnecting(true);
-      
       // Check if Keplr is installed
       if (!window.keplr) {
         toast.error('Please install Keplr extension', {
@@ -40,17 +36,6 @@ export default function WalletConnect({ onConnected, initialAddress }: WalletCon
       
       if (accounts.length > 0) {
         const address = accounts[0].address;
-
-        // Get account balance
-        const client = await window.keplr.getOfflineSignerOnlyAmino(STARGAZE_CHAIN_ID);
-        const balance = await client.getAccounts();
-
-        const walletInfo: WalletInfo = {
-          address,
-          balance: balance[0]?.pubkey?.toString() || '0',
-          connected: true,
-        };
-
         toast.success('Wallet connected!', {
           icon: '🌟',
           duration: 3000,
@@ -69,8 +54,6 @@ export default function WalletConnect({ onConnected, initialAddress }: WalletCon
           icon: '❌',
         }
       );
-    } finally {
-      setConnecting(false);
     }
   };
 
