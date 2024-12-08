@@ -24,6 +24,60 @@ Users can purchase, own, and modify pixels on a digital canvas. Each pixel can b
 - cargo-generate
 - Docker (for local testing)
 
+## Development Standards
+### Smart Contract
+- CosmWasm 2.2.0-rc.3
+- Use `to_json_binary` instead of deprecated `to_binary`
+- All functions must have unit tests
+- Coverage requirement: 90%+
+
+### Frontend
+- Next.js 14.0.3 (15.0.4 upgrade planned)
+- React 18.3.1 (19.0.0 upgrade planned)
+- @cosmjs/cosmwasm-stargate 0.31.3
+- TypeScript strict mode enabled
+- Test coverage requirements:
+  - Components: 85%+
+  - Hooks: 90%+
+  - Utils: 95%+
+
+### Testing Standards
+- Unit tests required for all new code
+- Integration tests for critical paths
+- E2E tests for main user flows
+- Test coverage tracked in CI/CD
+
+### Code Quality
+- ESLint configuration enforced
+- Prettier for code formatting
+- TypeScript strict mode
+- No warnings policy
+- Regular dependency updates
+
+### Development Workflow
+1. Before starting work:
+   ```bash
+   git pull
+   ./scripts/validate.sh
+   ```
+
+2. During development:
+   ```bash
+   # Run validation frequently
+   ./scripts/validate.sh
+   
+   # Check test coverage
+   cd frontend && npm run test
+   cd ../contracts/pixel-canvas && cargo test
+   ```
+
+3. Before committing:
+   ```bash
+   # Validation runs automatically via pre-commit hook
+   git add .
+   git commit -m "type(scope): description"
+   ```
+
 ## Quick Start
 
 ### Smart Contract Development

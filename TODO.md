@@ -157,20 +157,6 @@
   - [ ] Usage analytics
   - [ ] WebSocket metrics
 
-## Current Focus
-1. Set up testing infrastructure
-   - Contract testing framework
-   - Frontend testing setup
-   - CI pipeline configuration
-2. Prepare MVP for testing
-   - Core functionality verification
-   - Error handling improvements
-   - Documentation updates
-3. Manual testing phase
-   - Contract functionality
-   - Frontend usability
-   - Integration testing
-
 ## Recently Completed
 - Basic contract structure
 - Frontend boilerplate
@@ -184,3 +170,85 @@
 - Next.js 14 upgrade
 - WebSocket client implementation
 - Real-time updates
+- Initial test setup for WalletConnect
+- Initial test setup for useContract hook
+- Validation script implementation
+- Pre-commit hook setup
+- Development workflow documentation
+- GitHub Actions for contract testing
+- GitHub Actions for frontend testing
+- Testnet deployment workflow
+- Integration tests setup
+- E2E tests with Playwright
+
+## Current Focus
+1. Contract Testing
+   - Fix failing contract tests
+   - Add property-based testing
+   - Implement testnet integration tests
+   - Set up contract coverage reporting
+
+2. Frontend Testing
+   - Complete E2E test scenarios
+   - Add more integration tests
+   - Improve test coverage for hooks
+   - Add WebSocket testing
+
+3. CI/CD Pipeline
+   - Set up automated testnet deployment
+   - Configure test coverage thresholds
+   - Add performance testing
+   - Set up monitoring
+   - [ ] Multi-step GitHub Actions workflow
+     - [ ] Development deployment (PR)
+       - Build and test
+       - Deploy to dev environment
+       - Run integration tests
+       - Generate test reports
+     - [ ] Staging deployment (merge to main)
+       - Build and test
+       - Deploy to testnet
+       - Run E2E tests
+       - Performance testing
+       - Generate environment reports
+     - [ ] Production deployment (release)
+       - Security audit
+       - Build and test
+       - Deploy to mainnet
+       - Smoke tests
+       - Monitoring setup
+     - [ ] Automated rollback
+       - Health checks
+       - Backup points
+       - Rollback triggers
+       - Recovery validation
+
+## Next Steps
+1. Contract Improvements
+   - Implement rental system
+   - Add batch operations
+   - Improve error handling
+   - Add event emissions
+
+2. Frontend Updates
+   - Plan Next.js 15.0.4 upgrade
+   - Plan React 19.0.0 upgrade
+   - Update @cosmjs packages
+   - Improve error handling
+
+3. Documentation
+   - Add testnet deployment guide
+   - Update testing documentation
+   - Add troubleshooting guide
+   - Document CI/CD process
+
+## Future Enhancements
+
+### Deployment
+- [ ] Implement multi-environment deployment pipeline:
+  - Development environment for PR testing
+  - Staging environment for pre-production testing
+  - Production environment with protection rules
+- [ ] Add automated rollback mechanism
+- [ ] Implement smoke tests for production deployments
+- [ ] Add performance monitoring and alerting
