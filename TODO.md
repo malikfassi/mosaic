@@ -1,6 +1,78 @@
 # Project TODO List
 
-## Smart Contract Development
+## Immediate Priority (MVP & Testing)
+1. Testing & Automation
+   - [ ] Contract Testing
+     - [ ] Unit tests for all contract functions
+     - [ ] Integration tests with mock chain
+     - [ ] Property-based testing
+     - [ ] Coverage reports
+   - [ ] Frontend Testing
+     - [ ] Component unit tests
+     - [ ] Integration tests
+     - [ ] E2E tests with Cypress
+   - [ ] CI/CD Pipeline
+     - [ ] GitHub Actions setup
+     - [ ] Automated testing
+     - [ ] Automated deployment
+     - [ ] Code quality checks
+     - [ ] Coverage reports
+
+2. MVP Preparation
+   - [ ] Core Contract Features
+     - [ ] Complete pixel buying functionality
+     - [ ] Complete pixel color setting
+     - [ ] Basic ownership validation
+     - [ ] Error handling improvements
+   - [ ] Frontend Stability
+     - [ ] Error boundary implementation
+     - [ ] Loading states
+     - [ ] Transaction feedback
+     - [ ] Connection stability
+   - [ ] Documentation
+     - [ ] Setup instructions
+     - [ ] Testing guide
+     - [ ] API documentation
+
+3. Manual Testing Phase
+   - [ ] Contract Testing Scenarios
+     - [ ] Pixel purchase flow
+     - [ ] Color setting flow
+     - [ ] Error cases
+     - [ ] Edge cases
+   - [ ] Frontend Testing Scenarios
+     - [ ] Wallet connection
+     - [ ] Transaction flow
+     - [ ] UI responsiveness
+     - [ ] Error handling
+
+## Future Enhancements (Post-MVP)
+1. Stargaze Integration
+   - [ ] Name Resolution
+     - [ ] Add name lookup support
+     - [ ] Reverse lookup (address to name)
+     - [ ] Cache name resolutions
+     - [ ] Update UI to show names
+   - [ ] Contract Features
+     - [ ] Implement rental system
+     - [ ] Time-based ownership
+     - [ ] Rental marketplace
+     - [ ] Revenue sharing
+
+2. Analytics & Dashboard
+   - [ ] User Dashboard
+     - [ ] Owned pixels overview
+     - [ ] Rental management
+     - [ ] Transaction history
+     - [ ] Revenue tracking
+   - [ ] Analytics
+     - [ ] Pixel activity heatmap
+     - [ ] Price history
+     - [ ] User engagement metrics
+     - [ ] Revenue analytics
+
+## Existing Tasks (Maintained)
+### Smart Contract Development
 - [x] Initial contract setup
   - [x] Basic contract structure
   - [x] State management
@@ -23,7 +95,7 @@
   - [ ] Test on testnet
   - [ ] Deploy to mainnet
 
-## Frontend Development
+### Frontend Development
 - [x] Initial setup
   - [x] Next.js with TypeScript
   - [x] Tailwind CSS configuration
@@ -53,13 +125,8 @@
   - [x] Color picker functionality
   - [ ] Pixel history viewer
   - [ ] Transaction history
-- [ ] Advanced Features
-  - [ ] User dashboard
-  - [ ] Pixel ownership history
-  - [ ] Analytics dashboard
-  - [ ] Social features
 
-## Backend Development
+### Backend Development
 - [ ] WebSocket Server
   - [ ] Set up WebSocket server
   - [ ] Implement connection handling
@@ -67,7 +134,7 @@
   - [ ] Add rate limiting
   - [ ] Add event broadcasting
 
-## Documentation
+### Documentation
 - [x] Basic README
 - [ ] Technical Documentation
   - [ ] Contract documentation
@@ -79,7 +146,7 @@
   - [ ] Usage guide
   - [ ] Troubleshooting guide
 
-## DevOps
+### DevOps
 - [ ] CI/CD Pipeline
   - [ ] GitHub Actions setup
   - [ ] Automated testing
@@ -91,10 +158,18 @@
   - [ ] WebSocket metrics
 
 ## Current Focus
-1. Set up WebSocket server
-2. Implement backend authentication
-3. Add pixel history feature
-4. Complete contract testing
+1. Set up testing infrastructure
+   - Contract testing framework
+   - Frontend testing setup
+   - CI pipeline configuration
+2. Prepare MVP for testing
+   - Core functionality verification
+   - Error handling improvements
+   - Documentation updates
+3. Manual testing phase
+   - Contract functionality
+   - Frontend usability
+   - Integration testing
 
 ## Recently Completed
 - Basic contract structure
