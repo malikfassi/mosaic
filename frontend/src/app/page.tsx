@@ -24,6 +24,14 @@ const WalletConnect = dynamic(() => import('@/components/WalletConnect'), {
 export default function Home() {
   const [walletInfo, setWalletInfo] = useState<WalletInfo | null>(null);
 
+  const handleWalletConnect = (address: string) => {
+    setWalletInfo({
+      address,
+      connected: true,
+      balance: '0', // We'll update this later
+    });
+  };
+
   return (
     <div className="flex flex-col items-center justify-center p-8 md:p-24 space-y-8">
       <h1 className="text-4xl md:text-6xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-pink-600">
@@ -45,7 +53,7 @@ export default function Home() {
         </div>
       ) : (
         <div className="flex flex-col items-center space-y-4">
-          <WalletConnect onConnected={setWalletInfo} />
+          <WalletConnect onConnected={handleWalletConnect} />
           <p className="text-sm text-gray-500">
             Connect your wallet to start customizing the canvas
           </p>
