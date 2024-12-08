@@ -29,7 +29,8 @@
     "target": "es5",
     "types": [
       "jest",
-      "@testing-library/jest-dom"
+      "@testing-library/jest-dom",
+      "node"
     ]
   },
   "exclude": [
