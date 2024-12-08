@@ -14,8 +14,15 @@ jest.mock('react-hot-toast', () => ({
 }))
 
 describe('WalletConnect Interactions', () => {
+  const originalError = console.error
+  
   beforeEach(() => {
     jest.clearAllMocks()
+    console.error = jest.fn()
+  })
+  
+  afterEach(() => {
+    console.error = originalError
   })
 
   it('calls onConnected when wallet connects successfully', async () => {
@@ -41,6 +48,7 @@ describe('WalletConnect Interactions', () => {
     fireEvent.click(connectButton)
     
     await waitFor(() => {
+      expect(console.error).toHaveBeenCalledWith('Error connecting wallet:', expect.any(Error))
       expect(toast.error).toHaveBeenCalledWith('Connection failed', expect.any(Object))
       expect(onConnected).not.toHaveBeenCalled()
     }, { timeout: 3000 })
