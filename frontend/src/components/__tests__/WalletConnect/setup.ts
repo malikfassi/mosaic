@@ -23,27 +23,31 @@ const mockOfflineSigner: OfflineSigner = {
 }
 
 // Initialize window.keplr mock
-window.keplr = {
-  enable: jest.fn<(chainIds: string | string[]) => Promise<void>>().mockResolvedValue(undefined),
-  getKey: jest.fn<(chainId: string) => Promise<{ bech32Address: string; pubKey: Uint8Array }>>().mockResolvedValue({
-    bech32Address: 'stars1mock...',
-    pubKey: new Uint8Array([1, 2, 3]),
-  }),
-  experimentalSuggestChain: jest.fn<(chainInfo: ChainInfo) => Promise<void>>().mockResolvedValue(undefined),
-  getOfflineSigner: jest.fn<(chainId: string) => OfflineSigner>().mockReturnValue(mockOfflineSigner),
-  getOfflineSignerOnlyAmino: jest.fn<(chainId: string) => OfflineSigner>().mockReturnValue(mockOfflineSigner),
-  getOfflineSignerAuto: jest.fn<(chainId: string) => Promise<OfflineSigner>>().mockResolvedValue(mockOfflineSigner),
-  signArbitrary: jest.fn<(chainId: string, signer: string, data: string) => Promise<{
-    signature: Uint8Array;
-    pub_key: { type: string; value: string };
-  }>>().mockResolvedValue({
-    signature: new Uint8Array([1, 2, 3]),
-    pub_key: {
-      type: 'tendermint/PubKeySecp256k1',
-      value: 'mock_pubkey'
-    }
-  })
-}
+Object.defineProperty(window, 'keplr', {
+  value: {
+    enable: jest.fn<(chainIds: string | string[]) => Promise<void>>().mockResolvedValue(undefined),
+    getKey: jest.fn<(chainId: string) => Promise<{ bech32Address: string; pubKey: Uint8Array }>>().mockResolvedValue({
+      bech32Address: 'stars1mock...',
+      pubKey: new Uint8Array([1, 2, 3]),
+    }),
+    experimentalSuggestChain: jest.fn<(chainInfo: ChainInfo) => Promise<void>>().mockResolvedValue(undefined),
+    getOfflineSigner: jest.fn<(chainId: string) => OfflineSigner>().mockReturnValue(mockOfflineSigner),
+    getOfflineSignerOnlyAmino: jest.fn<(chainId: string) => OfflineSigner>().mockReturnValue(mockOfflineSigner),
+    getOfflineSignerAuto: jest.fn<(chainId: string) => Promise<OfflineSigner>>().mockResolvedValue(mockOfflineSigner),
+    signArbitrary: jest.fn<(chainId: string, signer: string, data: string) => Promise<{
+      signature: Uint8Array;
+      pub_key: { type: string; value: string };
+    }>>().mockResolvedValue({
+      signature: new Uint8Array([1, 2, 3]),
+      pub_key: {
+        type: 'tendermint/PubKeySecp256k1',
+        value: 'mock_pubkey'
+      }
+    })
+  },
+  writable: true,
+  configurable: true
+})
 
 beforeEach(() => {
   // Reset all mocks before each test
