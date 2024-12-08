@@ -9,6 +9,7 @@
     "ws": "^8.14.2"
   },
   "devDependencies": {
+    "@jest/globals": "^29.7.0",
     "@testing-library/jest-dom": "^6.1.4",
     "@testing-library/react": "^14.1.2",
     "@testing-library/user-event": "^14.5.1",
@@ -16,6 +17,7 @@
     "@types/node": "^20",
     "@types/react": "^18",
     "@types/react-dom": "^18",
+    "@types/testing-library__jest-dom": "^5.14.9",
     "@types/ws": "^8.5.9",
     "autoprefixer": "^10.0.1",
     "eslint": "^8",

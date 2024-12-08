@@ -6,10 +6,11 @@ import { STARGAZE_CHAIN_ID, getStargazeChainInfo } from '@/config/chain';
 import type { WalletInfo } from '@/types';
 
 interface WalletConnectProps {
-  onConnected: (walletInfo: WalletInfo) => void;
+  onConnected: (address: string) => void
+  initialAddress?: string
 }
 
-export default function WalletConnect({ onConnected }: WalletConnectProps) {
+export default function WalletConnect({ onConnected, initialAddress }: WalletConnectProps) {
   const [connecting, setConnecting] = useState(false);
 
   const connectWallet = async () => {
@@ -55,7 +56,7 @@ export default function WalletConnect({ onConnected }: WalletConnectProps) {
           duration: 3000,
         });
         
-        onConnected(walletInfo);
+        onConnected(address);
       } else {
         throw new Error('No accounts found');
       }
