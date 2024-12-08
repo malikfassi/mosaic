@@ -20,6 +20,7 @@ interface CanvasUpdate {
   pixel: {
     owner: string;
     color: string;
+    lastUpdated: number;
   };
 }
 
@@ -43,7 +44,10 @@ export default function PixelCanvas() {
   const handleCanvasUpdate = useCallback(({ x, y, pixel }: CanvasUpdate) => {
     setState(prev => {
       const newPixels = new Map(prev.pixels);
-      newPixels.set(`${x},${y}`, pixel);
+      newPixels.set(`${x},${y}`, {
+        ...pixel,
+        lastUpdated: Date.now()
+      });
       return { ...prev, pixels: newPixels };
     });
   }, []);
