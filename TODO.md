@@ -28,10 +28,11 @@
   - [x] Next.js with TypeScript
   - [x] Tailwind CSS configuration
   - [x] Basic project structure
-- [ ] Development Environment
+- [x] Development Environment
+  - [x] Fix package.json dependencies
+  - [x] Add PostCSS configuration
+  - [ ] Install dependencies
   - [ ] Fix TypeScript linting errors
-  - [ ] Install missing dependencies
-  - [ ] Set up development scripts
   - [ ] Configure environment variables
 - [ ] Core Features
   - [x] Basic pixel canvas implementation
@@ -68,13 +69,15 @@
   - [ ] Usage analytics
 
 ## Current Focus
-1. Fix frontend TypeScript issues
-2. Complete contract testing
-3. Implement core contract features
-4. Set up development environment
+1. Install frontend dependencies
+2. Fix remaining TypeScript issues
+3. Complete contract testing
+4. Implement core contract features
 
 ## Recently Completed
 - Basic contract structure
 - Frontend boilerplate
 - Basic pixel canvas implementation
-- Keplr wallet integration 
+- Keplr wallet integration
+- Frontend dependency setup
+- PostCSS configuration
