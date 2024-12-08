@@ -169,16 +169,18 @@ export default function PixelCanvas() {
           ?.find(a => a.key === 'owner')
           ?.value || '';
 
-        const newPixel = {
-          owner,
-          color: '#FFFFFF',
-          lastUpdated: Date.now()
-        };
-        
         setState(prev => {
           const newPixels = new Map(prev.pixels);
-          newPixels.set(`${x},${y}`, newPixel);
-          return newPixels;
+          newPixels.set(`${x},${y}`, {
+            owner,
+            color: '#FFFFFF',
+            lastUpdated: Date.now()
+          });
+          return {
+            ...prev,
+            pixels: newPixels,
+            loading: false
+          };
         });
         
         toast.success('Pixel purchased successfully!');
@@ -186,7 +188,6 @@ export default function PixelCanvas() {
     } catch (error) {
       console.error('Error buying pixel:', error);
       toast.error(error instanceof Error ? error.message : 'Failed to buy pixel');
-    } finally {
       setState(prev => ({ ...prev, loading: false }));
     }
   };
@@ -204,16 +205,18 @@ export default function PixelCanvas() {
           ?.find(a => a.key === 'owner')
           ?.value || '';
 
-        const newPixel = {
-          owner,
-          color,
-          lastUpdated: Date.now()
-        };
-        
         setState(prev => {
           const newPixels = new Map(prev.pixels);
-          newPixels.set(`${x},${y}`, newPixel);
-          return newPixels;
+          newPixels.set(`${x},${y}`, {
+            owner,
+            color,
+            lastUpdated: Date.now()
+          });
+          return {
+            ...prev,
+            pixels: newPixels,
+            loading: false
+          };
         });
         
         toast.success('Color updated successfully!');
@@ -221,7 +224,6 @@ export default function PixelCanvas() {
     } catch (error) {
       console.error('Error setting color:', error);
       toast.error(error instanceof Error ? error.message : 'Failed to set color');
-    } finally {
       setState(prev => ({ ...prev, loading: false }));
     }
   };
@@ -264,7 +266,7 @@ export default function PixelCanvas() {
         />
         
         <button
-          onClick={() => handleBuyPixel(state.selectedPixel.x, state.selectedPixel.y)}
+          onClick={() => state.selectedPixel && handleBuyPixel(state.selectedPixel.x, state.selectedPixel.y)}
           disabled={!state.selectedPixel || state.loading}
           className="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600 disabled:opacity-50 disabled:cursor-not-allowed"
         >
@@ -272,7 +274,7 @@ export default function PixelCanvas() {
         </button>
         
         <button
-          onClick={() => handleSetPixelColor(state.selectedPixel.x, state.selectedPixel.y, state.selectedColor)}
+          onClick={() => state.selectedPixel && handleSetPixelColor(state.selectedPixel.x, state.selectedPixel.y, state.selectedColor)}
           disabled={!state.selectedPixel || state.loading}
           className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
         >
