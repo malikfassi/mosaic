@@ -3,6 +3,18 @@ import { jest } from '@jest/globals'
 import { AccountData, OfflineSigner } from '@cosmjs/proto-signing'
 import { ChainInfo } from '@keplr-wallet/types'
 
+// Mock toast notifications
+const mockToast = {
+  success: jest.fn(),
+  error: jest.fn(),
+}
+
+jest.mock('react-hot-toast', () => ({
+  __esModule: true,
+  default: mockToast,
+  toast: mockToast,
+}))
+
 // Mock offline signer
 const mockOfflineSigner: OfflineSigner = {
   getAccounts: jest.fn<() => Promise<readonly AccountData[]>>().mockResolvedValue([{
@@ -48,12 +60,6 @@ Object.defineProperty(window, 'keplr', {
   writable: true,
   configurable: true
 })
-
-// Mock toast notifications
-jest.mock('react-hot-toast', () => ({
-  success: jest.fn(),
-  error: jest.fn(),
-}))
 
 beforeEach(() => {
   // Reset all mocks before each test
