@@ -34,24 +34,38 @@
   - [x] Install dependencies
   - [x] Update to Next.js 14
   - [x] Update CosmJS packages
-  - [ ] Fix TypeScript linting errors
+  - [x] Fix TypeScript linting errors
   - [ ] Configure environment variables
 - [x] Stargaze Integration
   - [x] Add chain configuration
   - [x] Update Keplr wallet integration
   - [x] Configure RPC endpoints
+- [x] Real-time Updates
+  - [x] Implement WebSocket hook
+  - [x] Add real-time pixel updates
+  - [x] Add connection status indicator
+  - [ ] Add reconnection logic
 - [ ] Core Features
   - [x] Basic pixel canvas implementation
   - [x] Keplr wallet integration
-  - [ ] Contract interaction implementation
-  - [ ] Real-time updates
-  - [ ] Color picker functionality
+  - [x] Contract interaction implementation
+  - [x] Real-time updates
+  - [x] Color picker functionality
+  - [ ] Pixel history viewer
+  - [ ] Transaction history
 - [ ] Advanced Features
   - [ ] User dashboard
-  - [ ] Transaction history
   - [ ] Pixel ownership history
   - [ ] Analytics dashboard
   - [ ] Social features
+
+## Backend Development
+- [ ] WebSocket Server
+  - [ ] Set up WebSocket server
+  - [ ] Implement connection handling
+  - [ ] Add authentication
+  - [ ] Add rate limiting
+  - [ ] Add event broadcasting
 
 ## Documentation
 - [x] Basic README
@@ -59,6 +73,7 @@
   - [ ] Contract documentation
   - [ ] Frontend documentation
   - [ ] API documentation
+  - [ ] WebSocket protocol documentation
 - [ ] User Documentation
   - [ ] Installation guide
   - [ ] Usage guide
@@ -73,12 +88,13 @@
   - [ ] Error tracking
   - [ ] Performance monitoring
   - [ ] Usage analytics
+  - [ ] WebSocket metrics
 
 ## Current Focus
-1. Fix remaining TypeScript issues
-2. Complete contract testing
-3. Implement core contract features
-4. Set up development environment
+1. Set up WebSocket server
+2. Implement backend authentication
+3. Add pixel history feature
+4. Complete contract testing
 
 ## Recently Completed
 - Basic contract structure
@@ -91,3 +107,5 @@
 - Updated Keplr integration
 - Package updates to latest versions
 - Next.js 14 upgrade
+- WebSocket client implementation
+- Real-time updates

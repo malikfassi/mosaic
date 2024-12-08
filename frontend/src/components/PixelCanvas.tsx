@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { toast } from 'react-hot-toast';
 import { useContract } from '@/hooks/useContract';
+import { useCanvasWebSocket } from '@/hooks/useCanvasWebSocket';
 import type { Pixel, PixelCoordinates } from '@/types';
 
 interface CanvasState {
@@ -28,6 +29,17 @@ export default function PixelCanvas() {
   });
 
   const { buyPixel, setPixelColor, getCanvas } = useContract();
+
+  // Handle real-time updates
+  const handleCanvasUpdate = useCallback(({ x, y, pixel }) => {
+    setState(prev => {
+      const newPixels = new Map(prev.pixels);
+      newPixels.set(`${x},${y}`, pixel);
+      return { ...prev, pixels: newPixels };
+    });
+  }, []);
+
+  const { isConnected: isWsConnected, sendUpdate } = useCanvasWebSocket(handleCanvasUpdate);
 
   const drawCanvas = useCallback(() => {
     const canvas = canvasRef.current;
@@ -137,8 +149,17 @@ export default function PixelCanvas() {
 
     try {
       setState(prev => ({ ...prev, loading: true }));
-      await buyPixel(state.selectedPixel.x, state.selectedPixel.y);
+      const result = await buyPixel(state.selectedPixel.x, state.selectedPixel.y);
       toast.success('Pixel purchased successfully!');
+      
+      // Send update via WebSocket
+      if (result && isWsConnected) {
+        sendUpdate(state.selectedPixel.x, state.selectedPixel.y, {
+          owner: result.from_address,
+          color: DEFAULT_COLOR,
+          lastUpdated: Date.now(),
+        });
+      }
       
       // Refresh canvas
       const canvasData = await getCanvas();
@@ -161,12 +182,21 @@ export default function PixelCanvas() {
 
     try {
       setState(prev => ({ ...prev, loading: true }));
-      await setPixelColor(
+      const result = await setPixelColor(
         state.selectedPixel.x,
         state.selectedPixel.y,
         state.selectedColor
       );
       toast.success('Pixel color updated successfully!');
+      
+      // Send update via WebSocket
+      if (result && isWsConnected) {
+        sendUpdate(state.selectedPixel.x, state.selectedPixel.y, {
+          owner: result.from_address,
+          color: state.selectedColor,
+          lastUpdated: Date.now(),
+        });
+      }
       
       // Refresh canvas
       const canvasData = await getCanvas();
@@ -247,6 +277,12 @@ export default function PixelCanvas() {
           )}
         </div>
       )}
+
+      {/* WebSocket connection status */}
+      <div className="text-xs text-gray-500 flex items-center space-x-2">
+        <div className={`w-2 h-2 rounded-full ${isWsConnected ? 'bg-green-500' : 'bg-red-500'}`} />
+        <span>{isWsConnected ? 'Real-time updates connected' : 'Real-time updates disconnected'}</span>
+      </div>
     </div>
   );
 } 
