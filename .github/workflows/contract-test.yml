@@ -1,0 +1,62 @@
+name: Contract Tests
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'contracts/**'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'contracts/**'
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  test:
+    name: Test Suite
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Install Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
+          components: rustfmt, clippy
+      
+      - name: Cache dependencies
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+      
+      - name: Check format
+        working-directory: ./contracts/pixel-canvas
+        run: cargo fmt -- --check
+      
+      - name: Run clippy
+        working-directory: ./contracts/pixel-canvas
+        run: cargo clippy -- -D warnings
+      
+      - name: Run tests
+        working-directory: ./contracts/pixel-canvas
+        run: cargo test --verbose
+      
+      - name: Generate code coverage
+        working-directory: ./contracts/pixel-canvas
+        run: |
+          cargo install cargo-tarpaulin
+          cargo tarpaulin --verbose --workspace --timeout 120 --out Xml
+      
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v3
+        with:
+          fail_ci_if_error: true
+          directory: ./contracts/pixel-canvas 
