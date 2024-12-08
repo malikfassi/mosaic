@@ -67,4 +67,12 @@ export const simulateSuccessfulConnection = async () => {
 // Helper function to simulate failed wallet connection
 export const simulateFailedConnection = () => {
   window.keplr.enable.mockRejectedValueOnce(new Error('Connection failed'))
-} 
+}
+
+// Add a dummy test to satisfy Jest
+describe('WalletConnect Setup', () => {
+  it('exports helper functions', () => {
+    expect(typeof simulateSuccessfulConnection).toBe('function')
+    expect(typeof simulateFailedConnection).toBe('function')
+  })
+}) 
