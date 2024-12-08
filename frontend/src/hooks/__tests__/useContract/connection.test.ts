@@ -1,7 +1,12 @@
 import { renderHook, act } from '@testing-library/react'
-import { useContract } from '../../useContract'
+import { useContract } from '@/hooks/useContract'
+import { mockKeplr } from './setup'
 
 describe('useContract Connection', () => {
+  beforeEach(() => {
+    jest.clearAllMocks()
+  })
+
   it('connects to wallet successfully', async () => {
     const { result } = renderHook(() => useContract())
     
@@ -15,15 +20,20 @@ describe('useContract Connection', () => {
   })
 
   it('handles connection errors', async () => {
-    window.keplr.enable.mockRejectedValueOnce(new Error('Connection failed'))
+    const expectedError = new Error('Connection failed')
+    jest.spyOn(mockKeplr, 'enable').mockRejectedValueOnce(expectedError)
     
     const { result } = renderHook(() => useContract())
     
     await act(async () => {
-      await result.current.connect()
+      try {
+        await result.current.connect()
+      } catch {
+        // Expected error
+      }
     })
     
     expect(result.current.isConnected).toBe(false)
-    expect(result.current.error).toBeTruthy()
+    expect(result.current.error).toEqual(expectedError)
   })
 }) 

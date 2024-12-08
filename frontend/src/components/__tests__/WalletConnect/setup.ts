@@ -1,76 +1,139 @@
 import '@testing-library/jest-dom'
 import { jest } from '@jest/globals'
-import { AccountData, OfflineSigner } from '@cosmjs/proto-signing'
-import { ChainInfo } from '@keplr-wallet/types'
+import { DirectSignResponse } from '@cosmjs/proto-signing'
+import { Keplr, Key, StdSignature, AminoSignResponse, OfflineAminoSigner, OfflineDirectSigner, StdSignDoc, SignDoc } from '@keplr-wallet/types'
+import Long from 'long'
 
-// Mock offline signer
-const mockOfflineSigner: OfflineSigner = {
-  getAccounts: jest.fn<() => Promise<readonly AccountData[]>>().mockResolvedValue([{
+// Mock offline signer with both Direct and Amino signing capabilities
+const mockOfflineSigner: OfflineAminoSigner & OfflineDirectSigner = {
+  getAccounts: async () => [{
     address: 'stars1mock...',
     pubkey: new Uint8Array([1, 2, 3]),
     algo: 'secp256k1'
-  }]),
-  signDirect: jest.fn<(signerAddress: string, signDoc: any) => Promise<any>>().mockResolvedValue({
-    signed: {},
+  }],
+  signDirect: async (_signerAddress: string, _signDoc: SignDoc): Promise<DirectSignResponse> => ({
+    signed: {
+      bodyBytes: new Uint8Array(),
+      authInfoBytes: new Uint8Array(),
+      chainId: "test-chain",
+      accountNumber: Long.fromNumber(0)
+    },
     signature: {
       pub_key: {
-        type: 'tendermint/PubKeySecp256k1',
-        value: 'mock_pubkey'
+        type: "tendermint/PubKeySecp256k1",
+        value: "test"
       },
-      signature: 'mock_signature'
+      signature: "test"
+    }
+  }),
+  signAmino: async (_signerAddress: string, _signDoc: StdSignDoc): Promise<AminoSignResponse> => ({
+    signed: _signDoc,
+    signature: {
+      pub_key: {
+        type: "tendermint/PubKeySecp256k1",
+        value: "test"
+      },
+      signature: "test"
     }
   })
-}
+};
 
-// Initialize window.keplr mock
-Object.defineProperty(window, 'keplr', {
-  value: {
-    enable: jest.fn<(chainIds: string | string[]) => Promise<void>>().mockResolvedValue(undefined),
-    getKey: jest.fn<(chainId: string) => Promise<{ bech32Address: string; pubKey: Uint8Array }>>().mockResolvedValue({
-      bech32Address: 'stars1mock...',
-      pubKey: new Uint8Array([1, 2, 3]),
-    }),
-    experimentalSuggestChain: jest.fn<(chainInfo: ChainInfo) => Promise<void>>().mockResolvedValue(undefined),
-    getOfflineSigner: jest.fn<(chainId: string) => OfflineSigner>().mockReturnValue(mockOfflineSigner),
-    getOfflineSignerOnlyAmino: jest.fn<(chainId: string) => OfflineSigner>().mockReturnValue(mockOfflineSigner),
-    getOfflineSignerAuto: jest.fn<(chainId: string) => Promise<OfflineSigner>>().mockResolvedValue(mockOfflineSigner),
-    signArbitrary: jest.fn<(chainId: string, signer: string, data: string) => Promise<{
-      signature: Uint8Array;
-      pub_key: { type: string; value: string };
-    }>>().mockResolvedValue({
-      signature: new Uint8Array([1, 2, 3]),
-      pub_key: {
-        type: 'tendermint/PubKeySecp256k1',
-        value: 'mock_pubkey'
-      }
-    })
+// Initialize window.keplr mock with proper Jest mock types
+const mockKeplr = {
+  version: "0.12.22",
+  mode: "extension",
+  defaultOptions: {
+    sign: {
+      preferNoSetFee: false,
+      preferNoSetMemo: false,
+    },
   },
+  enable: jest.fn(),
+  getKey: jest.fn(),
+  experimentalSuggestChain: jest.fn(),
+  getOfflineSigner: jest.fn(),
+  getOfflineSignerOnlyAmino: jest.fn(),
+  getOfflineSignerAuto: jest.fn(),
+  signArbitrary: jest.fn(),
+} as unknown as jest.Mocked<Keplr>;
+
+// Set up mock implementations
+mockKeplr.enable.mockImplementation(async () => undefined);
+mockKeplr.getKey.mockImplementation(async (): Promise<Key> => ({
+  name: 'mock-key',
+  algo: 'secp256k1',
+  pubKey: new Uint8Array([1, 2, 3]),
+  address: new Uint8Array([1, 2, 3]),
+  bech32Address: 'stars1mock...',
+  isNanoLedger: false,
+  isKeystone: false,
+  ethereumHexAddress: '0x1234567890abcdef'
+}));
+mockKeplr.experimentalSuggestChain.mockImplementation(async () => undefined);
+mockKeplr.getOfflineSigner.mockImplementation(() => mockOfflineSigner);
+mockKeplr.getOfflineSignerOnlyAmino.mockImplementation(() => ({
+  getAccounts: mockOfflineSigner.getAccounts,
+  signAmino: mockOfflineSigner.signAmino
+}));
+mockKeplr.getOfflineSignerAuto.mockImplementation(async () => mockOfflineSigner);
+mockKeplr.signArbitrary.mockImplementation(async (): Promise<StdSignature> => ({
+  pub_key: {
+    type: 'tendermint/PubKeySecp256k1',
+    value: 'mock_pubkey'
+  },
+  signature: 'mock_signature'
+}));
+
+Object.defineProperty(window, 'keplr', {
+  value: mockKeplr,
   writable: true,
   configurable: true
-})
+});
 
 beforeEach(() => {
-  // Reset all mocks before each test
-  jest.clearAllMocks()
-})
+  jest.clearAllMocks();
+});
 
-// Helper function to simulate successful wallet connection
-export const simulateSuccessfulConnection = async () => {
-  window.keplr.enable.mockResolvedValueOnce(undefined)
-  window.keplr.getKey.mockResolvedValueOnce({
-    bech32Address: 'stars1mock...',
-    pubKey: new Uint8Array([1, 2, 3]),
-  })
-  window.keplr.experimentalSuggestChain.mockResolvedValueOnce(undefined)
+// Helper functions
+export const simulateSuccessfulConnection = () => {
+  if (!window.keplr) {
+    throw new Error('Keplr mock not initialized');
+  }
+  window.keplr.enable.mockImplementation(async () => undefined);
+};
+
+export const simulateSuccessfulReconnection = () => {
+  if (!window.keplr) {
+    throw new Error('Keplr mock not initialized');
+  }
+  window.keplr.enable.mockImplementation(async () => undefined);
+};
+
+export const simulateFailedConnection = () => {
+  if (!window.keplr) {
+    throw new Error('Keplr mock not initialized');
+  }
+  window.keplr.enable.mockImplementation(async () => {
+    throw new Error('Connection failed');
+  });
+};
+
+// Helper function to simulate successful transaction
+export const simulateSuccessfulTransaction = () => {
+  return {
+    transactionHash: '0x123...',
+    code: 0,
+    rawLog: 'success',
+  }
 }
 
-// Helper function to simulate failed wallet connection
-export const simulateFailedConnection = () => {
-  window.keplr.enable.mockRejectedValueOnce(new Error('Connection failed'))
+// Helper function to simulate failed transaction
+export const simulateFailedTransaction = (errorMessage: string = 'Transaction failed') => {
+  throw new Error(errorMessage)
 }
 
 // Add a dummy test to satisfy Jest
-describe('WalletConnect Setup', () => {
+describe('useContract Setup', () => {
   it('exports helper functions', () => {
     expect(typeof simulateSuccessfulConnection).toBe('function')
     expect(typeof simulateFailedConnection).toBe('function')

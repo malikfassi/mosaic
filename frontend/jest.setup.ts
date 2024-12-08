@@ -1,67 +1,67 @@
 import '@testing-library/jest-dom'
 import { jest } from '@jest/globals'
-import { AccountData, OfflineSigner } from '@cosmjs/proto-signing'
-import { ChainInfo } from '@keplr-wallet/types'
 
-// Mock toast notifications
-const mockToast = {
-  success: jest.fn(),
-  error: jest.fn(),
-}
+// Define WebSocket constants
+const WebSocket = {
+  CONNECTING: 0,
+  OPEN: 1,
+  CLOSING: 2,
+  CLOSED: 3,
+} as const;
 
-jest.mock('react-hot-toast', () => ({
-  __esModule: true,
-  default: mockToast,
-  toast: mockToast,
-}))
+// Mock WebSocket
+class MockWebSocket {
+  url: string;
+  readyState: number;
+  onopen?: () => void;
+  onmessage?: (event: { data: any }) => void;
+  onclose?: () => void;
 
-// Mock offline signer
-const mockOfflineSigner: OfflineSigner = {
-  getAccounts: jest.fn<() => Promise<readonly AccountData[]>>().mockResolvedValue([{
-    address: 'stars1mock...',
-    pubkey: new Uint8Array([1, 2, 3]),
-    algo: 'secp256k1'
-  }]),
-  signDirect: jest.fn<(signerAddress: string, signDoc: any) => Promise<any>>().mockResolvedValue({
-    signed: {},
-    signature: {
-      pub_key: {
-        type: 'tendermint/PubKeySecp256k1',
-        value: 'mock_pubkey'
-      },
-      signature: 'mock_signature'
+  constructor(url: string) {
+    this.url = url;
+    this.readyState = WebSocket.CONNECTING;
+    setTimeout(() => {
+      this.readyState = WebSocket.OPEN;
+      if (this.onopen) this.onopen();
+    }, 0);
+  }
+
+  send(data: any) {
+    if (this.onmessage) {
+      // Echo back the data for testing purposes
+      this.onmessage({ data });
     }
-  })
+  }
+
+  close() {
+    this.readyState = WebSocket.CLOSED;
+    if (this.onclose) this.onclose();
+  }
 }
 
-// Initialize window.keplr mock
-Object.defineProperty(window, 'keplr', {
-  value: {
-    enable: jest.fn<(chainIds: string | string[]) => Promise<void>>().mockResolvedValue(undefined),
-    getKey: jest.fn<(chainId: string) => Promise<{ bech32Address: string; pubKey: Uint8Array }>>().mockResolvedValue({
-      bech32Address: 'stars1mock...',
-      pubKey: new Uint8Array([1, 2, 3]),
-    }),
-    experimentalSuggestChain: jest.fn<(chainInfo: ChainInfo) => Promise<void>>().mockResolvedValue(undefined),
-    getOfflineSigner: jest.fn<(chainId: string) => OfflineSigner>().mockReturnValue(mockOfflineSigner),
-    getOfflineSignerOnlyAmino: jest.fn<(chainId: string) => OfflineSigner>().mockReturnValue(mockOfflineSigner),
-    getOfflineSignerAuto: jest.fn<(chainId: string) => Promise<OfflineSigner>>().mockResolvedValue(mockOfflineSigner),
-    signArbitrary: jest.fn<(chainId: string, signer: string, data: string) => Promise<{
-      signature: Uint8Array;
-      pub_key: { type: string; value: string };
-    }>>().mockResolvedValue({
-      signature: new Uint8Array([1, 2, 3]),
-      pub_key: {
-        type: 'tendermint/PubKeySecp256k1',
-        value: 'mock_pubkey'
-      }
-    })
-  },
-  writable: true,
-  configurable: true
-})
+// Set up global WebSocket mock
+(global as any).WebSocket = MockWebSocket;
+(global as any).WebSocket.CONNECTING = WebSocket.CONNECTING;
+(global as any).WebSocket.OPEN = WebSocket.OPEN;
+(global as any).WebSocket.CLOSING = WebSocket.CLOSING;
+(global as any).WebSocket.CLOSED = WebSocket.CLOSED;
 
-beforeEach(() => {
-  // Reset all mocks before each test
-  jest.clearAllMocks()
-}) 
+// Mock window.keplr
+const mockKeplr = {
+  enable: jest.fn<() => Promise<void>>().mockResolvedValue(),
+  getKey: jest.fn<() => Promise<{ bech32Address: string; pubKey: Uint8Array }>>().mockResolvedValue({
+    bech32Address: 'stars1mock...',
+    pubKey: new Uint8Array([1, 2, 3]),
+  }),
+};
+
+Object.defineProperty(window, 'keplr', {
+  value: mockKeplr,
+});
+
+// Mock ResizeObserver
+(global as any).ResizeObserver = class ResizeObserver {
+  observe() {}
+  unobserve() {}
+  disconnect() {}
+}; 

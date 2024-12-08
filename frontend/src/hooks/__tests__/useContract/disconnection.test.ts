@@ -1,7 +1,12 @@
 import { renderHook, act } from '@testing-library/react'
-import { useContract } from '../../useContract'
+import { useContract } from '@/hooks/useContract'
+import { mockKeplr } from './setup'
 
 describe('useContract Disconnection', () => {
+  beforeEach(() => {
+    jest.clearAllMocks()
+  })
+
   it('disconnects wallet', async () => {
     const { result } = renderHook(() => useContract())
     
@@ -25,13 +30,18 @@ describe('useContract Disconnection', () => {
     const { result } = renderHook(() => useContract())
     
     // Simulate failed connection
-    window.keplr.enable.mockRejectedValueOnce(new Error('Connection failed'))
+    const expectedError = new Error('Connection failed')
+    jest.spyOn(mockKeplr, 'enable').mockRejectedValueOnce(expectedError)
     await act(async () => {
-      await result.current.connect()
+      try {
+        await result.current.connect()
+      } catch {
+        // Expected error
+      }
     })
-    expect(result.current.error).toBeTruthy()
+    expect(result.current.error).toEqual(expectedError)
     
-    // Disconnect should clear error
+    // Then disconnect
     act(() => {
       result.current.disconnect()
     })

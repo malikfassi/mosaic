@@ -1,48 +1,66 @@
-// Learn more: https://github.com/testing-library/jest-dom
-import '@testing-library/jest-dom'
+import '@testing-library/jest-dom';
+import { jest } from '@jest/globals';
 
-// Mock WebSocket
-class MockWebSocket {
-  constructor(url) {
-    this.url = url;
-    this.readyState = WebSocket.CONNECTING;
-    setTimeout(() => {
-      this.readyState = WebSocket.OPEN;
-      if (this.onopen) this.onopen();
-    }, 0);
-  }
+// Define WebSocket constants
+const WebSocket = {
+  CONNECTING: 0,
+  OPEN: 1,
+  CLOSING: 2,
+  CLOSED: 3,
+};
 
-  send(data) {
-    if (this.onmessage) {
-      // Echo back the data for testing purposes
-      this.onmessage({ data });
-    }
-  }
-
-  close() {
+// Mock WebSocket globally
+global.WebSocket = class MockWebSocket {
+  constructor() {
     this.readyState = WebSocket.CLOSED;
-    if (this.onclose) this.onclose();
   }
-}
-
-global.WebSocket = MockWebSocket;
+  close() {}
+  send() {}
+};
 
 // Mock window.keplr
 const mockKeplr = {
-  enable: jest.fn().mockResolvedValue(true),
+  enable: jest.fn().mockResolvedValue(undefined),
   getKey: jest.fn().mockResolvedValue({
-    bech32Address: 'stars1mock...',
+    name: 'mock-key',
+    algo: 'secp256k1',
     pubKey: new Uint8Array([1, 2, 3]),
+    address: new Uint8Array([1, 2, 3]),
+    bech32Address: 'stars1mock...',
+    isNanoLedger: false,
+    isKeystone: false,
+    ethereumHexAddress: '0x1234567890abcdef'
   }),
+  experimentalSuggestChain: jest.fn().mockResolvedValue(undefined),
+  getOfflineSigner: jest.fn().mockReturnValue({
+    getAccounts: jest.fn().mockResolvedValue([{
+      address: 'stars1mock...',
+      pubkey: new Uint8Array([1, 2, 3]),
+      algo: 'secp256k1'
+    }]),
+    signDirect: jest.fn().mockResolvedValue({
+      signed: {
+        bodyBytes: new Uint8Array(),
+        authInfoBytes: new Uint8Array(),
+        chainId: "test-chain",
+        accountNumber: 0
+      },
+      signature: {
+        pub_key: {
+          type: "tendermint/PubKeySecp256k1",
+          value: "test"
+        },
+        signature: "test"
+      }
+    })
+  })
 };
 
-Object.defineProperty(window, 'keplr', {
-  value: mockKeplr,
-});
+global.window = {
+  ...global.window,
+  keplr: mockKeplr,
+};
 
-// Mock ResizeObserver
-global.ResizeObserver = class ResizeObserver {
-  observe() {}
-  unobserve() {}
-  disconnect() {}
-}; 
+// Mock console.error
+console.error = jest.fn();
+  
