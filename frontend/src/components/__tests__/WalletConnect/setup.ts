@@ -1,21 +1,35 @@
 import '@testing-library/jest-dom'
 import { jest } from '@jest/globals'
-import { OfflineSigner } from '@cosmjs/proto-signing'
+import { AccountData, DirectSignResponse, OfflineSigner, SignDoc } from '@cosmjs/proto-signing'
+import { ChainInfo } from '@keplr-wallet/types'
 
 // Mock offline signer
 const mockOfflineSigner: OfflineSigner = {
   getAccounts: jest.fn().mockResolvedValue([{
     address: 'stars1mock...',
-    pubkey: new Uint8Array([1, 2, 3])
-  }]),
-  signDirect: jest.fn(),
+    pubkey: new Uint8Array([1, 2, 3]),
+    algo: 'secp256k1'
+  }] as AccountData[]),
+  signDirect: jest.fn().mockResolvedValue({
+    signed: {} as SignDoc,
+    signature: {
+      pub_key: {
+        type: 'tendermint/PubKeySecp256k1',
+        value: 'mock_pubkey'
+      },
+      signature: new Uint8Array([1, 2, 3])
+    }
+  } as DirectSignResponse)
 }
 
 // Initialize window.keplr mock
 window.keplr = {
-  enable: jest.fn(),
-  getKey: jest.fn(),
-  experimentalSuggestChain: jest.fn(),
+  enable: jest.fn().mockResolvedValue(undefined),
+  getKey: jest.fn().mockResolvedValue({
+    bech32Address: 'stars1mock...',
+    pubKey: new Uint8Array([1, 2, 3]),
+  }),
+  experimentalSuggestChain: jest.fn().mockResolvedValue(undefined),
   getOfflineSigner: jest.fn().mockReturnValue(mockOfflineSigner),
   getOfflineSignerOnlyAmino: jest.fn().mockReturnValue(mockOfflineSigner),
   getOfflineSignerAuto: jest.fn().mockResolvedValue(mockOfflineSigner),
