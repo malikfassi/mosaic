@@ -1,5 +1,4 @@
 import { render, screen } from '@testing-library/react'
-import '@testing-library/jest-dom'
 import WalletConnect from '../../WalletConnect'
 
 describe('WalletConnect Rendering', () => {
@@ -8,14 +7,10 @@ describe('WalletConnect Rendering', () => {
     expect(screen.getByText(/Connect Wallet/i)).toBeInTheDocument()
   })
 
-  it('shows connected address when wallet is connected', async () => {
-    const mockAddress = 'stars1mock...'
-    render(
-      <WalletConnect 
-        onConnected={() => {}} 
-        initialAddress={mockAddress} 
-      />
-    )
-    expect(screen.getByText(mockAddress)).toBeInTheDocument()
+  it('shows loading state while connecting', () => {
+    render(<WalletConnect onConnected={() => {}} />)
+    const button = screen.getByRole('button')
+    expect(button).toHaveAttribute('disabled', '')
+    expect(button).toHaveClass('disabled:opacity-50')
   })
 }) 
