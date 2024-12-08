@@ -1,30 +1,53 @@
 # Assistant Behavior Guide
 
 ## Core Principles
-1. Keep files and functions small and focused
-2. Follow Single Responsibility Principle
-3. Maintain clear documentation
-4. Prioritize testability
+1. Keep changes atomic and focused
+2. Test every change (build, lint, unit tests)
+3. Follow Single Responsibility Principle
+4. Maintain clear documentation
 5. Ensure security best practices
 
-## Workflow Steps
-1. **Before Making Changes**
-   - Review existing code
-   - Plan changes in small, manageable chunks
-   - Consider impact on existing functionality
+## Change Validation Steps
+1. **Before ANY Change**
+   - Run current tests: `npm test`
+   - Check build: `npm run build`
+   - Verify linting: `npm run lint`
+   - Run type check: `npm run type-check`
 
 2. **During Implementation**
-   - Create/modify one file at a time
+   - Make ONE change at a time
+   - Test EACH change immediately
    - Keep functions under 20 lines
-   - Add comments for complex logic
-   - Include error handling
    - Add tests for new code
+   - Run validation steps after each change
 
 3. **After Changes**
+   - Run ALL validation steps again
    - Review changes for simplicity
-   - Ensure test coverage
-   - Update documentation
-   - Create focused commits
+   - Update documentation if needed
+   - Create focused commit
+   - Verify CI pipeline success
+
+## Atomic Development Process
+1. **Single Unit of Work**
+   - One feature/fix at a time
+   - One file change when possible
+   - One function modification
+   - One test addition
+
+2. **Validation Sequence**
+   ```bash
+   # Run for EVERY change
+   npm run type-check
+   npm run lint
+   npm run test
+   npm run build
+   ```
+
+3. **Error Handling**
+   - Fix errors before proceeding
+   - Document any workarounds
+   - Update tests for edge cases
 
 ## TODO Management
 1. Never delete tasks unless explicitly requested
@@ -33,15 +56,15 @@
    - Short-term (next sprint)
    - Long-term (backlog)
 3. Add new tasks with clear acceptance criteria
-4. Mark completed tasks with date
+4. Mark completed tasks with date and test status
 
 ## Code Review Guidelines
 1. Check for:
    - Function size and complexity
-   - Error handling
    - Test coverage
-   - Security considerations
-   - Documentation
+   - Build success
+   - Lint compliance
+   - Type safety
 2. Suggest improvements
 3. Look for code duplication
 
@@ -54,15 +77,15 @@
    - refactor: code improvement
    - style: formatting
    - chore: maintenance
-2. Keep commits focused and atomic
-3. Write clear descriptions
+2. One logical change per commit
+3. Include test status in commit message
 
 ## Response Format
-1. Start with action summary
-2. Show relevant code changes
-3. Explain modifications
-4. List next steps
-5. Ask for confirmation when needed
+1. Start with validation status
+2. Show single change
+3. Show test results
+4. List next atomic step
+5. Ask for confirmation
 
 ## Security Practices
 1. Never expose sensitive data
@@ -72,15 +95,15 @@
 5. Keep dependencies updated
 
 ## Testing Requirements
-1. Unit tests for functions
-2. Integration tests for features
-3. E2E tests for critical paths
-4. Mock external dependencies
+1. Test EVERY change
+2. Unit tests for ALL functions
+3. Integration tests for features
+4. E2E tests for critical paths
 5. Maintain test coverage > 70%
 
 ## Documentation Updates
 1. Keep README current
-2. Update API documentation
+2. Document test procedures
 3. Maintain clear comments
 4. Document breaking changes
 5. Keep TODO.md updated
@@ -89,4 +112,4 @@
 1. Only modify when requested
 2. Keep changes focused
 3. Document modifications
-4. Maintain core principles 
+4. Maintain core principles
