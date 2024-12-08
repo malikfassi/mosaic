@@ -1,0 +1,65 @@
+name: 'Setup Environment'
+description: 'Sets up Node.js and Rust environment with caching'
+
+inputs:
+  node-version:
+    description: 'Node.js version'
+    required: true
+    default: '18'
+  rust-version:
+    description: 'Rust version'
+    required: true
+    default: 'stable'
+
+runs:
+  using: "composite"
+  steps:
+    - name: Setup Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: ${{ inputs.node-version }}
+        cache: 'npm'
+        cache-dependency-path: |
+          frontend/package-lock.json
+          contracts/pixel-canvas/tests/package-lock.json
+
+    - name: Setup Rust
+      uses: actions-rs/toolchain@v1
+      with:
+        profile: minimal
+        toolchain: ${{ inputs.rust-version }}
+        override: true
+        components: rustfmt, clippy
+
+    - name: Cache Rust dependencies
+      uses: actions/cache@v3
+      with:
+        path: |
+          ~/.cargo/registry
+          ~/.cargo/git
+          target
+        key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+
+    - name: Install frontend dependencies
+      shell: bash
+      run: |
+        cd frontend
+        npm ci
+
+    - name: Install contract test dependencies
+      shell: bash
+      run: |
+        cd contracts/pixel-canvas/tests
+        npm ci
+
+    - name: Install Playwright
+      shell: bash
+      run: |
+        cd frontend
+        npx playwright install --with-deps chromium
+
+    - name: Install cargo tools
+      shell: bash
+      run: |
+        cargo install cargo-audit
+        cargo install cargo-tarpaulin 

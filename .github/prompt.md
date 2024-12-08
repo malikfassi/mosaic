@@ -1,115 +1,118 @@
-# Assistant Behavior Guide
+# Development Guidelines
 
-## Core Principles
-1. Keep changes atomic and focused
-2. Test every change (build, lint, unit tests)
-3. Follow Single Responsibility Principle
-4. Maintain clear documentation
-5. Ensure security best practices
-
-## Change Validation Steps
-1. **Before ANY Change**
-   - Run current tests: `npm test`
-   - Check build: `npm run build`
-   - Verify linting: `npm run lint`
-   - Run type check: `npm run type-check`
-
-2. **During Implementation**
-   - Make ONE change at a time
-   - Test EACH change immediately
-   - Keep functions under 20 lines
-   - Add tests for new code
-   - Run validation steps after each change
-
-3. **After Changes**
-   - Run ALL validation steps again
-   - Review changes for simplicity
-   - Update documentation if needed
-   - Create focused commit
-   - Verify CI pipeline success
-
-## Atomic Development Process
-1. **Single Unit of Work**
-   - One feature/fix at a time
-   - One file change when possible
-   - One function modification
-   - One test addition
-
-2. **Validation Sequence**
+## Validation Requirements
+1. Run validation script before any commit:
    ```bash
-   # Run for EVERY change
-   npm run type-check
-   npm run lint
-   npm run test
-   npm run build
+   ./scripts/validate.sh
    ```
+2. All changes must pass:
+   - Frontend:
+     - Type checking
+     - Linting
+     - Tests (with coverage thresholds)
+     - Build
+   - Contract:
+     - Cargo check
+     - Clippy (no warnings)
+     - Tests
+     - Build
 
-3. **Error Handling**
-   - Fix errors before proceeding
-   - Document any workarounds
-   - Update tests for edge cases
+## Code Standards
+1. Frontend:
+   - Use latest stable versions:
+     - Next.js 14.0.3 (15.0.4 planned)
+     - React 18.3.1 (19.0.0 planned)
+     - @cosmjs 0.31.3
+   - TypeScript strict mode
+   - Test coverage requirements:
+     - Components: 85%+
+     - Hooks: 90%+
+     - Utils: 95%+
 
-## TODO Management
-1. Never delete tasks unless explicitly requested
-2. Group tasks by priority:
-   - Immediate (current sprint)
-   - Short-term (next sprint)
-   - Long-term (backlog)
-3. Add new tasks with clear acceptance criteria
-4. Mark completed tasks with date and test status
+2. Contract:
+   - Use latest stable CosmWasm (2.2.0-rc.3)
+   - Use `to_json_binary` instead of `to_binary`
+   - All functions must have tests
+   - Coverage requirement: 90%+
 
-## Code Review Guidelines
-1. Check for:
-   - Function size and complexity
-   - Test coverage
-   - Build success
-   - Lint compliance
-   - Type safety
-2. Suggest improvements
-3. Look for code duplication
+## Development Process
+1. Before starting work:
+   - Pull latest changes
+   - Run validation script
+   - Check TODO.md for priorities
 
-## Commit Standards
-1. Use conventional commits:
+2. During development:
+   - Write tests first (TDD)
+   - Run validation frequently
+   - Keep changes atomic
+   - Update documentation
+
+3. Before committing:
+   - Run full validation
+   - Update TODO.md if needed
+   - Update README.md if needed
+   - Follow commit message format:
+     ```
+     <type>[optional scope]: <description>
+     
+     [optional body]
+     [optional footer(s)]
+     ```
+
+4. After committing:
+   - Verify CI/CD pipeline passes
+   - Review test coverage
+   - Check documentation is up to date
+
+## Documentation
+1. Code Documentation:
+   - All public functions must have docs
+   - Complex logic needs inline comments
+   - Update CHANGELOG.md for changes
+
+2. Project Documentation:
+   - README.md must be current
+   - TODO.md must reflect priorities
+   - API documentation must be complete
+
+## Testing
+1. Unit Tests:
+   - Required for all new code
+   - Must cover edge cases
+   - Must be deterministic
+
+2. Integration Tests:
+   - Required for critical paths
+   - Must cover main workflows
+   - Must use mocks appropriately
+
+3. E2E Tests:
+   - Required for main user flows
+   - Must run in CI/CD
+   - Must be reliable
+
+## Commit Messages
+1. Types:
    - feat: new feature
    - fix: bug fix
-   - test: testing
-   - docs: documentation
-   - refactor: code improvement
-   - style: formatting
-   - chore: maintenance
-2. One logical change per commit
-3. Include test status in commit message
+   - docs: documentation only
+   - style: formatting, missing semi colons, etc
+   - refactor: code change that neither fixes a bug nor adds a feature
+   - perf: code change that improves performance
+   - test: adding missing tests
+   - chore: maintain
 
-## Response Format
-1. Start with validation status
-2. Show single change
-3. Show test results
-4. List next atomic step
-5. Ask for confirmation
+2. Format:
+   ```
+   <type>[optional scope]: <description>
+   
+   [optional body]
+   [optional footer(s)]
+   ```
 
-## Security Practices
-1. Never expose sensitive data
-2. Use environment variables
-3. Validate inputs
-4. Follow least privilege principle
-5. Keep dependencies updated
-
-## Testing Requirements
-1. Test EVERY change
-2. Unit tests for ALL functions
-3. Integration tests for features
-4. E2E tests for critical paths
-5. Maintain test coverage > 70%
-
-## Documentation Updates
-1. Keep README current
-2. Document test procedures
-3. Maintain clear comments
-4. Document breaking changes
-5. Keep TODO.md updated
-
-## Prompt Updates
-1. Only modify when requested
-2. Keep changes focused
-3. Document modifications
-4. Maintain core principles
+3. Examples:
+   ```
+   feat(contract): add pixel rental functionality
+   fix(frontend): handle wallet connection errors
+   test(hooks): improve useContract coverage
+   ```
