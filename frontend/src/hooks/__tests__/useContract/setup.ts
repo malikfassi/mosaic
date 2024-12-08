@@ -27,4 +27,12 @@ export const simulateSuccessfulTransaction = () => {
 // Helper function to simulate failed transaction
 export const simulateFailedTransaction = (errorMessage: string = 'Transaction failed') => {
   throw new Error(errorMessage)
-} 
+}
+
+// Add a dummy test to satisfy Jest
+describe('useContract Setup', () => {
+  it('exports helper functions', () => {
+    expect(typeof simulateSuccessfulConnection).toBe('function')
+    expect(typeof simulateFailedConnection).toBe('function')
+  })
+}) 
