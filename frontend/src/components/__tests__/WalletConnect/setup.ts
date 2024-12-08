@@ -1,39 +1,42 @@
 import '@testing-library/jest-dom'
 import { jest } from '@jest/globals'
-import { AccountData, DirectSignResponse, OfflineSigner, SignDoc } from '@cosmjs/proto-signing'
+import { AccountData, OfflineSigner } from '@cosmjs/proto-signing'
 import { ChainInfo } from '@keplr-wallet/types'
 
 // Mock offline signer
 const mockOfflineSigner: OfflineSigner = {
-  getAccounts: jest.fn().mockResolvedValue([{
+  getAccounts: jest.fn<() => Promise<readonly AccountData[]>>().mockResolvedValue([{
     address: 'stars1mock...',
     pubkey: new Uint8Array([1, 2, 3]),
     algo: 'secp256k1'
-  }] as AccountData[]),
-  signDirect: jest.fn().mockResolvedValue({
-    signed: {} as SignDoc,
+  }]),
+  signDirect: jest.fn<(signerAddress: string, signDoc: any) => Promise<any>>().mockResolvedValue({
+    signed: {},
     signature: {
       pub_key: {
         type: 'tendermint/PubKeySecp256k1',
         value: 'mock_pubkey'
       },
-      signature: new Uint8Array([1, 2, 3])
+      signature: 'mock_signature'
     }
-  } as DirectSignResponse)
+  })
 }
 
 // Initialize window.keplr mock
 window.keplr = {
-  enable: jest.fn().mockResolvedValue(undefined),
-  getKey: jest.fn().mockResolvedValue({
+  enable: jest.fn<(chainIds: string | string[]) => Promise<void>>().mockResolvedValue(undefined),
+  getKey: jest.fn<(chainId: string) => Promise<{ bech32Address: string; pubKey: Uint8Array }>>().mockResolvedValue({
     bech32Address: 'stars1mock...',
     pubKey: new Uint8Array([1, 2, 3]),
   }),
-  experimentalSuggestChain: jest.fn().mockResolvedValue(undefined),
-  getOfflineSigner: jest.fn().mockReturnValue(mockOfflineSigner),
-  getOfflineSignerOnlyAmino: jest.fn().mockReturnValue(mockOfflineSigner),
-  getOfflineSignerAuto: jest.fn().mockResolvedValue(mockOfflineSigner),
-  signArbitrary: jest.fn().mockResolvedValue({
+  experimentalSuggestChain: jest.fn<(chainInfo: ChainInfo) => Promise<void>>().mockResolvedValue(undefined),
+  getOfflineSigner: jest.fn<(chainId: string) => OfflineSigner>().mockReturnValue(mockOfflineSigner),
+  getOfflineSignerOnlyAmino: jest.fn<(chainId: string) => OfflineSigner>().mockReturnValue(mockOfflineSigner),
+  getOfflineSignerAuto: jest.fn<(chainId: string) => Promise<OfflineSigner>>().mockResolvedValue(mockOfflineSigner),
+  signArbitrary: jest.fn<(chainId: string, signer: string, data: string) => Promise<{
+    signature: Uint8Array;
+    pub_key: { type: string; value: string };
+  }>>().mockResolvedValue({
     signature: new Uint8Array([1, 2, 3]),
     pub_key: {
       type: 'tendermint/PubKeySecp256k1',
