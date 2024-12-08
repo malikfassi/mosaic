@@ -1,6 +1,6 @@
 'use client';
 
-import { FC, Component } from 'react';
+import { FC, Component, ReactNode } from 'react';
 import KeplrConnection from './KeplrConnection';
 
 // Add LoadingSpinner component
@@ -20,11 +20,14 @@ interface ErrorBoundaryState {
   error?: Error;
 }
 
-class WalletErrorBoundary extends Component<{ children: React.ReactNode }, ErrorBoundaryState> {
-  constructor(props: { children: React.ReactNode }) {
-    super(props);
-    this.state = { hasError: false };
-  }
+interface ErrorBoundaryProps {
+  children: ReactNode;
+}
+
+class WalletErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
+  state: ErrorBoundaryState = {
+    hasError: false
+  };
 
   static getDerivedStateFromError(error: Error): ErrorBoundaryState {
     return {
@@ -37,7 +40,7 @@ class WalletErrorBoundary extends Component<{ children: React.ReactNode }, Error
     console.error('Wallet error:', error, errorInfo);
   }
 
-  render(): React.ReactNode {
+  render(): ReactNode {
     if (this.state.hasError) {
       return (
         <div className="text-red-500 p-4">

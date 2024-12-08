@@ -1,7 +1,7 @@
 import '@testing-library/jest-dom'
 import { jest } from '@jest/globals'
 import { DirectSignResponse } from '@cosmjs/proto-signing'
-import { Keplr, Key, StdSignature, AminoSignResponse, OfflineAminoSigner, OfflineDirectSigner, StdSignDoc, SignDoc } from '@keplr-wallet/types'
+import { Keplr, AminoSignResponse, OfflineAminoSigner, OfflineDirectSigner, StdSignDoc, SignDoc, ChainInfo } from '@keplr-wallet/types'
 import Long from 'long'
 
 // Mock offline signer with both Direct and Amino signing capabilities
@@ -38,7 +38,7 @@ const mockOfflineSigner: OfflineAminoSigner & OfflineDirectSigner = {
   })
 };
 
-// Initialize window.keplr mock with proper Jest mock types
+// Create a mock implementation of all Keplr methods
 const mockKeplr = {
   version: "0.12.22",
   mode: "extension",
@@ -48,41 +48,92 @@ const mockKeplr = {
       preferNoSetMemo: false,
     },
   },
-  enable: jest.fn(),
-  getKey: jest.fn(),
-  experimentalSuggestChain: jest.fn(),
-  getOfflineSigner: jest.fn(),
-  getOfflineSignerOnlyAmino: jest.fn(),
-  getOfflineSignerAuto: jest.fn(),
-  signArbitrary: jest.fn(),
+  enable: jest.fn().mockImplementation(async () => undefined),
+  disable: jest.fn().mockImplementation(async () => undefined),
+  getKey: jest.fn().mockImplementation(async () => ({
+    name: 'mock-key',
+    algo: 'secp256k1',
+    pubKey: new Uint8Array([1, 2, 3]),
+    address: new Uint8Array([1, 2, 3]),
+    bech32Address: 'stars1mock...',
+    isNanoLedger: false,
+    isKeystone: false,
+    ethereumHexAddress: '0x1234567890abcdef'
+  })),
+  getKeysSettled: jest.fn().mockImplementation(async () => []),
+  signAmino: jest.fn().mockImplementation(async () => ({
+    signed: {} as StdSignDoc,
+    signature: {
+      pub_key: { type: 'tendermint/PubKeySecp256k1', value: 'mock' },
+      signature: 'mock'
+    }
+  })),
+  signDirect: jest.fn().mockImplementation(async () => ({
+    signed: {
+      bodyBytes: new Uint8Array(),
+      authInfoBytes: new Uint8Array(),
+      chainId: 'mock-chain',
+      accountNumber: Long.fromNumber(0)
+    },
+    signature: {
+      pub_key: { type: 'tendermint/PubKeySecp256k1', value: 'mock' },
+      signature: 'mock'
+    }
+  })),
+  sendTx: jest.fn().mockImplementation(async () => new Uint8Array()),
+  experimentalSuggestChain: jest.fn().mockImplementation(async () => undefined),
+  getOfflineSigner: jest.fn().mockImplementation(() => mockOfflineSigner),
+  getOfflineSignerOnlyAmino: jest.fn().mockImplementation(() => ({
+    getAccounts: mockOfflineSigner.getAccounts,
+    signAmino: mockOfflineSigner.signAmino
+  })),
+  getOfflineSignerAuto: jest.fn().mockImplementation(async () => mockOfflineSigner),
+  signArbitrary: jest.fn().mockImplementation(async () => ({
+    pub_key: {
+      type: 'tendermint/PubKeySecp256k1',
+      value: 'mock_pubkey'
+    },
+    signature: 'mock_signature'
+  })),
+  verifyArbitrary: jest.fn().mockImplementation(async () => true),
+  signEthereum: jest.fn().mockImplementation(async () => new Uint8Array()),
+  getEnigmaPubKey: jest.fn().mockImplementation(async () => new Uint8Array()),
+  getEnigmaTxEncryptionKey: jest.fn().mockImplementation(async () => new Uint8Array()),
+  enigmaEncrypt: jest.fn().mockImplementation(async () => new Uint8Array()),
+  enigmaDecrypt: jest.fn().mockImplementation(async () => new Uint8Array()),
+  getSecret20ViewingKey: jest.fn().mockImplementation(async () => 'mock_key'),
+  __core__: jest.fn() as jest.Mock,
+  changeKeyRingName: jest.fn().mockImplementation(async () => 'mock_name'),
+  sign: jest.fn().mockImplementation(async () => new Uint8Array()),
+  signEthereumTypedData: jest.fn().mockImplementation(async () => 'mock_signature'),
+  suggestToken: jest.fn().mockImplementation(async () => undefined),
+  ping: jest.fn().mockImplementation(async () => undefined),
+  addChain: jest.fn().mockImplementation(async () => undefined),
+  deleteChain: jest.fn().mockImplementation(async () => undefined),
+  updateChain: jest.fn().mockImplementation(async () => undefined),
+  hasChain: jest.fn().mockImplementation(async () => true),
+  getChain: jest.fn().mockImplementation(async () => ({} as ChainInfo)),
+  getChains: jest.fn().mockImplementation(async () => []),
+  getChainCrypto: jest.fn().mockImplementation(async () => ({})),
+  getChainFeatures: jest.fn().mockImplementation(async () => []),
+  getChainName: jest.fn().mockImplementation(async () => 'mock-chain'),
+  getChainId: jest.fn().mockImplementation(async () => 'mock-chain-id'),
+  getChainRpc: jest.fn().mockImplementation(async () => 'http://mock-rpc'),
+  getChainRest: jest.fn().mockImplementation(async () => 'http://mock-rest'),
+  getChainSymbol: jest.fn().mockImplementation(async () => 'MOCK'),
+  getChainCurrency: jest.fn().mockImplementation(async () => ({ coinDenom: 'MOCK', coinMinimalDenom: 'umock', coinDecimals: 6 })),
+  getChainExplorer: jest.fn().mockImplementation(async () => 'http://mock-explorer'),
+  getChainStakeCurrency: jest.fn().mockImplementation(async () => ({ coinDenom: 'MOCK', coinMinimalDenom: 'umock', coinDecimals: 6 })),
+  getChainFeeCurrencies: jest.fn().mockImplementation(async () => [{ coinDenom: 'MOCK', coinMinimalDenom: 'umock', coinDecimals: 6 }]),
+  getChainBech32Config: jest.fn().mockImplementation(async () => ({ bech32PrefixAccAddr: 'mock' })),
+  getChainBip44: jest.fn().mockImplementation(async () => ({ coinType: 118 })),
+  getChainGasPriceStep: jest.fn().mockImplementation(async () => ({ low: 0.01, average: 0.025, high: 0.04 })),
+  signDirectAux: jest.fn().mockImplementation(async () => ({} as DirectSignResponse)),
+  signICNSAdr36: jest.fn().mockImplementation(async () => ({} as AminoSignResponse)),
+  getEnigmaUtils: jest.fn().mockImplementation(() => ({})),
+  enigmaIsNewApi: jest.fn().mockImplementation(() => true),
+  starknet: {} as Record<string, unknown>
 } as unknown as jest.Mocked<Keplr>;
-
-// Set up mock implementations
-mockKeplr.enable.mockImplementation(async () => undefined);
-mockKeplr.getKey.mockImplementation(async (): Promise<Key> => ({
-  name: 'mock-key',
-  algo: 'secp256k1',
-  pubKey: new Uint8Array([1, 2, 3]),
-  address: new Uint8Array([1, 2, 3]),
-  bech32Address: 'stars1mock...',
-  isNanoLedger: false,
-  isKeystone: false,
-  ethereumHexAddress: '0x1234567890abcdef'
-}));
-mockKeplr.experimentalSuggestChain.mockImplementation(async () => undefined);
-mockKeplr.getOfflineSigner.mockImplementation(() => mockOfflineSigner);
-mockKeplr.getOfflineSignerOnlyAmino.mockImplementation(() => ({
-  getAccounts: mockOfflineSigner.getAccounts,
-  signAmino: mockOfflineSigner.signAmino
-}));
-mockKeplr.getOfflineSignerAuto.mockImplementation(async () => mockOfflineSigner);
-mockKeplr.signArbitrary.mockImplementation(async (): Promise<StdSignature> => ({
-  pub_key: {
-    type: 'tendermint/PubKeySecp256k1',
-    value: 'mock_pubkey'
-  },
-  signature: 'mock_signature'
-}));
 
 Object.defineProperty(window, 'keplr', {
   value: mockKeplr,
@@ -97,23 +148,23 @@ beforeEach(() => {
 // Helper functions
 export const simulateSuccessfulConnection = () => {
   if (!window.keplr) {
-    throw new Error('Keplr mock not initialized');
+    throw new Error('Keplr not initialized');
   }
-  window.keplr.enable.mockImplementation(async () => undefined);
+  return window.keplr;
 };
 
 export const simulateSuccessfulReconnection = () => {
   if (!window.keplr) {
     throw new Error('Keplr mock not initialized');
   }
-  window.keplr.enable.mockImplementation(async () => undefined);
+  mockKeplr.enable.mockImplementation(async () => undefined);
 };
 
 export const simulateFailedConnection = () => {
   if (!window.keplr) {
     throw new Error('Keplr mock not initialized');
   }
-  window.keplr.enable.mockImplementation(async () => {
+  mockKeplr.enable.mockImplementation(async () => {
     throw new Error('Connection failed');
   });
 };
