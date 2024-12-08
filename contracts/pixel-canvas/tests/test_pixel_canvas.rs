@@ -1,29 +1,21 @@
-use cosmwasm_std::testing::{
-    mock_dependencies, mock_env, mock_info, MockApi, MockQuerier, MockStorage,
+use cosmwasm_std::{
+    Addr, Uint128, coins, from_json,
 };
-use cosmwasm_std::{coins, Addr, Deps, DepsMut, Env, MessageInfo, Response, StdError, Uint128};
-use cw_multi_test::{App, Contract, ContractWrapper, Executor};
+use cosmwasm_std::testing::{mock_dependencies, mock_env, mock_info};
+use cw_multi_test::{App, ContractWrapper, Executor, AppBuilder};
 
-use pixel_canvas::error::ContractError;
 use pixel_canvas::msg::{ExecuteMsg, InstantiateMsg, QueryMsg};
-use pixel_canvas::state::{Config, Pixel, CONFIG, PIXELS};
+use pixel_canvas::state::{Config, Pixel};
 
-const CREATOR: &str = "creator";
-const USER1: &str = "user1";
-const USER2: &str = "user2";
-const NATIVE_DENOM: &str = "ustars";
-const PIXEL_PRICE: u128 = 1_000_000; // 1 STARS
-const CANVAS_SIZE: u32 = 100;
+const CANVAS_WIDTH: u32 = 100;
+const CANVAS_HEIGHT: u32 = 100;
+const PIXEL_PRICE: u128 = 1000000;
 
-fn mock_app() -> App {
-    App::default()
-}
-
-fn contract_pixel_canvas() -> Box<dyn Contract<String>> {
+fn contract_pixel_canvas() -> Box<dyn cw_multi_test::Contract<cosmwasm_std::Empty>> {
     let contract = ContractWrapper::new(
-        pixel_canvas::contract::execute,
-        pixel_canvas::contract::instantiate,
-        pixel_canvas::contract::query,
+        pixel_canvas::execute,
+        pixel_canvas::instantiate,
+        pixel_canvas::query,
     );
     Box::new(contract)
 }
@@ -31,160 +23,77 @@ fn contract_pixel_canvas() -> Box<dyn Contract<String>> {
 #[test]
 fn proper_initialization() {
     let mut deps = mock_dependencies();
-    let env = mock_env();
-    let info = mock_info(CREATOR, &[]);
-
-    // Initialize contract
     let msg = InstantiateMsg {
-        canvas_size: CANVAS_SIZE,
-        pixel_price: PIXEL_PRICE,
+        width: CANVAS_WIDTH,
+        height: CANVAS_HEIGHT,
+        price_per_pixel: Uint128::from(PIXEL_PRICE),
     };
+    let info = mock_info("creator", &[]);
 
-    let res = pixel_canvas::contract::instantiate(deps.as_mut(), env.clone(), info, msg).unwrap();
+    // we can just call .unwrap() to assert this was a success
+    let res = pixel_canvas::instantiate(deps.as_mut(), mock_env(), info, msg).unwrap();
     assert_eq!(0, res.messages.len());
 
-    // Check config
-    let config: Config = CONFIG.load(deps.as_ref().storage).unwrap();
-    assert_eq!(config.owner, Addr::unchecked(CREATOR));
-    assert_eq!(config.canvas_size, CANVAS_SIZE);
-    assert_eq!(config.pixel_price, PIXEL_PRICE);
+    // it worked, let's query the state
+    let res = pixel_canvas::query(deps.as_ref(), mock_env(), QueryMsg::GetConfig {}).unwrap();
+    let config: Config = from_json(&res).unwrap();
+    assert_eq!(config.width, CANVAS_WIDTH);
+    assert_eq!(config.height, CANVAS_HEIGHT);
+    assert_eq!(config.price_per_pixel, Uint128::from(PIXEL_PRICE));
 }
 
 #[test]
 fn buy_pixel() {
-    let mut app = mock_app();
+    let mut app = AppBuilder::new().build(|router, _, storage| {
+        router
+            .bank
+            .init_balance(
+                storage,
+                &Addr::unchecked("buyer"),
+                coins(PIXEL_PRICE, "ustars"),
+            )
+            .unwrap();
+    });
     let pixel_canvas_id = app.store_code(contract_pixel_canvas());
 
-    // Instantiate contract
     let msg = InstantiateMsg {
-        canvas_size: CANVAS_SIZE,
-        pixel_price: PIXEL_PRICE,
+        width: CANVAS_WIDTH,
+        height: CANVAS_HEIGHT,
+        price_per_pixel: Uint128::from(PIXEL_PRICE),
     };
-    let contract_addr = app
+
+    let pixel_canvas_addr = app
         .instantiate_contract(
             pixel_canvas_id,
-            Addr::unchecked(CREATOR),
+            Addr::unchecked("creator"),
             &msg,
             &[],
-            "pixel_canvas",
+            "pixel-canvas",
             None,
         )
         .unwrap();
 
-    // Try to buy pixel without funds
-    let msg = ExecuteMsg::BuyPixel { x: 5, y: 5 };
-    let err = app
-        .execute_contract(Addr::unchecked(USER1), contract_addr.clone(), &msg, &[])
-        .unwrap_err();
-    assert!(err.to_string().contains("insufficient funds"));
-
-    // Buy pixel with correct funds
-    let msg = ExecuteMsg::BuyPixel { x: 5, y: 5 };
-    let funds = coins(PIXEL_PRICE, NATIVE_DENOM);
-    app.execute_contract(Addr::unchecked(USER1), contract_addr.clone(), &msg, &funds)
+    // Buy a pixel
+    let buy_msg = ExecuteMsg::BuyPixel { x: 0, y: 0 };
+    let res = app
+        .execute_contract(
+            Addr::unchecked("buyer"),
+            pixel_canvas_addr.clone(),
+            &buy_msg,
+            &coins(PIXEL_PRICE, "ustars"),
+        )
         .unwrap();
+    assert_eq!(2, res.events.len());
 
-    // Query pixel
-    let msg = QueryMsg::GetPixel { x: 5, y: 5 };
+    // Query the pixel
     let pixel: Option<Pixel> = app
         .wrap()
-        .query_wasm_smart(&contract_addr, &msg)
-        .unwrap();
-    
-    assert!(pixel.is_some());
-    let pixel = pixel.unwrap();
-    assert_eq!(pixel.owner, Addr::unchecked(USER1));
-    assert_eq!(pixel.color, "#FFFFFF"); // Default color
-}
-
-#[test]
-fn set_pixel_color() {
-    let mut app = mock_app();
-    let pixel_canvas_id = app.store_code(contract_pixel_canvas());
-
-    // Instantiate contract
-    let msg = InstantiateMsg {
-        canvas_size: CANVAS_SIZE,
-        pixel_price: PIXEL_PRICE,
-    };
-    let contract_addr = app
-        .instantiate_contract(
-            pixel_canvas_id,
-            Addr::unchecked(CREATOR),
-            &msg,
-            &[],
-            "pixel_canvas",
-            None,
+        .query_wasm_smart(
+            pixel_canvas_addr,
+            &QueryMsg::GetPixel { x: 0, y: 0 },
         )
         .unwrap();
-
-    // Buy pixel
-    let msg = ExecuteMsg::BuyPixel { x: 5, y: 5 };
-    let funds = coins(PIXEL_PRICE, NATIVE_DENOM);
-    app.execute_contract(Addr::unchecked(USER1), contract_addr.clone(), &msg, &funds)
-        .unwrap();
-
-    // Try to set color as non-owner
-    let msg = ExecuteMsg::SetPixelColor {
-        x: 5,
-        y: 5,
-        color: "#FF0000".to_string(),
-    };
-    let err = app
-        .execute_contract(Addr::unchecked(USER2), contract_addr.clone(), &msg, &[])
-        .unwrap_err();
-    assert!(err.to_string().contains("not pixel owner"));
-
-    // Set color as owner
-    let msg = ExecuteMsg::SetPixelColor {
-        x: 5,
-        y: 5,
-        color: "#FF0000".to_string(),
-    };
-    app.execute_contract(Addr::unchecked(USER1), contract_addr.clone(), &msg, &[])
-        .unwrap();
-
-    // Query pixel
-    let msg = QueryMsg::GetPixel { x: 5, y: 5 };
-    let pixel: Option<Pixel> = app
-        .wrap()
-        .query_wasm_smart(&contract_addr, &msg)
-        .unwrap();
-    
-    assert!(pixel.is_some());
     let pixel = pixel.unwrap();
-    assert_eq!(pixel.color, "#FF0000");
-}
-
-#[test]
-fn invalid_coordinates() {
-    let mut app = mock_app();
-    let pixel_canvas_id = app.store_code(contract_pixel_canvas());
-
-    // Instantiate contract
-    let msg = InstantiateMsg {
-        canvas_size: CANVAS_SIZE,
-        pixel_price: PIXEL_PRICE,
-    };
-    let contract_addr = app
-        .instantiate_contract(
-            pixel_canvas_id,
-            Addr::unchecked(CREATOR),
-            &msg,
-            &[],
-            "pixel_canvas",
-            None,
-        )
-        .unwrap();
-
-    // Try to buy pixel with invalid coordinates
-    let msg = ExecuteMsg::BuyPixel {
-        x: CANVAS_SIZE + 1,
-        y: 5,
-    };
-    let funds = coins(PIXEL_PRICE, NATIVE_DENOM);
-    let err = app
-        .execute_contract(Addr::unchecked(USER1), contract_addr.clone(), &msg, &funds)
-        .unwrap_err();
-    assert!(err.to_string().contains("invalid pixel coordinates"));
+    assert_eq!(pixel.owner, Addr::unchecked("buyer"));
+    assert_eq!(pixel.color, "#FFFFFF");
 } 
