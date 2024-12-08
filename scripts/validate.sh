@@ -10,6 +10,12 @@ YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m'
 
+# Cache directory for validation state
+CACHE_DIR=".validate-cache"
+FRONTEND_HASH_FILE="$CACHE_DIR/frontend-hash"
+CONTRACT_HASH_FILE="$CACHE_DIR/contract-hash"
+mkdir -p "$CACHE_DIR"
+
 # Function to print section header
 print_header() {
     echo -e "\n${BLUE}=== $1 ===${NC}"
@@ -19,6 +25,44 @@ print_header() {
 handle_error() {
     echo -e "\n${RED}Error in $1: $2${NC}"
     return 1
+}
+
+# Function to calculate hash of directory
+calculate_dir_hash() {
+    if [ -d "$1" ]; then
+        find "$1" -type f \
+            -not -path "*/node_modules/*" \
+            -not -path "*/target/*" \
+            -not -path "*/.next/*" \
+            -not -path "*/coverage/*" \
+            -exec sha256sum {} \; | sort | sha256sum | cut -d' ' -f1
+    else
+        echo ""
+    fi
+}
+
+# Function to check if validation is needed
+needs_validation() {
+    local dir=$1
+    local hash_file=$2
+    
+    # If hash file doesn't exist, validation is needed
+    if [ ! -f "$hash_file" ]; then
+        return 0
+    fi
+    
+    local current_hash=$(calculate_dir_hash "$dir")
+    local stored_hash=$(cat "$hash_file")
+    
+    # If hashes are different, validation is needed
+    [ "$current_hash" != "$stored_hash" ]
+}
+
+# Function to update hash after successful validation
+update_hash() {
+    local dir=$1
+    local hash_file=$2
+    calculate_dir_hash "$dir" > "$hash_file"
 }
 
 # Check if we should run frontend or contract validation based on changed files
@@ -39,7 +83,7 @@ if echo "$CHANGED_FILES" | grep -q "^contracts/"; then
     RUN_CONTRACT=true
 fi
 
-# If no specific changes, run everything
+# If no specific changes, check all directories
 if [ "$RUN_FRONTEND" = false ] && [ "$RUN_CONTRACT" = false ]; then
     RUN_FRONTEND=true
     RUN_CONTRACT=true
@@ -54,7 +98,9 @@ run_frontend_validation() {
     cd frontend || return 1
 
     echo -e "${YELLOW}Installing dependencies...${NC}"
-    if ! npm ci; then
+    # Clean install
+    rm -rf node_modules .next coverage
+    if ! npm install; then
         handle_error "Frontend" "Failed to install dependencies"
         return 1
     fi
@@ -122,33 +168,41 @@ run_contract_validation() {
     return 0
 }
 
-# Run validations in parallel and capture their output
-FRONTEND_OUTPUT=""
-CONTRACT_OUTPUT=""
+# Run validations in parallel
 FRONTEND_STATUS=0
 CONTRACT_STATUS=0
 
 if [ "$RUN_FRONTEND" = true ]; then
-    # Run frontend validation in background and redirect output to a file descriptor
-    exec 3>&1
-    FRONTEND_OUTPUT=$(run_frontend_validation 2>&1 | tee /dev/fd/3; exit ${PIPESTATUS[0]}) &
-    FRONTEND_PID=$!
+    if needs_validation "frontend" "$FRONTEND_HASH_FILE"; then
+        run_frontend_validation &
+        FRONTEND_PID=$!
+    else
+        echo -e "${GREEN}Frontend validation skipped (no changes detected)${NC}"
+    fi
 fi
 
 if [ "$RUN_CONTRACT" = true ]; then
-    # Run contract validation in background and redirect output to a file descriptor
-    exec 4>&1
-    CONTRACT_OUTPUT=$(run_contract_validation 2>&1 | tee /dev/fd/4; exit ${PIPESTATUS[0]}) &
-    CONTRACT_PID=$!
+    if needs_validation "contracts" "$CONTRACT_HASH_FILE"; then
+        run_contract_validation &
+        CONTRACT_PID=$!
+    else
+        echo -e "${GREEN}Contract validation skipped (no changes detected)${NC}"
+    fi
 fi
 
 # Wait for all background processes to complete
-if [ "$RUN_FRONTEND" = true ]; then
+if [ "$RUN_FRONTEND" = true ] && needs_validation "frontend" "$FRONTEND_HASH_FILE"; then
     wait $FRONTEND_PID || FRONTEND_STATUS=$?
+    if [ $FRONTEND_STATUS -eq 0 ]; then
+        update_hash "frontend" "$FRONTEND_HASH_FILE"
+    fi
 fi
 
-if [ "$RUN_CONTRACT" = true ]; then
+if [ "$RUN_CONTRACT" = true ] && needs_validation "contracts" "$CONTRACT_HASH_FILE"; then
     wait $CONTRACT_PID || CONTRACT_STATUS=$?
+    if [ $CONTRACT_STATUS -eq 0 ]; then
+        update_hash "contracts" "$CONTRACT_HASH_FILE"
+    fi
 fi
 
 # Check for errors
