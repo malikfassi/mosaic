@@ -14,6 +14,15 @@ interface CanvasState {
   selectedColor: string;
 }
 
+interface CanvasUpdate {
+  x: number;
+  y: number;
+  pixel: {
+    owner: string;
+    color: string;
+  };
+}
+
 const CANVAS_SIZE = 100;
 const PIXEL_SIZE = 5;
 const DEFAULT_COLOR = '#FFFFFF';
@@ -31,7 +40,7 @@ export default function PixelCanvas() {
   const { buyPixel, setPixelColor, getCanvas } = useContract();
 
   // Handle real-time updates
-  const handleCanvasUpdate = useCallback(({ x, y, pixel }) => {
+  const handleCanvasUpdate = useCallback(({ x, y, pixel }: CanvasUpdate) => {
     setState(prev => {
       const newPixels = new Map(prev.pixels);
       newPixels.set(`${x},${y}`, pixel);
