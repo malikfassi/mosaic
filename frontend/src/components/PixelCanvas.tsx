@@ -157,70 +157,70 @@ export default function PixelCanvas() {
   };
 
   // Handle buy pixel
-  const handleBuyPixel = async () => {
-    if (!state.selectedPixel) return;
-
+  const handleBuyPixel = async (x: number, y: number) => {
     try {
       setState(prev => ({ ...prev, loading: true }));
-      const result = await buyPixel(state.selectedPixel.x, state.selectedPixel.y);
-      toast.success('Pixel purchased successfully!');
+      const result = await buyPixel(x, y);
       
-      // Send update via WebSocket
-      if (result && isWsConnected) {
-        sendUpdate(state.selectedPixel.x, state.selectedPixel.y, {
-          owner: result.from_address,
-          color: DEFAULT_COLOR,
-          lastUpdated: Date.now(),
+      if (result) {
+        const owner = result.events
+          ?.find(e => e.type === 'wasm')
+          ?.attributes
+          ?.find(a => a.key === 'owner')
+          ?.value || '';
+
+        const newPixel = {
+          owner,
+          color: '#FFFFFF',
+          lastUpdated: Date.now()
+        };
+        
+        setState(prev => {
+          const newPixels = new Map(prev.pixels);
+          newPixels.set(`${x},${y}`, newPixel);
+          return newPixels;
         });
+        
+        toast.success('Pixel purchased successfully!');
       }
-      
-      // Refresh canvas
-      const canvasData = await getCanvas();
-      const pixelMap = new Map();
-      canvasData.forEach(([x, y, pixel]: [number, number, Pixel]) => {
-        pixelMap.set(`${x},${y}`, pixel);
-      });
-      setState(prev => ({ ...prev, pixels: pixelMap }));
     } catch (error) {
       console.error('Error buying pixel:', error);
-      toast.error('Failed to buy pixel');
+      toast.error(error instanceof Error ? error.message : 'Failed to buy pixel');
     } finally {
       setState(prev => ({ ...prev, loading: false }));
     }
   };
 
   // Handle set pixel color
-  const handleSetPixelColor = async () => {
-    if (!state.selectedPixel) return;
-
+  const handleSetPixelColor = async (x: number, y: number, color: string) => {
     try {
       setState(prev => ({ ...prev, loading: true }));
-      const result = await setPixelColor(
-        state.selectedPixel.x,
-        state.selectedPixel.y,
-        state.selectedColor
-      );
-      toast.success('Pixel color updated successfully!');
+      const result = await setPixelColor(x, y, color);
       
-      // Send update via WebSocket
-      if (result && isWsConnected) {
-        sendUpdate(state.selectedPixel.x, state.selectedPixel.y, {
-          owner: result.from_address,
-          color: state.selectedColor,
-          lastUpdated: Date.now(),
+      if (result) {
+        const owner = result.events
+          ?.find(e => e.type === 'wasm')
+          ?.attributes
+          ?.find(a => a.key === 'owner')
+          ?.value || '';
+
+        const newPixel = {
+          owner,
+          color,
+          lastUpdated: Date.now()
+        };
+        
+        setState(prev => {
+          const newPixels = new Map(prev.pixels);
+          newPixels.set(`${x},${y}`, newPixel);
+          return newPixels;
         });
+        
+        toast.success('Color updated successfully!');
       }
-      
-      // Refresh canvas
-      const canvasData = await getCanvas();
-      const pixelMap = new Map();
-      canvasData.forEach(([x, y, pixel]: [number, number, Pixel]) => {
-        pixelMap.set(`${x},${y}`, pixel);
-      });
-      setState(prev => ({ ...prev, pixels: pixelMap }));
     } catch (error) {
-      console.error('Error setting pixel color:', error);
-      toast.error('Failed to set pixel color');
+      console.error('Error setting color:', error);
+      toast.error(error instanceof Error ? error.message : 'Failed to set color');
     } finally {
       setState(prev => ({ ...prev, loading: false }));
     }
@@ -264,7 +264,7 @@ export default function PixelCanvas() {
         />
         
         <button
-          onClick={handleBuyPixel}
+          onClick={() => handleBuyPixel(state.selectedPixel.x, state.selectedPixel.y)}
           disabled={!state.selectedPixel || state.loading}
           className="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600 disabled:opacity-50 disabled:cursor-not-allowed"
         >
@@ -272,7 +272,7 @@ export default function PixelCanvas() {
         </button>
         
         <button
-          onClick={handleSetPixelColor}
+          onClick={() => handleSetPixelColor(state.selectedPixel.x, state.selectedPixel.y, state.selectedColor)}
           disabled={!state.selectedPixel || state.loading}
           className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
         >
