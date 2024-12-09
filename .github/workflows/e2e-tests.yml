@@ -36,6 +36,7 @@ jobs:
       
       - name: Build contracts
         run: |
+          ls
           cd contracts/sg721-pixel && cargo wasm
           cd ../pixel-coloring && cargo wasm
       
