@@ -1,0 +1,80 @@
+name: Discord Notifications
+
+on:
+  workflow_run:
+    workflows:
+      - "Frontend CI"
+      - "NFT Contract"
+      - "Coloring Contract"
+      - "End-to-End Tests"
+    types:
+      - completed
+
+jobs:
+  notify-discord:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Get workflow details
+        id: workflow-details
+        run: |
+          echo "workflow_name=${{ github.event.workflow_run.name }}" >> $GITHUB_OUTPUT
+          echo "workflow_status=${{ github.event.workflow_run.conclusion }}" >> $GITHUB_OUTPUT
+          echo "workflow_url=${{ github.event.workflow_run.html_url }}" >> $GITHUB_OUTPUT
+          echo "actor=${{ github.event.workflow_run.actor.login }}" >> $GITHUB_OUTPUT
+          
+      - name: Prepare status emoji
+        id: emoji
+        run: |
+          if [ "${{ steps.workflow-details.outputs.workflow_status }}" = "success" ]; then
+            echo "status=✅" >> $GITHUB_OUTPUT
+          elif [ "${{ steps.workflow-details.outputs.workflow_status }}" = "failure" ]; then
+            echo "status=❌" >> $GITHUB_OUTPUT
+          else
+            echo "status=⚠️" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Send notification
+        uses: Ilshidur/action-discord@master
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
+        with:
+          args: |
+            ${{ steps.emoji.outputs.status }} **${{ steps.workflow-details.outputs.workflow_name }}**
+            **Status:** \`${{ steps.workflow-details.outputs.workflow_status }}\`
+            **Triggered by:** \`${{ steps.workflow-details.outputs.actor }}\`
+            **Branch:** \`${{ github.ref_name }}\`
+            **Commit:** \`${{ github.sha }}\`
+            
+            [View Details](${{ steps.workflow-details.outputs.workflow_url }})
+
+      - name: Send deployment notification
+        if: |
+          (github.event.workflow_run.name == 'NFT Contract' || 
+           github.event.workflow_run.name == 'Coloring Contract') && 
+          github.event.workflow_run.conclusion == 'success'
+        uses: Ilshidur/action-discord@master
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
+        with:
+          args: |
+            🚀 **New Contract Deployment**
+            **Contract:** \`${{ steps.workflow-details.outputs.workflow_name }}\`
+            **Environment:** \`${{ github.event.workflow_run.environment }}\`
+            **Deployed by:** \`${{ steps.workflow-details.outputs.actor }}\`
+            
+            [View Deployment](${{ steps.workflow-details.outputs.workflow_url }})
+
+      - name: Send test report
+        if: |
+          github.event.workflow_run.name == 'End-to-End Tests' && 
+          github.event.workflow_run.conclusion == 'success'
+        uses: Ilshidur/action-discord@master
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
+        with:
+          args: |
+            📊 **E2E Test Results**
+            **Status:** \`${{ steps.workflow-details.outputs.workflow_status }}\`
+            **Run by:** \`${{ steps.workflow-details.outputs.actor }}\`
+            
+            [View Report](${{ steps.workflow-details.outputs.workflow_url }})

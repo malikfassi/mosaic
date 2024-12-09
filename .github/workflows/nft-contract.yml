@@ -1,0 +1,134 @@
+name: NFT Contract
+
+on:
+  push:
+    paths:
+      - 'contracts/sg721-pixel/**'
+  pull_request:
+    paths:
+      - 'contracts/sg721-pixel/**'
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to deploy to'
+        required: true
+        default: 'testnet'
+        type: choice
+        options:
+          - testnet
+          - mainnet
+
+env:
+  CARGO_TERM_COLOR: always
+  RUSTFLAGS: "-D warnings"
+  STARGAZE_TESTNET_RPC: "https://rpc.elgafar-1.stargaze-apis.com"
+  STARGAZE_TESTNET_CHAIN_ID: "elgafar-1"
+  STARGAZE_MAINNET_RPC: "https://stargaze-rpc.polkachu.com"
+  STARGAZE_MAINNET_CHAIN_ID: "stargaze-1"
+
+jobs:
+  contract-ci:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+          components: rustfmt, clippy
+      
+      - name: Cache dependencies
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-nft-${{ hashFiles('**/Cargo.lock') }}
+      
+      - name: Check format
+        working-directory: ./contracts/sg721-pixel
+        run: cargo fmt -- --check
+      
+      - name: Run clippy
+        working-directory: ./contracts/sg721-pixel
+        run: cargo clippy --all-targets --all-features
+      
+      - name: Run tests
+        working-directory: ./contracts/sg721-pixel
+        run: cargo test --verbose --all-features
+        
+      - name: Build contract
+        working-directory: ./contracts/sg721-pixel
+        run: |
+          cargo build --release --target wasm32-unknown-unknown
+          cargo wasm
+      
+      - name: Run contract verifier
+        working-directory: ./contracts/sg721-pixel
+        run: cargo run-script verify
+      
+      - name: Upload contract artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: sg721-pixel-contract
+          path: contracts/sg721-pixel/artifacts/sg721_pixel.wasm
+          retention-days: 7
+
+  deploy:
+    needs: contract-ci
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    environment: ${{ github.event.inputs.environment }}
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Download contract artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: sg721-pixel-contract
+          path: artifacts
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      
+      - name: Install deployment dependencies
+        run: npm install -g @cosmjs/cli @cosmjs/stargate
+      
+      - name: Set environment variables
+        run: |
+          if [ "${{ github.event.inputs.environment }}" = "mainnet" ]; then
+            echo "STARGAZE_RPC=$STARGAZE_MAINNET_RPC" >> $GITHUB_ENV
+            echo "STARGAZE_CHAIN_ID=$STARGAZE_MAINNET_CHAIN_ID" >> $GITHUB_ENV
+            echo "MNEMONIC=${{ secrets.MAINNET_MNEMONIC }}" >> $GITHUB_ENV
+          else
+            echo "STARGAZE_RPC=$STARGAZE_TESTNET_RPC" >> $GITHUB_ENV
+            echo "STARGAZE_CHAIN_ID=$STARGAZE_TESTNET_CHAIN_ID" >> $GITHUB_ENV
+            echo "MNEMONIC=${{ secrets.TESTNET_MNEMONIC }}" >> $GITHUB_ENV
+          fi
+      
+      - name: Deploy contract
+        run: |
+          echo "$MNEMONIC" > wallet.txt
+          chmod 600 wallet.txt
+          
+          CODE_ID=$(cosmjs-cli --chain-id $STARGAZE_CHAIN_ID \
+            --from wallet.txt \
+            --gas-prices 0.025ustars \
+            tx wasm store artifacts/sg721_pixel.wasm --output json | jq -r '.logs[0].events[0].attributes[0].value')
+          
+          echo "Deployed contract code ID: $CODE_ID"
+          echo "CODE_ID=$CODE_ID" >> $GITHUB_ENV
+      
+      - name: Verify deployment
+        run: |
+          cosmjs-cli --chain-id $STARGAZE_CHAIN_ID \
+            query wasm code $CODE_ID
+      
+      - name: Cleanup
+        if: always()
+        run: rm -f wallet.txt 
