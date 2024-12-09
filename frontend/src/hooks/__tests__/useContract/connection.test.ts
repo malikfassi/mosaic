@@ -25,13 +25,13 @@ describe('useContract Connection', () => {
     
     const { result } = renderHook(() => useContract())
     
-    await act(async () => {
-      try {
+    try {
+      await act(async () => {
         await result.current.connect()
-      } catch {
-        // Expected error
-      }
-    })
+      })
+    } catch {
+      // Expected error
+    }
     
     expect(result.current.isConnected).toBe(false)
     expect(result.current.error).toEqual(expectedError)

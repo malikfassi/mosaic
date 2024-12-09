@@ -20,6 +20,7 @@ interface ContractState {
   isConnected: boolean;
   isInitialized: boolean;
   error: Error | null;
+  chainId: string;
   transactionStatus: {
     connect: TransactionStatus;
     mint: TransactionStatus;
@@ -38,6 +39,7 @@ const initialState: ContractState = {
   isConnected: false,
   isInitialized: false,
   error: null,
+  chainId: STARGAZE_CHAIN_ID,
   transactionStatus: {
     connect: initialTransactionStatus,
     mint: initialTransactionStatus,

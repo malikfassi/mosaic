@@ -32,13 +32,15 @@ describe('useContract Disconnection', () => {
     // Simulate failed connection
     const expectedError = new Error('Connection failed')
     jest.spyOn(mockKeplr, 'enable').mockRejectedValueOnce(expectedError)
-    await act(async () => {
-      try {
+    
+    try {
+      await act(async () => {
         await result.current.connect()
-      } catch {
-        // Expected error
-      }
-    })
+      })
+    } catch {
+      // Expected error
+    }
+    
     expect(result.current.error).toEqual(expectedError)
     
     // Then disconnect

@@ -1,5 +1,6 @@
 import { renderHook } from '@testing-library/react'
 import { useContract } from '../../useContract'
+import { STARGAZE_CHAIN_ID } from '@/config/chain'
 
 describe('useContract Initialization', () => {
   it('initializes with default state', () => {
@@ -12,6 +13,6 @@ describe('useContract Initialization', () => {
 
   it('uses default chain ID', () => {
     const { result } = renderHook(() => useContract())
-    expect(result.current.chainId).toBe('stargaze-1')
+    expect(result.current.chainId).toBe(STARGAZE_CHAIN_ID)
   })
 }) 
