@@ -265,6 +265,34 @@ jobs:
     if: always()
     runs-on: ubuntu-latest
     steps:
+      - name: Get skip reasons
+        id: skip-reasons
+        run: |
+          # Function to get skip reason
+          get_skip_reason() {
+            local job_name=$1
+            local needs_run=$2
+            local is_main=${{ github.ref == 'refs/heads/main' }}
+            
+            if [[ "${{ needs.changes.outputs[needs_run] }}" != "true" ]]; then
+              echo "No changes detected"
+            elif [[ "$job_name" =~ ^deploy || "$job_name" =~ e2e$ ]] && [[ "$is_main" != "true" ]]; then
+              echo "Not on main branch"
+            else
+              echo "Unknown reason"
+            fi
+          }
+          
+          # Get reasons for each job
+          echo "frontend=$([ "${{ needs.frontend-ci.result }}" == "skipped" ] && get_skip_reason "frontend-ci" "frontend_needs_run" || echo "")" >> $GITHUB_OUTPUT
+          echo "coloring=$([ "${{ needs.coloring-ci.result }}" == "skipped" ] && get_skip_reason "coloring-ci" "coloring_needs_run" || echo "")" >> $GITHUB_OUTPUT
+          echo "nft=$([ "${{ needs.nft-ci.result }}" == "skipped" ] && get_skip_reason "nft-ci" "nft_needs_run" || echo "")" >> $GITHUB_OUTPUT
+          echo "deploy_coloring=$([ "${{ needs.deploy-coloring.result }}" == "skipped" ] && get_skip_reason "deploy-coloring" "coloring" || echo "")" >> $GITHUB_OUTPUT
+          echo "deploy_nft=$([ "${{ needs.deploy-nft.result }}" == "skipped" ] && get_skip_reason "deploy-nft" "nft" || echo "")" >> $GITHUB_OUTPUT
+          echo "coloring_e2e=$([ "${{ needs.coloring-e2e.result }}" == "skipped" ] && get_skip_reason "coloring-e2e" "coloring" || echo "")" >> $GITHUB_OUTPUT
+          echo "nft_e2e=$([ "${{ needs.nft-e2e.result }}" == "skipped" ] && get_skip_reason "nft-e2e" "nft" || echo "")" >> $GITHUB_OUTPUT
+          echo "full_e2e=$([ "${{ needs.full-e2e.result }}" == "skipped" ] && get_skip_reason "full-e2e" "nft" || echo "")" >> $GITHUB_OUTPUT
+
       - name: Send Discord notification
         uses: sarisia/actions-status-discord@v1
         with:
@@ -275,16 +303,19 @@ jobs:
             **Branch:** ${{ github.ref }}
             **Author:** ${{ github.actor }}
             
-            **Frontend CI:** ${{ needs.frontend-ci.result || 'skipped' }}
-            **Coloring CI:** ${{ needs.coloring-ci.result || 'skipped' }}
-            **NFT CI:** ${{ needs.nft-ci.result || 'skipped' }}
+            **CI Jobs:**
+            • Frontend: ${{ needs.frontend-ci.result || 'skipped' }} ${{ steps.skip-reasons.outputs.frontend != '' && format('(Reason: {0})', steps.skip-reasons.outputs.frontend) || '' }}
+            • Coloring: ${{ needs.coloring-ci.result || 'skipped' }} ${{ steps.skip-reasons.outputs.coloring != '' && format('(Reason: {0})', steps.skip-reasons.outputs.coloring) || '' }}
+            • NFT: ${{ needs.nft-ci.result || 'skipped' }} ${{ steps.skip-reasons.outputs.nft != '' && format('(Reason: {0})', steps.skip-reasons.outputs.nft) || '' }}
             
-            **Deploy Coloring:** ${{ needs.deploy-coloring.result || 'skipped' }}
-            **Deploy NFT:** ${{ needs.deploy-nft.result || 'skipped' }}
+            **Deployments:**
+            • Coloring: ${{ needs.deploy-coloring.result || 'skipped' }} ${{ steps.skip-reasons.outputs.deploy_coloring != '' && format('(Reason: {0})', steps.skip-reasons.outputs.deploy_coloring) || '' }}
+            • NFT: ${{ needs.deploy-nft.result || 'skipped' }} ${{ steps.skip-reasons.outputs.deploy_nft != '' && format('(Reason: {0})', steps.skip-reasons.outputs.deploy_nft) || '' }}
             
-            **Coloring E2E:** ${{ needs.coloring-e2e.result || 'skipped' }}
-            **NFT E2E:** ${{ needs.nft-e2e.result || 'skipped' }}
-            **Full E2E:** ${{ needs.full-e2e.result || 'skipped' }}
+            **E2E Tests:**
+            • Coloring: ${{ needs.coloring-e2e.result || 'skipped' }} ${{ steps.skip-reasons.outputs.coloring_e2e != '' && format('(Reason: {0})', steps.skip-reasons.outputs.coloring_e2e) || '' }}
+            • NFT: ${{ needs.nft-e2e.result || 'skipped' }} ${{ steps.skip-reasons.outputs.nft_e2e != '' && format('(Reason: {0})', steps.skip-reasons.outputs.nft_e2e) || '' }}
+            • Full: ${{ needs.full-e2e.result || 'skipped' }} ${{ steps.skip-reasons.outputs.full_e2e != '' && format('(Reason: {0})', steps.skip-reasons.outputs.full_e2e) || '' }}
             
             **Status Badges:**
             - Frontend: ![Frontend](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/${{ github.repository_owner }}/${{ secrets.BADGE_GIST_ID }}/raw/frontend-ci.json)
