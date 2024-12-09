@@ -1,0 +1,31 @@
+[package]
+name        = "tile-coloring"
+version     = "0.1.0"
+authors     = ["Malik Fassifihri <malik@example.com>"]
+edition     = "2021"
+description = "Tile coloring contract for Mosaic NFTs with permission management and rate limiting"
+license     = "Apache-2.0"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[features]
+backtraces = ["cosmwasm-std/backtraces"]
+library = []
+
+[dependencies]
+cosmwasm-schema = "1.4.0"
+cosmwasm-std    = "1.4.0"
+cw2             = "1.1.1"
+cw-storage-plus = "1.1.0"
+cw-utils        = "1.0.1"
+schemars        = "0.8.15"
+serde           = { version = "1.0.188", default-features = false, features = ["derive"] }
+thiserror       = "1.0.48"
+mosaic-tile-nft = { path = "../mosaic-tile-nft", version = "0.1.0" }
+
+# For rate limiting and time-based operations
+chrono = { version = "0.4", default-features = false }
+
+[dev-dependencies]
+cw-multi-test = "0.16.5"
