@@ -10,11 +10,205 @@ on:
 env:
   CARGO_TERM_COLOR: always
   RUSTFLAGS: "-D warnings"
-  STARGAZE_TESTNET_RPC: "https://rpc.elgafar-1.stargaze-apis.com"
-  STARGAZE_TESTNET_CHAIN_ID: "elgafar-1"
+  STARGAZE_RPC: "https://rpc.elgafar-1.stargaze-apis.com"
+  STARGAZE_CHAIN_ID: "elgafar-1"
+  GAS_PRICE: "0.025ustars"
 
 jobs:
-  e2e-test:
+  # Build contracts in parallel
+  build-contracts:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        contract: [sg721-pixel, coloring]
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+      
+      - name: Cache dependencies
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-${{ matrix.contract }}-${{ hashFiles(format('contracts/pixel-nft/contracts/{0}/Cargo.lock', matrix.contract)) }}
+      
+      - name: Build contract
+        run: |
+          cd contracts/pixel-nft/contracts/${{ matrix.contract }}
+          cargo wasm
+      
+      - name: Upload artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: ${{ matrix.contract }}-contract
+          path: contracts/pixel-nft/contracts/${{ matrix.contract }}/artifacts/*.wasm
+          retention-days: 1
+          if-no-files-found: error
+
+  # Setup test environment
+  setup-test-env:
+    runs-on: ubuntu-latest
+    outputs:
+      wallet_address: ${{ steps.wallet.outputs.address }}
+      wallet_mnemonic: ${{ steps.wallet.outputs.mnemonic }}
+    steps:
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      
+      - name: Install CosmJS
+        run: npm install -g @cosmjs/cli @cosmjs/stargate @cosmjs/cosmwasm-stargate
+      
+      - name: Generate test wallet
+        id: wallet
+        run: |
+          TEST_WALLET=$(cosmjs-cli keys generate)
+          echo "address=$(echo $TEST_WALLET | jq -r '.address')" >> $GITHUB_OUTPUT
+          echo "mnemonic=$(echo $TEST_WALLET | jq -r '.mnemonic')" >> $GITHUB_OUTPUT
+          echo "$TEST_WALLET" > test-wallet.json
+      
+      - name: Upload wallet info
+        uses: actions/upload-artifact@v3
+        with:
+          name: test-wallet
+          path: test-wallet.json
+          retention-days: 1
+
+  # Fund test wallet
+  fund-wallet:
+    needs: setup-test-env
+    runs-on: ubuntu-latest
+    steps:
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      
+      - name: Install CosmJS
+        run: npm install -g @cosmjs/cli @cosmjs/stargate
+      
+      - name: Check deployment wallet
+        run: |
+          echo "${{ secrets.TESTNET_MNEMONIC }}" > deploy-wallet.txt
+          BALANCE=$(cosmjs-cli --chain-id $STARGAZE_CHAIN_ID \
+            --from deploy-wallet.txt \
+            query bank balances $(cosmjs-cli --from deploy-wallet.txt keys show -a) \
+            --node $STARGAZE_RPC --output json | \
+            jq -r '.balances[] | select(.denom=="ustars") | .amount')
+          
+          if [ "$BALANCE" -lt "1000000" ]; then
+            echo "::error::Insufficient deployment wallet balance: $BALANCE ustars"
+            exit 1
+          fi
+          echo "::notice::Deployment wallet balance: $BALANCE ustars"
+      
+      - name: Fund test wallet
+        run: |
+          cosmjs-cli --chain-id $STARGAZE_CHAIN_ID \
+            --from deploy-wallet.txt \
+            --node $STARGAZE_RPC \
+            tx bank send $(cosmjs-cli --from deploy-wallet.txt keys show -a) \
+            ${{ needs.setup-test-env.outputs.wallet_address }} 500000ustars
+          
+          sleep 10
+          
+          BALANCE=$(cosmjs-cli --chain-id $STARGAZE_CHAIN_ID \
+            --node $STARGAZE_RPC \
+            query bank balances ${{ needs.setup-test-env.outputs.wallet_address }} \
+            --output json | jq -r '.balances[] | select(.denom=="ustars") | .amount')
+          
+          if [ "$BALANCE" -lt "500000" ]; then
+            echo "::error::Fund transfer failed. Balance: $BALANCE ustars"
+            exit 1
+          fi
+          echo "::notice::Test wallet funded with $BALANCE ustars"
+      
+      - name: Cleanup
+        if: always()
+        run: rm -f deploy-wallet.txt
+
+  # Deploy contracts
+  deploy-contracts:
+    needs: [build-contracts, fund-wallet]
+    runs-on: ubuntu-latest
+    outputs:
+      nft_code_id: ${{ steps.deploy.outputs.nft_code_id }}
+      color_code_id: ${{ steps.deploy.outputs.color_code_id }}
+    steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@v3
+        with:
+          path: artifacts
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      
+      - name: Install CosmJS
+        run: npm install -g @cosmjs/cli @cosmjs/cosmwasm-stargate
+      
+      - name: Deploy contracts
+        id: deploy
+        run: |
+          echo "${{ secrets.TESTNET_MNEMONIC }}" > deploy-wallet.txt
+          chmod 600 deploy-wallet.txt
+          
+          # Deploy NFT contract
+          NFT_WASM=$(find artifacts/sg721-pixel-contract -name "*.wasm")
+          NFT_TX=$(cosmjs-cli --chain-id $STARGAZE_CHAIN_ID \
+            --from deploy-wallet.txt \
+            --node $STARGAZE_RPC \
+            --gas-prices $GAS_PRICE \
+            tx wasm store "$NFT_WASM" -y --output json)
+          
+          NFT_CODE_ID=$(echo $NFT_TX | jq -r '.logs[0].events[] | 
+            select(.type=="store_code") | .attributes[] | 
+            select(.key=="code_id") | .value')
+          
+          echo "nft_code_id=$NFT_CODE_ID" >> $GITHUB_OUTPUT
+          echo "::notice::NFT contract deployed with code ID: $NFT_CODE_ID"
+          
+          # Deploy coloring contract
+          COLOR_WASM=$(find artifacts/coloring-contract -name "*.wasm")
+          COLOR_TX=$(cosmjs-cli --chain-id $STARGAZE_CHAIN_ID \
+            --from deploy-wallet.txt \
+            --node $STARGAZE_RPC \
+            --gas-prices $GAS_PRICE \
+            tx wasm store "$COLOR_WASM" -y --output json)
+          
+          COLOR_CODE_ID=$(echo $COLOR_TX | jq -r '.logs[0].events[] | 
+            select(.type=="store_code") | .attributes[] | 
+            select(.key=="code_id") | .value')
+          
+          echo "color_code_id=$COLOR_CODE_ID" >> $GITHUB_OUTPUT
+          echo "::notice::Coloring contract deployed with code ID: $COLOR_CODE_ID"
+      
+      - name: Save contract IDs
+        run: |
+          echo "{\"nft_code_id\": \"${{ steps.deploy.outputs.nft_code_id }}\", \"color_code_id\": \"${{ steps.deploy.outputs.color_code_id }}\"}" > contract-ids.json
+      
+      - name: Upload contract IDs
+        uses: actions/upload-artifact@v3
+        with:
+          name: contract-ids
+          path: contract-ids.json
+          retention-days: 1
+      
+      - name: Cleanup
+        if: always()
+        run: rm -f deploy-wallet.txt
+
+  # Run E2E tests
+  run-tests:
+    needs: [setup-test-env, deploy-contracts]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -24,123 +218,62 @@ jobs:
         with:
           targets: wasm32-unknown-unknown
       
+      - name: Cache dependencies
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-e2e-${{ hashFiles('**/Cargo.lock') }}
+      
+      - name: Run E2E tests
+        env:
+          NFT_CODE_ID: ${{ needs.deploy-contracts.outputs.nft_code_id }}
+          COLOR_CODE_ID: ${{ needs.deploy-contracts.outputs.color_code_id }}
+          WALLET_MNEMONIC: ${{ needs.setup-test-env.outputs.wallet_mnemonic }}
+          STARGAZE_RPC: ${{ env.STARGAZE_RPC }}
+          STARGAZE_CHAIN_ID: ${{ env.STARGAZE_CHAIN_ID }}
+        run: |
+          cd contracts/pixel-nft/tests/e2e
+          cargo test --test e2e -- --nocapture
+
+  # Return unused funds
+  cleanup:
+    needs: [setup-test-env, run-tests]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
       
-      - name: Install dependencies
-        run: |
-          npm install -g @cosmjs/cli @cosmjs/stargate @cosmjs/cosmwasm-stargate
-          cargo install cargo-run-script
+      - name: Install CosmJS
+        run: npm install -g @cosmjs/cli @cosmjs/stargate
       
-      - name: Build contracts
+      - name: Return funds
         run: |
-          ls
-          cd contracts/sg721-pixel && cargo wasm
-          cd ../pixel-coloring && cargo wasm
-      
-      - name: Generate test wallet
-        run: |
-          TEST_WALLET=$(cosmjs-cli keys generate)
-          echo "TEST_WALLET_ADDRESS=$(echo $TEST_WALLET | jq -r '.address')" >> $GITHUB_ENV
-          echo "TEST_WALLET_MNEMONIC=$(echo $TEST_WALLET | jq -r '.mnemonic')" >> $GITHUB_ENV
-      
-      - name: Check deployment wallet balance
-        run: |
-          echo "${{ secrets.TESTNET_MNEMONIC }}" > deploy-wallet.txt
-          DEPLOY_BALANCE=$(cosmjs-cli --chain-id $STARGAZE_TESTNET_CHAIN_ID \
-            --from deploy-wallet.txt \
-            query bank balances $(cosmjs-cli --from deploy-wallet.txt keys show -a))
+          echo "${{ needs.setup-test-env.outputs.wallet_mnemonic }}" > test-wallet.txt
+          chmod 600 test-wallet.txt
           
-          MIN_REQUIRED=1000000 # 1 STARS
-          CURRENT_BALANCE=$(echo $DEPLOY_BALANCE | jq -r '.balances[] | select(.denom=="ustars") | .amount')
+          BALANCE=$(cosmjs-cli --chain-id $STARGAZE_CHAIN_ID \
+            --node $STARGAZE_RPC \
+            query bank balances ${{ needs.setup-test-env.outputs.wallet_address }} \
+            --output json | jq -r '.balances[] | select(.denom=="ustars") | .amount')
           
-          if [ "$CURRENT_BALANCE" -lt "$MIN_REQUIRED" ]; then
-            echo "::warning::Deployment wallet balance too low: $CURRENT_BALANCE ustars"
-            exit 1
-          fi
-      
-      - name: Fund test wallet
-        run: |
-          cosmjs-cli --chain-id $STARGAZE_TESTNET_CHAIN_ID \
-            --from deploy-wallet.txt \
-            tx bank send $(cosmjs-cli --from deploy-wallet.txt keys show -a) \
-            $TEST_WALLET_ADDRESS 500000ustars
-      
-      - name: Deploy contracts
-        run: |
-          # Deploy NFT contract
-          NFT_CODE_ID=$(cosmjs-cli --chain-id $STARGAZE_TESTNET_CHAIN_ID \
-            --from deploy-wallet.txt \
-            --gas-prices 0.025ustars \
-            tx wasm store contracts/sg721-pixel/artifacts/sg721_pixel.wasm --output json | \
-            jq -r '.logs[0].events[0].attributes[0].value')
-          echo "NFT_CODE_ID=$NFT_CODE_ID" >> $GITHUB_ENV
-          
-          # Deploy coloring contract
-          COLOR_CODE_ID=$(cosmjs-cli --chain-id $STARGAZE_TESTNET_CHAIN_ID \
-            --from deploy-wallet.txt \
-            --gas-prices 0.025ustars \
-            tx wasm store contracts/pixel-coloring/artifacts/pixel_coloring.wasm --output json | \
-            jq -r '.logs[0].events[0].attributes[0].value')
-          echo "COLOR_CODE_ID=$COLOR_CODE_ID" >> $GITHUB_ENV
-      
-      - name: Run E2E tests
-        run: |
-          echo "Running E2E tests with:"
-          echo "Test wallet: $TEST_WALLET_ADDRESS"
-          echo "NFT contract: $NFT_CODE_ID"
-          echo "Coloring contract: $COLOR_CODE_ID"
-          
-          # Run the actual E2E tests
-          cd e2e
-          npm install
-          npm test -- \
-            --chain-id $STARGAZE_TESTNET_CHAIN_ID \
-            --rpc $STARGAZE_TESTNET_RPC \
-            --nft-code-id $NFT_CODE_ID \
-            --color-code-id $COLOR_CODE_ID \
-            --test-wallet "$TEST_WALLET_MNEMONIC"
-      
-      - name: Generate test report
-        if: always()
-        run: |
-          echo "E2E Test Summary" > test-report.md
-          echo "================" >> test-report.md
-          echo "" >> test-report.md
-          echo "- Test wallet: \`$TEST_WALLET_ADDRESS\`" >> test-report.md
-          echo "- NFT contract: \`$NFT_CODE_ID\`" >> test-report.md
-          echo "- Coloring contract: \`$COLOR_CODE_ID\`" >> test-report.md
-          echo "" >> test-report.md
-          echo "Test Results" >> test-report.md
-          echo "------------" >> test-report.md
-          cat e2e/test-results.json >> test-report.md
-      
-      - name: Upload test report
-        if: always()
-        uses: actions/upload-artifact@v3
-        with:
-          name: e2e-test-report
-          path: test-report.md
-          retention-days: 14
-      
-      - name: Return unused funds
-        if: always()
-        run: |
-          REMAINING=$(cosmjs-cli --chain-id $STARGAZE_TESTNET_CHAIN_ID \
-            query bank balances $TEST_WALLET_ADDRESS | \
-            jq -r '.balances[] | select(.denom=="ustars") | .amount')
-          
-          if [ "$REMAINING" -gt "10000" ]; then
-            cosmjs-cli --chain-id $STARGAZE_TESTNET_CHAIN_ID \
+          if [ "$BALANCE" -gt "10000" ]; then
+            cosmjs-cli --chain-id $STARGAZE_CHAIN_ID \
               --from test-wallet.txt \
-              tx bank send $TEST_WALLET_ADDRESS \
-              $(cosmjs-cli --from deploy-wallet.txt keys show -a) \
-              $(($REMAINING - 10000))ustars
+              --node $STARGAZE_RPC \
+              --gas-prices $GAS_PRICE \
+              tx bank send ${{ needs.setup-test-env.outputs.wallet_address }} \
+              stars1k8c2m5cn322akk5wy8lpt87dd2f4yh9azg7dtq \
+              $(($BALANCE - 10000))ustars -y
+            
+            echo "::notice::Returned $(($BALANCE - 10000)) ustars"
           fi
       
       - name: Cleanup
         if: always()
-        run: |
-          rm -f deploy-wallet.txt test-wallet.txt 
+        run: rm -f test-wallet.txt
