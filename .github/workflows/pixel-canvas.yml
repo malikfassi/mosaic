@@ -30,15 +30,19 @@ env:
   GAS_PRICE: "0.025ustars"
 
 jobs:
-  # Track file changes
+  # Track file changes and previous runs
   changes:
     runs-on: ubuntu-latest
     outputs:
       frontend: ${{ steps.filter.outputs.frontend }}
       nft: ${{ steps.filter.outputs.nft }}
       coloring: ${{ steps.filter.outputs.coloring }}
+      frontend_needs_run: ${{ steps.check-runs.outputs.frontend_needs_run }}
+      nft_needs_run: ${{ steps.check-runs.outputs.nft_needs_run }}
+      coloring_needs_run: ${{ steps.check-runs.outputs.coloring_needs_run }}
     steps:
       - uses: actions/checkout@v4
+      
       - uses: dorny/paths-filter@v2
         id: filter
         with:
@@ -49,23 +53,46 @@ jobs:
               - 'contracts/sg721-pixel/**'
             coloring:
               - 'contracts/pixel-coloring/**'
+      
+      - name: Check previous workflow runs
+        id: check-runs
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # Function to check if a job has ever succeeded
+          check_job_success() {
+            local job_name=$1
+            local success=false
+            
+            # Get last successful run for the job
+            gh run list --workflow pixel-canvas.yml \
+              --json conclusion,jobs \
+              --jq ".[] | select(.jobs[].name == \"$job_name\" and .conclusion == \"success\") | .jobs[].name" \
+              --limit 100 | grep -q "$job_name" && success=true
+            
+            echo $success
+          }
+          
+          # Check each component
+          frontend_success=$(check_job_success "frontend-ci")
+          nft_success=$(check_job_success "nft-ci")
+          coloring_success=$(check_job_success "coloring-ci")
+          
+          # A component needs to run if it either has changes or never succeeded
+          echo "frontend_needs_run=$([ "${{ steps.filter.outputs.frontend }}" == "true" ] || [ "$frontend_success" == "false" ] && echo "true" || echo "false")" >> $GITHUB_OUTPUT
+          echo "nft_needs_run=$([ "${{ steps.filter.outputs.nft }}" == "true" ] || [ "$nft_success" == "false" ] && echo "true" || echo "false")" >> $GITHUB_OUTPUT
+          echo "coloring_needs_run=$([ "${{ steps.filter.outputs.coloring }}" == "true" ] || [ "$coloring_success" == "false" ] && echo "true" || echo "false")" >> $GITHUB_OUTPUT
 
   # A1: Frontend static validation and unit tests
   frontend-ci:
     needs: changes
-    if: needs.changes.outputs.frontend == 'true'
+    if: needs.changes.outputs.frontend_needs_run == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: ./.github/actions/setup-env
         with:
           node-version: '20'
-          cache: 'npm'
-          cache-dependency-path: frontend/package-lock.json
-      
-      - name: Install dependencies
-        working-directory: frontend
-        run: npm ci
       
       - name: Run static validation
         working-directory: frontend
@@ -80,24 +107,15 @@ jobs:
   # A2: NFT contract static validation and unit tests
   nft-ci:
     needs: changes
-    if: needs.changes.outputs.nft == 'true'
+    if: needs.changes.outputs.nft_needs_run == 'true'
     runs-on: ubuntu-latest
     outputs:
       tests_passed: ${{ steps.tests.outputs.success }}
     steps:
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: ./.github/actions/setup-env
         with:
-          components: rustfmt, clippy
-      
-      - name: Cache dependencies
-        uses: actions/cache@v3
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            target
-          key: ${{ runner.os }}-cargo-nft-${{ hashFiles('contracts/sg721-pixel/**/Cargo.lock') }}
+          rust-version: 'stable'
       
       - name: Run static validation
         working-directory: contracts/sg721-pixel
@@ -126,6 +144,10 @@ jobs:
       contract_addr: ${{ steps.deploy.outputs.contract_addr }}
     steps:
       - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-env
+        with:
+          rust-version: 'stable'
+          setup-starsd: 'true'
       
       - name: Build contract
         working-directory: contracts/sg721-pixel
@@ -179,12 +201,16 @@ jobs:
   nft-e2e:
     needs: [changes, nft-ci, deploy-nft]
     if: |
-      needs.changes.outputs.nft == 'true' &&
-      needs.nft-ci.outputs.tests_passed == 'true'
+      needs.changes.outputs.nft_needs_run == 'true' ||
+      (success() && !contains(needs.*.result, 'skipped'))
     runs-on: ubuntu-latest
     environment: testnet
     steps:
       - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-env
+        with:
+          rust-version: 'stable'
+          setup-starsd: 'true'
       
       - name: Setup test wallet
         id: wallet
@@ -227,24 +253,15 @@ jobs:
   # A3: Coloring contract static validation and unit tests
   coloring-ci:
     needs: changes
-    if: needs.changes.outputs.coloring == 'true'
+    if: needs.changes.outputs.coloring_needs_run == 'true'
     runs-on: ubuntu-latest
     outputs:
       tests_passed: ${{ steps.tests.outputs.success }}
     steps:
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: ./.github/actions/setup-env
         with:
-          components: rustfmt, clippy
-      
-      - name: Cache dependencies
-        uses: actions/cache@v3
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            target
-          key: ${{ runner.os }}-cargo-coloring-${{ hashFiles('contracts/pixel-coloring/**/Cargo.lock') }}
+          rust-version: 'stable'
       
       - name: Run static validation
         working-directory: contracts/pixel-coloring
@@ -273,6 +290,10 @@ jobs:
       contract_addr: ${{ steps.deploy.outputs.contract_addr }}
     steps:
       - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-env
+        with:
+          rust-version: 'stable'
+          setup-starsd: 'true'
       
       - name: Build contract
         working-directory: contracts/pixel-coloring
@@ -326,12 +347,16 @@ jobs:
   coloring-e2e:
     needs: [changes, coloring-ci, deploy-coloring]
     if: |
-      needs.changes.outputs.coloring == 'true' &&
-      needs.coloring-ci.outputs.tests_passed == 'true'
+      needs.changes.outputs.coloring_needs_run == 'true' ||
+      (success() && !contains(needs.*.result, 'skipped'))
     runs-on: ubuntu-latest
     environment: testnet
     steps:
       - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-env
+        with:
+          rust-version: 'stable'
+          setup-starsd: 'true'
       
       - name: Setup test wallet
         id: wallet
@@ -376,24 +401,18 @@ jobs:
   full-e2e:
     needs: [frontend-ci, nft-e2e, coloring-e2e]
     if: |
-      needs.frontend-ci.result == 'success' &&
-      needs.nft-e2e.result == 'success' &&
-      needs.coloring-e2e.result == 'success'
+      (needs.frontend-ci.result == 'success' || needs.frontend-ci.result == 'skipped') &&
+      (needs.nft-e2e.result == 'success' || needs.nft-e2e.result == 'skipped') &&
+      (needs.coloring-e2e.result == 'success' || needs.coloring-e2e.result == 'skipped') &&
+      !contains(needs.*.result, 'failure')
     runs-on: ubuntu-latest
     environment: testnet
     steps:
       - uses: actions/checkout@v4
-      
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - uses: ./.github/actions/setup-env
         with:
           node-version: '20'
-          cache: 'npm'
-          cache-dependency-path: frontend/package-lock.json
-      
-      - name: Install dependencies
-        working-directory: frontend
-        run: npm ci
+          setup-starsd: 'true'
       
       - name: Setup test wallet
         id: wallet

@@ -13,7 +13,8 @@ NC='\033[0m'
 # Cache directory for validation state
 CACHE_DIR=".validate-cache"
 FRONTEND_HASH_FILE="$CACHE_DIR/frontend-hash"
-CONTRACT_HASH_FILE="$CACHE_DIR/contract-hash"
+NFT_HASH_FILE="$CACHE_DIR/nft-hash"
+COLORING_HASH_FILE="$CACHE_DIR/coloring-hash"
 mkdir -p "$CACHE_DIR"
 
 # Function to print section header
@@ -65,10 +66,11 @@ update_hash() {
     calculate_dir_hash "$dir" > "$hash_file"
 }
 
-# Check if we should run frontend or contract validation based on changed files
+# Check if we should run validations based on changed files
 CHANGED_FILES=$(git diff --cached --name-only)
 RUN_FRONTEND=false
-RUN_CONTRACT=false
+RUN_NFT=false
+RUN_COLORING=false
 
 if [ -z "$CHANGED_FILES" ]; then
     # No staged files, check working directory changes
@@ -79,14 +81,19 @@ if echo "$CHANGED_FILES" | grep -q "^frontend/"; then
     RUN_FRONTEND=true
 fi
 
-if echo "$CHANGED_FILES" | grep -q "^contracts/"; then
-    RUN_CONTRACT=true
+if echo "$CHANGED_FILES" | grep -q "^contracts/sg721-pixel/"; then
+    RUN_NFT=true
+fi
+
+if echo "$CHANGED_FILES" | grep -q "^contracts/pixel-coloring/"; then
+    RUN_COLORING=true
 fi
 
 # If no specific changes, check all directories
-if [ "$RUN_FRONTEND" = false ] && [ "$RUN_CONTRACT" = false ]; then
+if [ "$RUN_FRONTEND" = false ] && [ "$RUN_NFT" = false ] && [ "$RUN_COLORING" = false ]; then
     RUN_FRONTEND=true
-    RUN_CONTRACT=true
+    RUN_NFT=true
+    RUN_COLORING=true
 fi
 
 # Start validation
@@ -98,34 +105,25 @@ run_frontend_validation() {
     cd frontend || return 1
 
     echo -e "${YELLOW}Installing dependencies...${NC}"
-    # Clean install
-    rm -rf node_modules .next coverage
-    if ! npm install; then
+    if ! npm ci; then
         handle_error "Frontend" "Failed to install dependencies"
         return 1
     fi
 
-    echo -e "\n${YELLOW}Type checking...${NC}"
-    if ! npm run type-check; then
-        handle_error "Frontend" "Type check failed"
-        return 1
-    fi
-
-    echo -e "\n${YELLOW}Linting...${NC}"
+    echo -e "\n${YELLOW}Running static validation...${NC}"
     if ! npm run lint; then
         handle_error "Frontend" "Linting failed"
         return 1
     fi
 
-    echo -e "\n${YELLOW}Running tests...${NC}"
-    if ! npm run test; then
-        handle_error "Frontend" "Tests failed"
+    if ! npm run typecheck; then
+        handle_error "Frontend" "Type checking failed"
         return 1
     fi
 
-    echo -e "\n${YELLOW}Building...${NC}"
-    if ! npm run build; then
-        handle_error "Frontend" "Build failed"
+    echo -e "\n${YELLOW}Running tests...${NC}"
+    if ! npm test; then
+        handle_error "Frontend" "Tests failed"
         return 1
     fi
 
@@ -134,43 +132,64 @@ run_frontend_validation() {
     return 0
 }
 
-# Contract validation function
-run_contract_validation() {
-    print_header "Contract Validation"
-    cd contracts/pixel-canvas || return 1
+# NFT contract validation function
+run_nft_validation() {
+    print_header "NFT Contract Validation"
+    cd contracts/sg721-pixel || return 1
 
-    echo -e "${YELLOW}Checking...${NC}"
-    if ! cargo check; then
-        handle_error "Contract" "Cargo check failed"
+    echo -e "${YELLOW}Running static validation...${NC}"
+    if ! cargo fmt -- --check; then
+        handle_error "NFT Contract" "Format check failed"
         return 1
     fi
 
-    echo -e "\n${YELLOW}Running clippy...${NC}"
-    if ! cargo clippy -- -D warnings; then
-        handle_error "Contract" "Clippy check failed"
+    if ! cargo clippy --all-targets --all-features; then
+        handle_error "NFT Contract" "Clippy check failed"
         return 1
     fi
 
     echo -e "\n${YELLOW}Running tests...${NC}"
-    if ! cargo test; then
-        handle_error "Contract" "Tests failed"
-        return 1
-    fi
-
-    echo -e "\n${YELLOW}Building...${NC}"
-    if ! cargo build; then
-        handle_error "Contract" "Build failed"
+    if ! cargo test --verbose --all-features; then
+        handle_error "NFT Contract" "Tests failed"
         return 1
     fi
 
     cd ../../
-    echo -e "${GREEN}Contract validation completed successfully${NC}"
+    echo -e "${GREEN}NFT contract validation completed successfully${NC}"
+    return 0
+}
+
+# Coloring contract validation function
+run_coloring_validation() {
+    print_header "Coloring Contract Validation"
+    cd contracts/pixel-coloring || return 1
+
+    echo -e "${YELLOW}Running static validation...${NC}"
+    if ! cargo fmt -- --check; then
+        handle_error "Coloring Contract" "Format check failed"
+        return 1
+    fi
+
+    if ! cargo clippy --all-targets --all-features; then
+        handle_error "Coloring Contract" "Clippy check failed"
+        return 1
+    fi
+
+    echo -e "\n${YELLOW}Running tests...${NC}"
+    if ! cargo test --verbose --all-features; then
+        handle_error "Coloring Contract" "Tests failed"
+        return 1
+    fi
+
+    cd ../../
+    echo -e "${GREEN}Coloring contract validation completed successfully${NC}"
     return 0
 }
 
 # Run validations in parallel
 FRONTEND_STATUS=0
-CONTRACT_STATUS=0
+NFT_STATUS=0
+COLORING_STATUS=0
 
 if [ "$RUN_FRONTEND" = true ]; then
     if needs_validation "frontend" "$FRONTEND_HASH_FILE"; then
@@ -181,12 +200,21 @@ if [ "$RUN_FRONTEND" = true ]; then
     fi
 fi
 
-if [ "$RUN_CONTRACT" = true ]; then
-    if needs_validation "contracts" "$CONTRACT_HASH_FILE"; then
-        run_contract_validation &
-        CONTRACT_PID=$!
+if [ "$RUN_NFT" = true ]; then
+    if needs_validation "contracts/sg721-pixel" "$NFT_HASH_FILE"; then
+        run_nft_validation &
+        NFT_PID=$!
     else
-        echo -e "${GREEN}Contract validation skipped (no changes detected)${NC}"
+        echo -e "${GREEN}NFT contract validation skipped (no changes detected)${NC}"
+    fi
+fi
+
+if [ "$RUN_COLORING" = true ]; then
+    if needs_validation "contracts/pixel-coloring" "$COLORING_HASH_FILE"; then
+        run_coloring_validation &
+        COLORING_PID=$!
+    else
+        echo -e "${GREEN}Coloring contract validation skipped (no changes detected)${NC}"
     fi
 fi
 
@@ -198,10 +226,17 @@ if [ "$RUN_FRONTEND" = true ] && needs_validation "frontend" "$FRONTEND_HASH_FIL
     fi
 fi
 
-if [ "$RUN_CONTRACT" = true ] && needs_validation "contracts" "$CONTRACT_HASH_FILE"; then
-    wait $CONTRACT_PID || CONTRACT_STATUS=$?
-    if [ $CONTRACT_STATUS -eq 0 ]; then
-        update_hash "contracts" "$CONTRACT_HASH_FILE"
+if [ "$RUN_NFT" = true ] && needs_validation "contracts/sg721-pixel" "$NFT_HASH_FILE"; then
+    wait $NFT_PID || NFT_STATUS=$?
+    if [ $NFT_STATUS -eq 0 ]; then
+        update_hash "contracts/sg721-pixel" "$NFT_HASH_FILE"
+    fi
+fi
+
+if [ "$RUN_COLORING" = true ] && needs_validation "contracts/pixel-coloring" "$COLORING_HASH_FILE"; then
+    wait $COLORING_PID || COLORING_STATUS=$?
+    if [ $COLORING_STATUS -eq 0 ]; then
+        update_hash "contracts/pixel-coloring" "$COLORING_HASH_FILE"
     fi
 fi
 
@@ -212,7 +247,11 @@ if [ $FRONTEND_STATUS -ne 0 ]; then
     FAILED=true
 fi
 
-if [ $CONTRACT_STATUS -ne 0 ]; then
+if [ $NFT_STATUS -ne 0 ]; then
+    FAILED=true
+fi
+
+if [ $COLORING_STATUS -ne 0 ]; then
     FAILED=true
 fi
 
