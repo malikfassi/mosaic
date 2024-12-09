@@ -1,59 +1,74 @@
 import { SigningCosmWasmClient, ExecuteResult } from '@cosmjs/cosmwasm-stargate';
-import { GasPrice, Coin } from '@cosmjs/stargate';
+import { GasPrice } from '@cosmjs/stargate';
 import { useState, useCallback, useEffect } from 'react';
 import { STARGAZE_CHAIN_ID, getStargazeChainInfo } from '@/config/chain';
 
-interface PixelData {
+interface PixelColor {
   x: number;
   y: number;
   color: string;
+  timestamp: number;
 }
 
-interface PixelInfo {
-  owner: string;
-  color: string;
+interface PixelHistory {
+  x: number;
+  y: number;
+  colors: {
+    color: string;
+    timestamp: number;
+    owner: string;
+  }[];
 }
+
+interface TransactionStatus {
+  isLoading: boolean;
+  error: ContractError | null;
+  hash?: string;
+  success?: boolean;
+}
+
+type TransactionType = 'color' | 'connect';
 
 interface ContractError extends Error {
   code?: number;
   message: string;
+  type?: TransactionType;
+  details?: string;
+  cause?: unknown;
 }
 
 interface ContractHookResult {
   isConnected: boolean;
+  isInitialized: boolean;
   address: string;
   error: ContractError | null;
   chainId: string;
   isLoading: boolean;
+  transactionStatus: Record<TransactionType, TransactionStatus>;
   connect: () => Promise<void>;
   disconnect: () => void;
-  buyPixel: (x: number, y: number) => Promise<ExecuteResult>;
-  buyPixels: (pixels: PixelData[]) => Promise<ExecuteResult>;
   setPixelColor: (x: number, y: number, color: string) => Promise<ExecuteResult>;
-  getPixel: (x: number, y: number) => Promise<PixelInfo>;
-  getCanvas: () => Promise<Array<[number, number, PixelInfo]>>;
-  estimateGas: (pixels: PixelData[]) => Promise<number>;
+  getPixelColor: (x: number, y: number) => Promise<PixelColor>;
+  getPixelHistory: (x: number, y: number) => Promise<PixelHistory>;
+  getCanvas: () => Promise<PixelColor[]>;
+  estimateGas: (type: TransactionType, params: any) => Promise<number>;
+  balance: string;
 }
 
-const CONTRACT_ADDRESS = process.env.NEXT_PUBLIC_CONTRACT_ADDRESS;
 const CHAIN_ID = process.env.NEXT_PUBLIC_STARGAZE_CHAIN_ID || 'elgafar-1';
 const RPC_ENDPOINT = process.env.NEXT_PUBLIC_STARGAZE_RPC || 'https://rpc.elgafar-1.stargaze-apis.com';
 const REST_ENDPOINT = process.env.NEXT_PUBLIC_STARGAZE_REST || 'https://rest.elgafar-1.stargaze-apis.com';
+const COLORING_CONTRACT = process.env.NEXT_PUBLIC_COLORING_CONTRACT;
 const GAS_PRICE = GasPrice.fromString('0.025ustars');
 
 // Base gas costs
 const BASE_GAS = 100_000;
-const GAS_PER_PIXEL = 50_000;
-const GAS_BUFFER = 1.5; // 50% buffer
+const COLOR_GAS = 150_000;
+const GAS_BUFFER = 1.3; // 30% buffer
 
-const validateContractAddress = (address: string | undefined): string => {
-  if (!address) {
-    throw new Error('Contract address not configured');
-  }
-  if (!address.startsWith('stars')) {
-    throw new Error('Invalid contract address format. Must start with "stars"');
-  }
-  return address;
+const initialTransactionStatus = {
+  isLoading: false,
+  error: null,
 };
 
 export function useContract(): ContractHookResult {
@@ -62,11 +77,17 @@ export function useContract(): ContractHookResult {
   const [isConnected, setIsConnected] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<ContractError | null>(null);
+  const [isInitialized, setIsInitialized] = useState(false);
+  const [balance, setBalance] = useState('0');
+  const [transactionStatus, setTransactionStatus] = useState<Record<TransactionType, TransactionStatus>>({
+    color: initialTransactionStatus,
+    connect: initialTransactionStatus,
+  });
 
   // Auto-reconnect on mount if previously connected
   useEffect(() => {
     const lastAddress = localStorage.getItem('lastConnectedAddress');
-    if (lastAddress && window.keplr) {
+    if (lastAddress) {
       connect().catch(console.error);
     }
   }, []);
@@ -87,18 +108,49 @@ export function useContract(): ContractHookResult {
     };
   }, [isConnected]);
 
+  // Fetch balance periodically when connected
+  useEffect(() => {
+    if (!address || !isConnected) return;
+
+    const fetchBalance = async () => {
+      try {
+        const response = await fetch(`${REST_ENDPOINT}/cosmos/bank/v1beta1/balances/${address}`);
+        const data = await response.json();
+        const ustarsBalance = data.balances?.find((b: any) => b.denom === 'ustars')?.amount || '0';
+        const starsBalance = (parseInt(ustarsBalance) / 1_000_000).toFixed(2);
+        setBalance(starsBalance);
+      } catch (error) {
+        console.error('Failed to fetch balance:', error);
+      }
+    };
+
+    fetchBalance();
+    const interval = setInterval(fetchBalance, 10000); // Update every 10 seconds
+    return () => clearInterval(interval);
+  }, [address, isConnected]);
+
+  const updateTransactionStatus = (
+    type: TransactionType,
+    update: Partial<TransactionStatus>
+  ) => {
+    setTransactionStatus(prev => ({
+      ...prev,
+      [type]: { ...prev[type], ...update },
+    }));
+  };
+
   const connect = async (): Promise<void> => {
     if (isLoading) return;
-    setIsLoading(true);
-    setError(null);
+    updateTransactionStatus('connect', { isLoading: true, error: null });
     
     try {
       if (!window.keplr) {
-        throw new Error('Keplr wallet not found');
+        const error = new Error('Keplr wallet not found') as ContractError;
+        error.name = 'KeplrError';
+        error.type = 'connect';
+        error.details = 'Please install Keplr extension from https://www.keplr.app';
+        throw error;
       }
-
-      // Validate contract address early
-      validateContractAddress(CONTRACT_ADDRESS);
 
       // Get chain info with environment variables
       const chainInfo = {
@@ -108,39 +160,107 @@ export function useContract(): ContractHookResult {
         rest: REST_ENDPOINT,
       };
 
-      await window.keplr.experimentalSuggestChain(chainInfo);
-      await window.keplr.enable(CHAIN_ID);
+      try {
+        await window.keplr.experimentalSuggestChain(chainInfo);
+      } catch (err) {
+        const error = new Error('Failed to suggest chain to Keplr') as ContractError;
+        error.name = 'ChainError';
+        error.type = 'connect';
+        error.details = 'Chain configuration error';
+        error.cause = err;
+        throw error;
+      }
 
-      const offlineSigner = window.keplr.getOfflineSigner(CHAIN_ID);
-      const newClient = await SigningCosmWasmClient.connectWithSigner(
-        RPC_ENDPOINT,
-        offlineSigner,
-        { gasPrice: GAS_PRICE }
-      );
+      try {
+        await window.keplr.enable(CHAIN_ID);
+      } catch (err) {
+        const error = new Error('Failed to enable Keplr for chain') as ContractError;
+        error.name = 'EnableError';
+        error.type = 'connect';
+        error.details = `Chain ID: ${CHAIN_ID}`;
+        error.cause = err;
+        throw error;
+      }
 
-      const accounts = await offlineSigner.getAccounts();
+      let offlineSigner;
+      try {
+        offlineSigner = window.keplr.getOfflineSigner(CHAIN_ID);
+      } catch (err) {
+        const error = new Error('Failed to get offline signer') as ContractError;
+        error.name = 'SignerError';
+        error.type = 'connect';
+        error.details = 'Could not get signer from Keplr';
+        error.cause = err;
+        throw error;
+      }
+
+      let newClient;
+      try {
+        newClient = await SigningCosmWasmClient.connectWithSigner(
+          RPC_ENDPOINT,
+          offlineSigner,
+          { gasPrice: GAS_PRICE }
+        );
+      } catch (err) {
+        const error = new Error('Failed to create signing client') as ContractError;
+        error.name = 'ClientError';
+        error.type = 'connect';
+        error.details = `RPC Endpoint: ${RPC_ENDPOINT}`;
+        error.cause = err;
+        throw error;
+      }
+
+      let accounts;
+      try {
+        accounts = await offlineSigner.getAccounts();
+      } catch (err) {
+        const error = new Error('Failed to get accounts') as ContractError;
+        error.name = 'AccountError';
+        error.type = 'connect';
+        error.details = 'Could not get accounts from Keplr';
+        error.cause = err;
+        throw error;
+      }
+
       if (accounts.length === 0) {
-        throw new Error('No accounts found');
+        const error = new Error('No accounts found') as ContractError;
+        error.name = 'AccountError';
+        error.type = 'connect';
+        error.details = 'Please add an account to Keplr';
+        throw error;
       }
 
       const newAddress = accounts[0].address;
       
-      // Update all states together
       setClient(newClient);
       setAddress(newAddress);
       setIsConnected(true);
+      setIsInitialized(true);
       localStorage.setItem('lastConnectedAddress', newAddress);
+      updateTransactionStatus('connect', { success: true });
     } catch (err) {
-      const contractError: ContractError = err instanceof Error ? err : new Error('Failed to connect');
-      console.error('Connection error:', contractError);
+      const contractError = err as ContractError;
+      if (!contractError.name) {
+        contractError.name = 'ContractError';
+      }
+
+      console.error('Connection error:', {
+        message: contractError.message,
+        type: contractError.type,
+        details: contractError.details,
+        cause: contractError.cause
+      });
+
       setError(contractError);
       setIsConnected(false);
       setClient(null);
       setAddress('');
+      setIsInitialized(false);
       localStorage.removeItem('lastConnectedAddress');
+      updateTransactionStatus('connect', { error: contractError });
       throw contractError;
     } finally {
-      setIsLoading(false);
+      updateTransactionStatus('connect', { isLoading: false });
     }
   };
 
@@ -149,59 +269,95 @@ export function useContract(): ContractHookResult {
     setAddress('');
     setIsConnected(false);
     setError(null);
+    setIsInitialized(false);
+    setBalance('0');
     localStorage.removeItem('lastConnectedAddress');
   }, []);
 
-  const buyPixel = async (x: number, y: number): Promise<ExecuteResult> => {
+  const setPixelColor = async (x: number, y: number, color: string): Promise<ExecuteResult> => {
     if (!client || !address) throw new Error('Not connected');
-    const contractAddress = validateContractAddress(CONTRACT_ADDRESS);
+    if (!COLORING_CONTRACT) throw new Error('Coloring contract not configured');
+    updateTransactionStatus('color', { isLoading: true, error: null });
 
-    return await client.execute(
-      address,
-      contractAddress,
-      {
-        buy_pixel: { x, y }
-      },
-      'auto'
-    );
+    try {
+      const result = await client.execute(
+        address,
+        COLORING_CONTRACT,
+        {
+          set_pixel_color: { x, y, color }
+        },
+        'auto',
+        undefined,
+        [{ denom: 'ustars', amount: '500000' }]
+      );
+      updateTransactionStatus('color', { success: true, hash: result.transactionHash });
+      return result;
+    } catch (err) {
+      const colorError = err as ContractError;
+      colorError.name = 'ColorError';
+      colorError.type = 'color';
+      updateTransactionStatus('color', { error: colorError });
+      throw colorError;
+    } finally {
+      updateTransactionStatus('color', { isLoading: false });
+    }
   };
 
-  const buyPixels = async (pixels: PixelData[]): Promise<ExecuteResult> => {
-    if (!client || !address) throw new Error('Not connected');
-    const contractAddress = validateContractAddress(CONTRACT_ADDRESS);
+  const getPixelColor = async (x: number, y: number): Promise<PixelColor> => {
+    if (!client) throw new Error('Client not initialized');
+    if (!COLORING_CONTRACT) throw new Error('Coloring contract not configured');
 
-    return await client.execute(
-      address,
-      contractAddress,
-      {
-        buy_pixels: {
-          pixels: pixels.map(p => ({
-            x: p.x,
-            y: p.y,
-            color: p.color
-          }))
-        }
-      },
-      'auto'
-    );
+    const result = await client.queryContractSmart(COLORING_CONTRACT, {
+      get_pixel_color: { x, y }
+    });
+
+    return {
+      x,
+      y,
+      color: result.color,
+      timestamp: result.timestamp,
+    };
   };
 
-  const estimateGas = async (pixels: PixelData[]): Promise<number> => {
+  const getPixelHistory = async (x: number, y: number): Promise<PixelHistory> => {
+    if (!client) throw new Error('Client not initialized');
+    if (!COLORING_CONTRACT) throw new Error('Coloring contract not configured');
+
+    const result = await client.queryContractSmart(COLORING_CONTRACT, {
+      get_pixel_history: { x, y }
+    });
+
+    return {
+      x,
+      y,
+      colors: result.colors,
+    };
+  };
+
+  const getCanvas = async (): Promise<PixelColor[]> => {
+    if (!client) throw new Error('Client not initialized');
+    if (!COLORING_CONTRACT) throw new Error('Coloring contract not configured');
+
+    const result = await client.queryContractSmart(COLORING_CONTRACT, {
+      get_canvas: {}
+    });
+
+    return result.pixels;
+  };
+
+  const estimateGas = async (type: TransactionType, params: any): Promise<number> => {
     if (!client || !address) throw new Error('Not connected');
-    const contractAddress = validateContractAddress(CONTRACT_ADDRESS);
+    if (!COLORING_CONTRACT) throw new Error('Coloring contract not configured');
 
     try {
       const msg = {
-        buy_pixels: {
-          pixels: pixels.map(p => ({
-            x: p.x,
-            y: p.y,
-            color: p.color
-          }))
+        set_pixel_color: {
+          x: params.x,
+          y: params.y,
+          color: params.color
         }
       };
 
-      // Simulate the transaction to estimate gas
       const estimate = await client.simulate(
         address,
         [
@@ -209,7 +365,7 @@ export function useContract(): ContractHookResult {
             typeUrl: "/cosmwasm.wasm.v1.MsgExecuteContract",
             value: {
               sender: address,
-              contract: contractAddress,
+              contract: COLORING_CONTRACT,
               msg: Buffer.from(JSON.stringify(msg)).toString('base64'),
               funds: []
             }
@@ -221,64 +377,25 @@ export function useContract(): ContractHookResult {
       return Math.ceil(estimate * GAS_BUFFER);
     } catch (error) {
       console.error('Gas estimation failed:', error);
-      // Return a conservative estimate if simulation fails
-      return Math.ceil((BASE_GAS + (pixels.length * GAS_PER_PIXEL)) * GAS_BUFFER);
+      return Math.ceil(COLOR_GAS * GAS_BUFFER);
     }
   };
-
-  const getPixel = useCallback(async (x: number, y: number): Promise<PixelInfo> => {
-    if (!client) {
-      throw new Error('Client not initialized');
-    }
-    
-    const contractAddr = validateContractAddress(CONTRACT_ADDRESS);
-    const response = await client.queryContractSmart(contractAddr, {
-      get_pixel: { x, y }
-    });
-
-    return response;
-  }, [client]);
-
-  const setPixelColor = async (x: number, y: number, color: string): Promise<ExecuteResult> => {
-    if (!client || !address) throw new Error('Not connected');
-    const contractAddress = validateContractAddress(CONTRACT_ADDRESS);
-
-    return await client.execute(
-      address,
-      contractAddress,
-      {
-        set_pixel_color: { x, y, color }
-      },
-      'auto'
-    );
-  };
-
-  const getCanvas = useCallback(async (): Promise<Array<[number, number, PixelInfo]>> => {
-    if (!client) {
-      throw new Error('Client not initialized');
-    }
-
-    const contractAddr = validateContractAddress(CONTRACT_ADDRESS);
-    const response = await client.queryContractSmart(contractAddr, {
-      get_canvas: {}
-    });
-
-    return response.pixels;
-  }, [client]);
 
   return {
     isConnected,
+    isInitialized,
     address,
     error,
     chainId: CHAIN_ID,
     isLoading,
+    transactionStatus,
     connect,
     disconnect,
-    buyPixel,
-    buyPixels,
     setPixelColor,
-    getPixel,
+    getPixelColor,
+    getPixelHistory,
     getCanvas,
     estimateGas,
+    balance,
   };
 } 
