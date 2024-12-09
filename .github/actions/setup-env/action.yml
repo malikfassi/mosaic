@@ -5,31 +5,32 @@ inputs:
   node-version:
     description: 'Node.js version'
     required: true
-    default: '18'
+    default: '20'
   rust-version:
     description: 'Rust version'
     required: true
     default: 'stable'
+  setup-starsd:
+    description: 'Whether to setup starsd CLI'
+    required: false
+    default: 'false'
 
 runs:
   using: "composite"
   steps:
     - name: Setup Node.js
-      uses: actions/setup-node@v3
+      uses: actions/setup-node@v4
       with:
         node-version: ${{ inputs.node-version }}
         cache: 'npm'
-        cache-dependency-path: |
-          frontend/package-lock.json
-          contracts/pixel-canvas/tests/package-lock.json
+        cache-dependency-path: frontend/package-lock.json
 
     - name: Setup Rust
-      uses: actions-rs/toolchain@v1
+      uses: dtolnay/rust-toolchain@stable
       with:
-        profile: minimal
         toolchain: ${{ inputs.rust-version }}
-        override: true
         components: rustfmt, clippy
+        targets: wasm32-unknown-unknown
 
     - name: Cache Rust dependencies
       uses: actions/cache@v3
@@ -40,26 +41,10 @@ runs:
           target
         key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
 
-    - name: Install frontend dependencies
+    - name: Setup starsd CLI
+      if: inputs.setup-starsd == 'true'
       shell: bash
       run: |
-        cd frontend
-        npm ci
-
-    - name: Install contract test dependencies
-      shell: bash
-      run: |
-        cd contracts/pixel-canvas/tests
-        npm ci
-
-    - name: Install Playwright
-      shell: bash
-      run: |
-        cd frontend
-        npx playwright install --with-deps chromium
-
-    - name: Install cargo tools
-      shell: bash
-      run: |
-        cargo install cargo-audit
-        cargo install cargo-tarpaulin 
+        curl -s https://get.starsd.com | bash
+        sudo mv starsd /usr/local/bin/
+        starsd version 
