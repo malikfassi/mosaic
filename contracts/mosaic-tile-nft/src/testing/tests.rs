@@ -1,14 +1,12 @@
 use cosmwasm_std::testing::mock_info;
-use cosmwasm_std::{from_binary, Event, attr};
+use cosmwasm_std::{attr, from_binary, Event};
 
 use crate::{
     contract::{execute, query},
     msg::{ExecuteMsg, QueryMsg, TileInfoResponse},
     state::{ENABLE_UPDATABLE, FROZEN_TOKEN_METADATA},
     testing::{
-        constants::{
-            HACKER, OWNER, POSITION1, POSITION2, RED, GREEN, BLUE, TOKEN1, TOKEN2,
-        },
+        constants::{BLUE, GREEN, HACKER, OWNER, POSITION1, POSITION2, RED, TOKEN1, TOKEN2},
         setup::{create_color, create_position, mock_minter_info, setup_contract},
     },
 };
@@ -19,7 +17,7 @@ mod initialization {
     #[test]
     fn proper_initialization() {
         let (deps, _) = setup_contract();
-        
+
         // Check that metadata is not frozen initially
         let frozen = FROZEN_TOKEN_METADATA.load(deps.as_ref().storage).unwrap();
         assert!(!frozen, "Token metadata should not be frozen initially");
@@ -37,7 +35,7 @@ mod minting {
     #[test]
     fn successful_mint() {
         let (mut deps, env) = setup_contract();
-        
+
         // Mint a tile
         let mint_msg = ExecuteMsg::MintTile {
             token_id: TOKEN1.to_string(),
@@ -46,31 +44,49 @@ mod minting {
             color: create_color(RED.0, RED.1, RED.2),
         };
 
-        let res = execute(
-            deps.as_mut(),
-            env.clone(),
-            mock_minter_info(),
-            mint_msg,
-        ).unwrap();
+        let res = execute(deps.as_mut(), env.clone(), mock_minter_info(), mint_msg).unwrap();
 
         // Verify response attributes
         assert_eq!(res.attributes.len(), 5, "Should have 5 attributes");
-        assert!(res.attributes.iter().any(|attr| attr.key == "action" && attr.value == "mint_tile"));
-        assert!(res.attributes.iter().any(|attr| attr.key == "token_id" && attr.value == TOKEN1));
+        assert!(res
+            .attributes
+            .iter()
+            .any(|attr| attr.key == "action" && attr.value == "mint_tile"));
+        assert!(res
+            .attributes
+            .iter()
+            .any(|attr| attr.key == "token_id" && attr.value == TOKEN1));
 
         // Verify color update event
-        let color_event = res.events.iter().find(|e| e.ty == "tile_color_update").expect("Color update event not found");
-        assert!(color_event.attributes.iter().any(|attr| attr.key == "token_id" && attr.value == TOKEN1));
-        assert!(color_event.attributes.iter().any(|attr| attr.key == "color_r" && attr.value == RED.0.to_string()));
-        assert!(color_event.attributes.iter().any(|attr| attr.key == "color_g" && attr.value == RED.1.to_string()));
-        assert!(color_event.attributes.iter().any(|attr| attr.key == "color_b" && attr.value == RED.2.to_string()));
+        let color_event = res
+            .events
+            .iter()
+            .find(|e| e.ty == "tile_color_update")
+            .expect("Color update event not found");
+        assert!(color_event
+            .attributes
+            .iter()
+            .any(|attr| attr.key == "token_id" && attr.value == TOKEN1));
+        assert!(color_event
+            .attributes
+            .iter()
+            .any(|attr| attr.key == "color_r" && attr.value == RED.0.to_string()));
+        assert!(color_event
+            .attributes
+            .iter()
+            .any(|attr| attr.key == "color_g" && attr.value == RED.1.to_string()));
+        assert!(color_event
+            .attributes
+            .iter()
+            .any(|attr| attr.key == "color_b" && attr.value == RED.2.to_string()));
 
         // Query and verify tile info
         let query_msg = QueryMsg::TileInfo {
             token_id: TOKEN1.to_string(),
         };
-        let res: TileInfoResponse = from_binary(&query(deps.as_ref(), env, query_msg).unwrap()).unwrap();
-        
+        let res: TileInfoResponse =
+            from_binary(&query(deps.as_ref(), env, query_msg).unwrap()).unwrap();
+
         assert_eq!(res.owner, OWNER);
         assert_eq!(res.metadata.position.x, POSITION1.0);
         assert_eq!(res.metadata.position.y, POSITION1.1);
@@ -82,7 +98,7 @@ mod minting {
     #[test]
     fn unauthorized_mint() {
         let (mut deps, env) = setup_contract();
-        
+
         let mint_msg = ExecuteMsg::MintTile {
             token_id: TOKEN1.to_string(),
             owner: OWNER.to_string(),
@@ -91,12 +107,7 @@ mod minting {
         };
 
         let unauthorized_info = mock_info(HACKER, &[]);
-        let err = execute(
-            deps.as_mut(),
-            env,
-            unauthorized_info,
-            mint_msg,
-        ).unwrap_err();
+        let err = execute(deps.as_mut(), env, unauthorized_info, mint_msg).unwrap_err();
 
         assert!(matches!(err, ContractError::Unauthorized {}));
     }
@@ -104,7 +115,7 @@ mod minting {
     #[test]
     fn duplicate_position() {
         let (mut deps, env) = setup_contract();
-        
+
         // First mint
         let mint_msg = ExecuteMsg::MintTile {
             token_id: TOKEN1.to_string(),
@@ -123,7 +134,13 @@ mod minting {
         };
         let err = execute(deps.as_mut(), env, mock_minter_info(), mint_msg).unwrap_err();
 
-        assert!(matches!(err, ContractError::PositionTaken { x: POSITION1.0, y: POSITION1.1 }));
+        assert!(matches!(
+            err,
+            ContractError::PositionTaken {
+                x: POSITION1.0,
+                y: POSITION1.1
+            }
+        ));
     }
 }
 
@@ -131,7 +148,15 @@ mod color_updates {
     use super::*;
     use crate::error::ContractError;
 
-    fn setup_tile(deps: &mut cosmwasm_std::OwnedDeps<cosmwasm_std::MemoryStorage, cosmwasm_std::testing::MockApi, cosmwasm_std::testing::MockQuerier, cosmwasm_std::Empty>, env: &cosmwasm_std::Env) {
+    fn setup_tile(
+        deps: &mut cosmwasm_std::OwnedDeps<
+            cosmwasm_std::MemoryStorage,
+            cosmwasm_std::testing::MockApi,
+            cosmwasm_std::testing::MockQuerier,
+            cosmwasm_std::Empty,
+        >,
+        env: &cosmwasm_std::Env,
+    ) {
         let mint_msg = ExecuteMsg::MintTile {
             token_id: TOKEN1.to_string(),
             owner: OWNER.to_string(),
@@ -158,18 +183,35 @@ mod color_updates {
         assert_eq!(res.attributes.len(), 2); // action, token_id
 
         // Verify color update event
-        let color_event = res.events.iter().find(|e| e.ty == "tile_color_update").expect("Color update event not found");
-        assert!(color_event.attributes.iter().any(|attr| attr.key == "token_id" && attr.value == TOKEN1));
-        assert!(color_event.attributes.iter().any(|attr| attr.key == "color_r" && attr.value == GREEN.0.to_string()));
-        assert!(color_event.attributes.iter().any(|attr| attr.key == "color_g" && attr.value == GREEN.1.to_string()));
-        assert!(color_event.attributes.iter().any(|attr| attr.key == "color_b" && attr.value == GREEN.2.to_string()));
+        let color_event = res
+            .events
+            .iter()
+            .find(|e| e.ty == "tile_color_update")
+            .expect("Color update event not found");
+        assert!(color_event
+            .attributes
+            .iter()
+            .any(|attr| attr.key == "token_id" && attr.value == TOKEN1));
+        assert!(color_event
+            .attributes
+            .iter()
+            .any(|attr| attr.key == "color_r" && attr.value == GREEN.0.to_string()));
+        assert!(color_event
+            .attributes
+            .iter()
+            .any(|attr| attr.key == "color_g" && attr.value == GREEN.1.to_string()));
+        assert!(color_event
+            .attributes
+            .iter()
+            .any(|attr| attr.key == "color_b" && attr.value == GREEN.2.to_string()));
 
         // Query updated state
         let query_msg = QueryMsg::TileInfo {
             token_id: TOKEN1.to_string(),
         };
-        let res: TileInfoResponse = from_binary(&query(deps.as_ref(), env, query_msg).unwrap()).unwrap();
-        
+        let res: TileInfoResponse =
+            from_binary(&query(deps.as_ref(), env, query_msg).unwrap()).unwrap();
+
         assert_eq!(res.metadata.current_color.r, GREEN.0);
         assert_eq!(res.metadata.current_color.g, GREEN.1);
         assert_eq!(res.metadata.current_color.b, GREEN.2);
@@ -201,7 +243,8 @@ mod color_updates {
             env.clone(),
             mock_minter_info(),
             ExecuteMsg::FreezeTokenMetadata {},
-        ).unwrap();
+        )
+        .unwrap();
 
         // Try to update color
         let update_msg = ExecuteMsg::UpdateTileColor {
@@ -221,7 +264,7 @@ mod queries {
     #[test]
     fn query_by_position() {
         let (mut deps, env) = setup_contract();
-        
+
         // Mint tiles at different positions
         let mint_msg = ExecuteMsg::MintTile {
             token_id: TOKEN1.to_string(),
@@ -272,7 +315,7 @@ mod edge_cases {
     #[test]
     fn mint_at_boundary_positions() {
         let (mut deps, env) = setup_contract();
-        
+
         // Test minting at (0, 0)
         let mint_msg = ExecuteMsg::MintTile {
             token_id: TOKEN1.to_string(),
@@ -281,7 +324,10 @@ mod edge_cases {
             color: create_color(RED.0, RED.1, RED.2),
         };
         let res = execute(deps.as_mut(), env.clone(), mock_minter_info(), mint_msg).unwrap();
-        assert!(res.attributes.iter().any(|attr| attr.key == "action" && attr.value == "mint_tile"));
+        assert!(res
+            .attributes
+            .iter()
+            .any(|attr| attr.key == "action" && attr.value == "mint_tile"));
 
         // Test minting at (MAX_POSITION, MAX_POSITION)
         let mint_msg = ExecuteMsg::MintTile {
@@ -291,7 +337,10 @@ mod edge_cases {
             color: create_color(BLUE.0, BLUE.1, BLUE.2),
         };
         let res = execute(deps.as_mut(), env.clone(), mock_minter_info(), mint_msg).unwrap();
-        assert!(res.attributes.iter().any(|attr| attr.key == "action" && attr.value == "mint_tile"));
+        assert!(res
+            .attributes
+            .iter()
+            .any(|attr| attr.key == "action" && attr.value == "mint_tile"));
 
         // Test minting beyond MAX_POSITION
         let mint_msg = ExecuteMsg::MintTile {
@@ -307,7 +356,7 @@ mod edge_cases {
     #[test]
     fn color_edge_cases() {
         let (mut deps, env) = setup_contract();
-        
+
         // Test with extreme color values (0 and 255)
         let mint_msg = ExecuteMsg::MintTile {
             token_id: TOKEN1.to_string(),
@@ -316,12 +365,25 @@ mod edge_cases {
             color: create_color(0, 0, 0), // Black
         };
         let res = execute(deps.as_mut(), env.clone(), mock_minter_info(), mint_msg).unwrap();
-        
+
         // Verify black color event
-        let color_event = res.events.iter().find(|e| e.ty == "tile_color_update").expect("Color update event not found");
-        assert!(color_event.attributes.iter().any(|attr| attr.key == "color_r" && attr.value == "0"));
-        assert!(color_event.attributes.iter().any(|attr| attr.key == "color_g" && attr.value == "0"));
-        assert!(color_event.attributes.iter().any(|attr| attr.key == "color_b" && attr.value == "0"));
+        let color_event = res
+            .events
+            .iter()
+            .find(|e| e.ty == "tile_color_update")
+            .expect("Color update event not found");
+        assert!(color_event
+            .attributes
+            .iter()
+            .any(|attr| attr.key == "color_r" && attr.value == "0"));
+        assert!(color_event
+            .attributes
+            .iter()
+            .any(|attr| attr.key == "color_g" && attr.value == "0"));
+        assert!(color_event
+            .attributes
+            .iter()
+            .any(|attr| attr.key == "color_b" && attr.value == "0"));
 
         // Update to white
         let update_msg = ExecuteMsg::UpdateTileColor {
@@ -332,16 +394,29 @@ mod edge_cases {
         let res = execute(deps.as_mut(), env.clone(), owner_info, update_msg).unwrap();
 
         // Verify white color event
-        let color_event = res.events.iter().find(|e| e.ty == "tile_color_update").expect("Color update event not found");
-        assert!(color_event.attributes.iter().any(|attr| attr.key == "color_r" && attr.value == "255"));
-        assert!(color_event.attributes.iter().any(|attr| attr.key == "color_g" && attr.value == "255"));
-        assert!(color_event.attributes.iter().any(|attr| attr.key == "color_b" && attr.value == "255"));
+        let color_event = res
+            .events
+            .iter()
+            .find(|e| e.ty == "tile_color_update")
+            .expect("Color update event not found");
+        assert!(color_event
+            .attributes
+            .iter()
+            .any(|attr| attr.key == "color_r" && attr.value == "255"));
+        assert!(color_event
+            .attributes
+            .iter()
+            .any(|attr| attr.key == "color_g" && attr.value == "255"));
+        assert!(color_event
+            .attributes
+            .iter()
+            .any(|attr| attr.key == "color_b" && attr.value == "255"));
     }
 
     #[test]
     fn token_id_uniqueness() {
         let (mut deps, env) = setup_contract();
-        
+
         // Mint first tile
         let mint_msg = ExecuteMsg::MintTile {
             token_id: TOKEN1.to_string(),
@@ -359,13 +434,16 @@ mod edge_cases {
             color: create_color(BLUE.0, BLUE.1, BLUE.2),
         };
         let err = execute(deps.as_mut(), env.clone(), mock_minter_info(), mint_msg).unwrap_err();
-        assert!(matches!(err, ContractError::Base(sg721_base::ContractError::Claimed {})));
+        assert!(matches!(
+            err,
+            ContractError::Base(sg721_base::ContractError::Claimed {})
+        ));
     }
 
     #[test]
     fn multiple_color_updates() {
         let (mut deps, env) = setup_contract();
-        
+
         // Mint a tile
         let mint_msg = ExecuteMsg::MintTile {
             token_id: TOKEN1.to_string(),
@@ -386,17 +464,31 @@ mod edge_cases {
             let res = execute(deps.as_mut(), env.clone(), owner_info, update_msg).unwrap();
 
             // Verify each color update event
-            let color_event = res.events.iter().find(|e| e.ty == "tile_color_update").expect("Color update event not found");
-            assert!(color_event.attributes.iter().any(|attr| attr.key == "color_r" && attr.value == r.to_string()));
-            assert!(color_event.attributes.iter().any(|attr| attr.key == "color_g" && attr.value == g.to_string()));
-            assert!(color_event.attributes.iter().any(|attr| attr.key == "color_b" && attr.value == b.to_string()));
+            let color_event = res
+                .events
+                .iter()
+                .find(|e| e.ty == "tile_color_update")
+                .expect("Color update event not found");
+            assert!(color_event
+                .attributes
+                .iter()
+                .any(|attr| attr.key == "color_r" && attr.value == r.to_string()));
+            assert!(color_event
+                .attributes
+                .iter()
+                .any(|attr| attr.key == "color_g" && attr.value == g.to_string()));
+            assert!(color_event
+                .attributes
+                .iter()
+                .any(|attr| attr.key == "color_b" && attr.value == b.to_string()));
         }
 
         // Verify final state
         let query_msg = QueryMsg::TileInfo {
             token_id: TOKEN1.to_string(),
         };
-        let res: TileInfoResponse = from_binary(&query(deps.as_ref(), env, query_msg).unwrap()).unwrap();
+        let res: TileInfoResponse =
+            from_binary(&query(deps.as_ref(), env, query_msg).unwrap()).unwrap();
         assert_eq!(res.metadata.current_color.r, 0);
         assert_eq!(res.metadata.current_color.g, 0);
         assert_eq!(res.metadata.current_color.b, 255);
@@ -405,20 +497,38 @@ mod edge_cases {
     #[test]
     fn metadata_state_transitions() {
         let (mut deps, env) = setup_contract();
-        
+
         // Test freezing metadata
-        execute(deps.as_mut(), env.clone(), mock_minter_info(), ExecuteMsg::FreezeTokenMetadata {}).unwrap();
-        
+        execute(
+            deps.as_mut(),
+            env.clone(),
+            mock_minter_info(),
+            ExecuteMsg::FreezeTokenMetadata {},
+        )
+        .unwrap();
+
         // Verify frozen state
         let frozen = FROZEN_TOKEN_METADATA.load(deps.as_ref().storage).unwrap();
         assert!(frozen);
 
         // Try to freeze again
-        let err = execute(deps.as_mut(), env.clone(), mock_minter_info(), ExecuteMsg::FreezeTokenMetadata {}).unwrap_err();
+        let err = execute(
+            deps.as_mut(),
+            env.clone(),
+            mock_minter_info(),
+            ExecuteMsg::FreezeTokenMetadata {},
+        )
+        .unwrap_err();
         assert!(matches!(err, ContractError::TokenMetadataAlreadyFrozen {}));
 
         // Test enabling updatable when already enabled
-        let err = execute(deps.as_mut(), env.clone(), mock_minter_info(), ExecuteMsg::EnableUpdatable {}).unwrap_err();
+        let err = execute(
+            deps.as_mut(),
+            env.clone(),
+            mock_minter_info(),
+            ExecuteMsg::EnableUpdatable {},
+        )
+        .unwrap_err();
         assert!(matches!(err, ContractError::AlreadyEnableUpdatable {}));
     }
-} 
+}

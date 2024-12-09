@@ -28,4 +28,4 @@ pub const BLACK: (u8, u8, u8) = (0, 0, 0);
 pub const POSITION1: (u32, u32) = (1, 1);
 pub const POSITION2: (u32, u32) = (2, 2);
 pub const POSITION3: (u32, u32) = (3, 3);
-pub const INVALID_POSITION: (u32, u32) = (100, 100); // Beyond MAX_POSITION 
+pub const INVALID_POSITION: (u32, u32) = (100, 100); // Beyond MAX_POSITION

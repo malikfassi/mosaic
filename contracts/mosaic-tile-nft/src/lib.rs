@@ -1,71 +1,15 @@
-#[cfg(not(feature = "library"))]
 pub mod contract;
 pub mod error;
 pub mod msg;
 pub mod state;
+
 #[cfg(test)]
-pub mod testing;
+mod testing;
 
-pub type InstantiateMsg = sg721::InstantiateMsg;
+pub use crate::error::ContractError;
+pub use crate::msg::{ExecuteMsg, QueryMsg};
+pub use crate::state::{Color, Position, TileMetadata};
+pub use cw721_base::msg::InstantiateMsg;
 
-pub mod entry {
-    use super::*;
-    use crate::error::ContractError;
-    use crate::msg::QueryMsg;
-    use crate::{
-        contract::{
-            _instantiate, _migrate, execute_enable_updatable, execute_freeze_token_metadata,
-            execute_update_token_metadata, query_enable_updatable, query_enable_updatable_fee,
-            query_frozen_token_metadata, Sg721UpdatableContract,
-        },
-        msg::ExecuteMsg,
-    };
-    use cosmwasm_std::{entry_point, to_json_binary, Empty};
-    use cosmwasm_std::{Binary, Deps, DepsMut, Env, MessageInfo, Response, StdResult};
-    use cw721_base::Extension;
-
-    #[entry_point]
-    pub fn instantiate(
-        deps: DepsMut,
-        env: Env,
-        info: MessageInfo,
-        msg: InstantiateMsg,
-    ) -> Result<Response, ContractError> {
-        _instantiate(deps, env, info, msg)
-    }
-
-    #[entry_point]
-    pub fn execute(
-        deps: DepsMut,
-        env: Env,
-        info: MessageInfo,
-        msg: ExecuteMsg<Extension, Empty>,
-    ) -> Result<Response, ContractError> {
-        match msg {
-            ExecuteMsg::FreezeTokenMetadata {} => execute_freeze_token_metadata(deps, env, info),
-            ExecuteMsg::EnableUpdatable {} => execute_enable_updatable(deps, env, info),
-            ExecuteMsg::UpdateTokenMetadata {
-                token_id,
-                token_uri,
-            } => execute_update_token_metadata(deps, env, info, token_id, token_uri),
-            _ => Sg721UpdatableContract::default()
-                .execute(deps, env, info, msg.into())
-                .map_err(|e| e.into()),
-        }
-    }
-
-    #[entry_point]
-    pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
-        match msg {
-            QueryMsg::EnableUpdatable {} => to_json_binary(&query_enable_updatable(deps)?),
-            QueryMsg::EnableUpdatableFee {} => to_json_binary(&query_enable_updatable_fee()?),
-            QueryMsg::FreezeTokenMetadata {} => to_json_binary(&query_frozen_token_metadata(deps)?),
-            _ => Sg721UpdatableContract::default().query(deps, env, msg.into()),
-        }
-    }
-
-    #[entry_point]
-    pub fn migrate(deps: DepsMut, env: Env, msg: Empty) -> Result<Response, ContractError> {
-        _migrate(deps, env, msg)
-    }
-}
+// Re-export entry points for other packages to use
+pub use crate::contract::{execute, instantiate, query};

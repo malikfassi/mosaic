@@ -1,7 +1,7 @@
 use cosmwasm_std::testing::{MockApi, MockQuerier, MockStorage};
 use cosmwasm_std::{
-    from_json, to_json_binary, ContractInfoResponse, ContractResult, Empty, OwnedDeps,
-    Querier, QuerierResult, QueryRequest, SystemError, SystemResult, WasmQuery,
+    from_json, to_json_binary, ContractInfoResponse, ContractResult, Empty, OwnedDeps, Querier,
+    QuerierResult, QueryRequest, SystemError, SystemResult, WasmQuery,
 };
 use std::marker::PhantomData;
 
@@ -52,4 +52,4 @@ impl CustomMockQuerier {
     pub fn new(base: MockQuerier<Empty>) -> Self {
         CustomMockQuerier { base }
     }
-} 
+}

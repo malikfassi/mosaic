@@ -27,7 +27,6 @@ jobs:
       pull-requests: read
     outputs:
       mosaic_tile_nft: ${{ steps.filter.outputs.mosaic_tile_nft }}
-      tile_coloring: ${{ steps.filter.outputs.tile_coloring }}
       vending_minter: ${{ steps.filter.outputs.vending_minter }}
     steps:
       - uses: actions/checkout@v3
@@ -39,10 +38,6 @@ jobs:
               - 'contracts/mosaic-tile-nft/**'
               - 'Cargo.toml'
               - 'Cargo.lock'
-            tile_coloring:
-              - 'contracts/tile-coloring/**'
-              - 'Cargo.toml'
-              - 'Cargo.lock'
             vending_minter:
               - 'contracts/vending-minter/**'
               - 'Cargo.toml'
@@ -52,7 +47,6 @@ jobs:
     needs: changes
     if: |
       needs.changes.outputs.mosaic_tile_nft == 'true' ||
-      needs.changes.outputs.tile_coloring == 'true' ||
       needs.changes.outputs.vending_minter == 'true'
     runs-on: ubuntu-latest
     steps:
@@ -91,7 +85,6 @@ jobs:
     needs: changes
     if: |
       needs.changes.outputs.mosaic_tile_nft == 'true' ||
-      needs.changes.outputs.tile_coloring == 'true' ||
       needs.changes.outputs.vending_minter == 'true'
     runs-on: ubuntu-latest
     steps:
@@ -134,7 +127,6 @@ jobs:
     needs: changes
     if: |
       needs.changes.outputs.mosaic_tile_nft == 'true' ||
-      needs.changes.outputs.tile_coloring == 'true' ||
       needs.changes.outputs.vending_minter == 'true'
     runs-on: ubuntu-latest
     steps:
@@ -167,7 +159,6 @@ jobs:
     needs: [lint, test, security-audit]
     if: |
       needs.changes.outputs.mosaic_tile_nft == 'true' ||
-      needs.changes.outputs.tile_coloring == 'true' ||
       needs.changes.outputs.vending_minter == 'true'
     runs-on: ubuntu-latest
     steps:

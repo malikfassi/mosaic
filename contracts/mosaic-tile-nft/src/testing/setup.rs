@@ -7,15 +7,18 @@ use crate::{
     state::{Color, Position},
     testing::{
         constants::{
-            COLLECTION_DESCRIPTION, COLLECTION_IMAGE, COLLECTION_NAME,
-            COLLECTION_SYMBOL, CREATOR, MINTER,
+            COLLECTION_DESCRIPTION, COLLECTION_IMAGE, COLLECTION_NAME, COLLECTION_SYMBOL, CREATOR,
+            MINTER,
         },
         mock_querier::{mock_deps, CustomMockQuerier},
     },
 };
 use cosmwasm_std::{Empty, MockApi, MockStorage};
 
-pub fn setup_contract() -> (OwnedDeps<MockStorage, MockApi, CustomMockQuerier, Empty>, Env) {
+pub fn setup_contract() -> (
+    OwnedDeps<MockStorage, MockApi, CustomMockQuerier, Empty>,
+    Env,
+) {
     let mut deps = mock_deps();
     let env = mock_env();
 
@@ -54,4 +57,4 @@ pub fn create_color(r: u8, g: u8, b: u8) -> Color {
 
 pub fn create_position(x: u32, y: u32) -> Position {
     Position { x, y }
-} 
+}

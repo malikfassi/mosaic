@@ -12,7 +12,6 @@ NC='\033[0m' # No Color
 # Default flags - all disabled by default
 RUN_FRONTEND=0
 RUN_MOSAIC_TILE=0
-RUN_TILE_COLORING=0
 RUN_VENDING_MINTER=0
 RUN_ADDITIONAL=0
 RUN_ALL=0
@@ -24,7 +23,6 @@ print_usage() {
     echo "  -a, --all             Run all tests"
     echo "  -f, --frontend        Run frontend tests"
     echo "  -m, --mosaic-tile     Run mosaic tile contract tests"
-    echo "  -t, --tile-coloring   Run tile coloring contract tests"
     echo "  -v, --vending-minter  Run vending minter contract tests"
     echo "  -x, --extra           Run additional checks (coverage, wasm build)"
     echo "  -h, --help            Show this help message"
@@ -42,10 +40,6 @@ while [[ $# -gt 0 ]]; do
             ;;
         -m|--mosaic-tile)
             RUN_MOSAIC_TILE=1
-            shift
-            ;;
-        -t|--tile-coloring)
-            RUN_TILE_COLORING=1
             shift
             ;;
         -v|--vending-minter)
@@ -70,7 +64,7 @@ done
 
 # If no flags are specified, show usage
 if [[ $RUN_ALL -eq 0 && $RUN_FRONTEND -eq 0 && $RUN_MOSAIC_TILE -eq 0 && \
-      $RUN_TILE_COLORING -eq 0 && $RUN_VENDING_MINTER -eq 0 && $RUN_ADDITIONAL -eq 0 ]]; then
+      $RUN_VENDING_MINTER -eq 0 && $RUN_ADDITIONAL -eq 0 ]]; then
     print_usage
     exit 1
 fi
@@ -79,7 +73,6 @@ fi
 if [[ $RUN_ALL -eq 1 ]]; then
     RUN_FRONTEND=1
     RUN_MOSAIC_TILE=1
-    RUN_TILE_COLORING=1
     RUN_VENDING_MINTER=1
     RUN_ADDITIONAL=1
 fi
@@ -135,7 +128,7 @@ run_step() {
 echo -e "\n${YELLOW}Starting CI checks...${NC}\n"
 
 # Shared Rust Setup (always run if any Rust tests are needed)
-if [[ $RUN_MOSAIC_TILE -eq 1 || $RUN_TILE_COLORING -eq 1 || $RUN_VENDING_MINTER -eq 1 ]]; then
+if [[ $RUN_MOSAIC_TILE -eq 1 || $RUN_VENDING_MINTER -eq 1 ]]; then
     run_step "Install Rust components" "." "rustup component add rustfmt clippy" || exit 1
     run_step "Install cargo-audit" "." "cargo install cargo-audit" || exit 1
     [[ $RUN_ADDITIONAL -eq 1 ]] && run_step "Install cargo-tarpaulin" "." "cargo install cargo-tarpaulin" || true
@@ -157,16 +150,6 @@ if [[ $RUN_MOSAIC_TILE -eq 1 ]]; then
     run_step "Mosaic Tile tests" "contracts/mosaic-tile-nft" "cargo test" || exit 1
     run_step "Mosaic Tile audit" "contracts/mosaic-tile-nft" "cargo audit" || exit 1
     run_step "Mosaic Tile schema" "contracts/mosaic-tile-nft" "cargo schema" || exit 1
-fi
-
-# Tile Coloring Contract Tests
-if [[ $RUN_TILE_COLORING -eq 1 ]]; then
-    echo -e "\n${YELLOW}Running Tile Coloring Tests${NC}"
-    run_step "Tile Coloring format" "contracts/tile-coloring" "cargo fmt -- --check" || exit 1
-    run_step "Tile Coloring clippy" "contracts/tile-coloring" "cargo clippy -- -D warnings" || exit 1
-    run_step "Tile Coloring tests" "contracts/tile-coloring" "cargo test" || exit 1
-    run_step "Tile Coloring audit" "contracts/tile-coloring" "cargo audit" || exit 1
-    run_step "Tile Coloring schema" "contracts/tile-coloring" "cargo schema" || exit 1
 fi
 
 # Mosaic Vending Minter Contract Tests

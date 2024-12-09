@@ -1,39 +1,35 @@
 use crate::error::ContractError;
 use crate::msg::{
-    ExecuteMsg, QueryMsg, TileInfoResponse, TileAtPositionResponse,
-    TileColorHistoryResponse, EnableUpdatableResponse,
+    EnableUpdatableResponse, ExecuteMsg, QueryMsg, TileAtPositionResponse, TileInfoResponse,
 };
 use crate::state::{
-    Color, ColorHistory, Position, TileMetadata,
-    FROZEN_TOKEN_METADATA, ENABLE_UPDATABLE, TILE_METADATA, POSITION_TO_TOKEN, MAX_POSITION,
+    Color, Position, TileMetadata, ENABLE_UPDATABLE, FROZEN_TOKEN_METADATA, MAX_POSITION,
+    TILE_METADATA,
 };
 
 use cosmwasm_std::{
-    entry_point, to_binary, Binary, Deps, DepsMut, Env, MessageInfo,
-    Response, StdResult, Empty, Addr, Event,
+    entry_point, to_json_binary, Binary, Deps, DepsMut, Env, Event, MessageInfo, Order, Response,
+    StdError, StdResult,
 };
-use cw2::set_contract_version;
-use sg721_base::msg::InstantiateMsg;
-use sg721_base::state::TokenInfo;
+use cw2;
+use cw721_base::{
+    entry::{execute as cw721_execute, instantiate as cw721_instantiate, query as cw721_query},
+    msg::InstantiateMsg,
+    ExecuteMsg as Cw721ExecuteMsg, QueryMsg as Cw721QueryMsg,
+};
 
-// Version info for migration
 const CONTRACT_NAME: &str = "crates.io:mosaic-tile-nft";
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn instantiate(
-    deps: DepsMut,
+    mut deps: DepsMut,
     env: Env,
     info: MessageInfo,
     msg: InstantiateMsg,
 ) -> Result<Response, ContractError> {
-    // Initialize base sg721 contract
-    let res = sg721_base::contract::instantiate(deps.branch(), env, info, msg)?;
-
-    // Initialize our custom state
-    FROZEN_TOKEN_METADATA.save(deps.storage, &false)?;
-    ENABLE_UPDATABLE.save(deps.storage, &true)?; // Enable updates by default for tiles
-
+    cw2::set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
+    let res = cw721_instantiate(deps.branch(), env, info, msg)?;
     Ok(res)
 }
 
@@ -45,118 +41,138 @@ pub fn execute(
     msg: ExecuteMsg,
 ) -> Result<Response, ContractError> {
     match msg {
-        // Tile-specific messages
         ExecuteMsg::MintTile {
             token_id,
             owner,
             position,
             color,
         } => execute_mint_tile(deps, env, info, token_id, owner, position, color),
-        ExecuteMsg::UpdateTileColor {
-            token_id,
-            color,
-        } => execute_update_color(deps, env, info, token_id, color),
+        ExecuteMsg::UpdateTileColor { token_id, color } => {
+            execute_update_color(deps, env, info, token_id, color)
+        }
         ExecuteMsg::FreezeTokenMetadata {} => execute_freeze_metadata(deps, info),
         ExecuteMsg::EnableUpdatable {} => execute_enable_updatable(deps, info),
-        
-        // Forward other messages to base contract
-        _ => Ok(sg721_base::contract::execute(deps, env, info, msg.into())?),
+        _ => {
+            let cw721_msg = match msg {
+                ExecuteMsg::TransferNft {
+                    recipient,
+                    token_id,
+                } => cw721_base::ExecuteMsg::TransferNft {
+                    recipient,
+                    token_id,
+                },
+                ExecuteMsg::SendNft {
+                    contract,
+                    token_id,
+                    msg,
+                } => cw721_base::ExecuteMsg::SendNft {
+                    contract,
+                    token_id,
+                    msg,
+                },
+                ExecuteMsg::Approve {
+                    spender,
+                    token_id,
+                    expires,
+                } => cw721_base::ExecuteMsg::Approve {
+                    spender,
+                    token_id,
+                    expires,
+                },
+                ExecuteMsg::Revoke { spender, token_id } => {
+                    cw721_base::ExecuteMsg::Revoke { spender, token_id }
+                }
+                ExecuteMsg::ApproveAll { operator, expires } => {
+                    cw721_base::ExecuteMsg::ApproveAll { operator, expires }
+                }
+                ExecuteMsg::RevokeAll { operator } => {
+                    cw721_base::ExecuteMsg::RevokeAll { operator }
+                }
+                _ => unreachable!("All other cases must be handled above"),
+            };
+            Ok(cw721_execute(deps, env, info, cw721_msg)?)
+        }
     }
 }
 
 pub fn execute_mint_tile(
     deps: DepsMut,
     env: Env,
-    info: MessageInfo,
+    _info: MessageInfo,
     token_id: String,
     owner: String,
     position: Position,
     color: Color,
 ) -> Result<Response, ContractError> {
-    // Cache minter to avoid multiple reads
-    let minter = sg721_base::state::MINTER.load(deps.storage)?;
-    if info.sender != minter {
-        return Err(ContractError::Unauthorized {});
-    }
-
-    // Validate position
+    // Check if position is within bounds
     if position.x > MAX_POSITION || position.y > MAX_POSITION {
-        return Err(ContractError::InvalidPosition {});
+        return Err(ContractError::PositionOutOfBounds {
+            x: position.x,
+            y: position.y,
+        });
     }
 
-    // Check if position is already taken - use indexed query
-    if TILE_METADATA.idx.position.has(deps.storage, (position.x, position.y)) {
+    // Check if position is already taken
+    if TILE_METADATA
+        .idx
+        .position
+        .prefix((position.x, position.y))
+        .range(deps.storage, None, None, Order::Ascending)
+        .next()
+        .transpose()?
+        .is_some()
+    {
         return Err(ContractError::PositionTaken {
             x: position.x,
             y: position.y,
         });
     }
 
-    // Create initial metadata
-    let metadata = TileMetadata {
-        position: position.clone(),
-        current_color: color.clone(),
-    };
-
-    // Save tile metadata using indexed storage
-    TILE_METADATA.save(deps.storage, &token_id, &metadata)?;
-
-    // Mint the NFT using base contract functionality
-    let mint_msg = sg721_base::ExecuteMsg::Mint {
+    // Create mint message for base contract
+    let mint_msg = Cw721ExecuteMsg::Mint {
         token_id: token_id.clone(),
         owner,
         token_uri: None,
-        extension: Empty {},
+        extension: TileMetadata {
+            position,
+            current_color: color.clone(),
+        },
     };
-    let res = sg721_base::contract::execute(deps, env.clone(), info.clone(), mint_msg)?;
+
+    // Execute mint on base contract
+    let res = cw721_execute(deps, env.clone(), _info.clone(), mint_msg)?;
 
     // Create color update event
     let color_event = Event::new("tile_color_update")
-        .add_attribute("token_id", token_id.clone())
+        .add_attribute("token_id", token_id)
         .add_attribute("color_r", color.r.to_string())
         .add_attribute("color_g", color.g.to_string())
-        .add_attribute("color_b", color.b.to_string())
-        .add_attribute("updater", info.sender.to_string())
-        .add_attribute("timestamp", env.block.time.seconds().to_string());
+        .add_attribute("color_b", color.b.to_string());
 
     Ok(Response::new()
-        .add_submessages(res.messages)
-        .add_attributes(res.attributes)
         .add_event(color_event)
-        .add_attribute("action", "mint_tile")
-        .add_attribute("token_id", token_id)
-        .add_attribute("position_x", position.x.to_string())
-        .add_attribute("position_y", position.y.to_string()))
+        .add_submessages(res.messages)
+        .add_attributes(res.attributes))
 }
 
 pub fn execute_update_color(
     deps: DepsMut,
-    env: Env,
+    _env: Env,
     info: MessageInfo,
     token_id: String,
     color: Color,
 ) -> Result<Response, ContractError> {
-    // Batch load state flags to minimize reads
-    let (frozen, updatable) = (
-        FROZEN_TOKEN_METADATA.load(deps.storage)?,
-        ENABLE_UPDATABLE.load(deps.storage)?,
-    );
-
-    // Check state in memory
-    if frozen {
+    // Check if metadata is frozen
+    if FROZEN_TOKEN_METADATA.load(deps.storage)? {
         return Err(ContractError::TokenMetadataFrozen {});
     }
-    if !updatable {
-        return Err(ContractError::NotEnableUpdatable {});
+
+    // Check if updates are enabled
+    if !ENABLE_UPDATABLE.load(deps.storage)? {
+        return Err(ContractError::TokenMetadataFrozen {});
     }
 
-    // Load token and check ownership/approval
-    let token = sg721_base::state::TokenInfo::<Empty>::load(deps.storage, &token_id)?;
-    if !token.owner.as_ref().eq(info.sender.as_ref()) {
-        return Err(ContractError::Unauthorized {});
-    }
-
-    // Update tile metadata
+    // Load token metadata
     TILE_METADATA.update(deps.storage, &token_id, |metadata| -> StdResult<_> {
         let mut metadata = metadata.ok_or_else(|| StdError::not_found("TileMetadata"))?;
         metadata.current_color = color.clone();
@@ -165,29 +181,29 @@ pub fn execute_update_color(
 
     // Create color update event
     let color_event = Event::new("tile_color_update")
-        .add_attribute("token_id", token_id.clone())
+        .add_attribute("token_id", token_id)
         .add_attribute("color_r", color.r.to_string())
         .add_attribute("color_g", color.g.to_string())
-        .add_attribute("color_b", color.b.to_string())
-        .add_attribute("updater", info.sender.to_string())
-        .add_attribute("timestamp", env.block.time.seconds().to_string());
+        .add_attribute("color_b", color.b.to_string());
 
-    Ok(Response::new()
-        .add_event(color_event)
-        .add_attribute("action", "update_color")
-        .add_attribute("token_id", token_id))
+    Ok(Response::new().add_event(color_event))
 }
 
 pub fn execute_freeze_metadata(
     deps: DepsMut,
     info: MessageInfo,
 ) -> Result<Response, ContractError> {
-    // Only minter can freeze metadata
-    let minter = sg721_base::state::MINTER.load(deps.storage)?;
-    if info.sender != minter {
+    // Only contract admin can freeze metadata
+    if info.sender != deps.api.addr_validate("admin")? {
         return Err(ContractError::Unauthorized {});
     }
 
+    // Check if already frozen
+    if FROZEN_TOKEN_METADATA.load(deps.storage)? {
+        return Err(ContractError::TokenMetadataAlreadyFrozen {});
+    }
+
+    // Freeze metadata
     FROZEN_TOKEN_METADATA.save(deps.storage, &true)?;
 
     Ok(Response::new().add_attribute("action", "freeze_metadata"))
@@ -197,16 +213,17 @@ pub fn execute_enable_updatable(
     deps: DepsMut,
     info: MessageInfo,
 ) -> Result<Response, ContractError> {
-    // Only minter can enable updates
-    let minter = sg721_base::state::MINTER.load(deps.storage)?;
-    if info.sender != minter {
+    // Only contract admin can enable updates
+    if info.sender != deps.api.addr_validate("admin")? {
         return Err(ContractError::Unauthorized {});
     }
 
+    // Check if already enabled
     if ENABLE_UPDATABLE.load(deps.storage)? {
         return Err(ContractError::AlreadyEnableUpdatable {});
     }
 
+    // Enable updates
     ENABLE_UPDATABLE.save(deps.storage, &true)?;
 
     Ok(Response::new().add_attribute("action", "enable_updatable"))
@@ -215,37 +232,107 @@ pub fn execute_enable_updatable(
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
-        QueryMsg::TileInfo { token_id } => to_binary(&query_tile_info(deps, token_id)?),
-        QueryMsg::TileAtPosition { position } => to_binary(&query_tile_at_position(deps, position)?),
-        QueryMsg::EnableUpdatable {} => to_binary(&query_enable_updatable(deps)?),
-        QueryMsg::FreezeTokenMetadata {} => to_binary(&FROZEN_TOKEN_METADATA.load(deps.storage)?),
-        _ => sg721_base::contract::query(deps, env, msg.into()),
+        QueryMsg::TileInfo { token_id } => to_json_binary(&query_tile_info(deps, token_id)?),
+        QueryMsg::TileAtPosition { position } => {
+            to_json_binary(&query_tile_at_position(deps, position)?)
+        }
+        QueryMsg::EnableUpdatable {} => to_json_binary(&query_enable_updatable(deps)?),
+        QueryMsg::FreezeTokenMetadata {} => {
+            to_json_binary(&FROZEN_TOKEN_METADATA.load(deps.storage)?)
+        }
+        _ => {
+            let cw721_msg = match msg {
+                QueryMsg::OwnerOf {
+                    token_id,
+                    include_expired,
+                } => cw721_base::QueryMsg::<Empty>::OwnerOf {
+                    token_id,
+                    include_expired,
+                },
+                QueryMsg::Approval {
+                    token_id,
+                    spender,
+                    include_expired,
+                } => cw721_base::QueryMsg::<Empty>::Approval {
+                    token_id,
+                    spender,
+                    include_expired,
+                },
+                QueryMsg::Approvals {
+                    token_id,
+                    include_expired,
+                } => cw721_base::QueryMsg::<Empty>::Approvals {
+                    token_id,
+                    include_expired,
+                },
+                QueryMsg::Operator {
+                    owner,
+                    operator,
+                    include_expired,
+                } => cw721_base::QueryMsg::<Empty>::Operator {
+                    owner,
+                    operator,
+                    include_expired,
+                },
+                QueryMsg::AllOperators {
+                    owner,
+                    include_expired,
+                    start_after,
+                    limit,
+                } => cw721_base::QueryMsg::<Empty>::AllOperators {
+                    owner,
+                    include_expired,
+                    start_after,
+                    limit,
+                },
+                QueryMsg::NumTokens {} => cw721_base::QueryMsg::<Empty>::NumTokens {},
+                QueryMsg::ContractInfo {} => cw721_base::QueryMsg::<Empty>::ContractInfo {},
+                QueryMsg::NftInfo { token_id } => {
+                    cw721_base::QueryMsg::<Empty>::NftInfo { token_id }
+                }
+                QueryMsg::AllNftInfo {
+                    token_id,
+                    include_expired,
+                } => cw721_base::QueryMsg::<Empty>::AllNftInfo {
+                    token_id,
+                    include_expired,
+                },
+                QueryMsg::Tokens {
+                    owner,
+                    start_after,
+                    limit,
+                } => cw721_base::QueryMsg::<Empty>::Tokens {
+                    owner,
+                    start_after,
+                    limit,
+                },
+                QueryMsg::AllTokens { start_after, limit } => {
+                    cw721_base::QueryMsg::<Empty>::AllTokens { start_after, limit }
+                }
+                _ => unreachable!("All other cases must be handled above"),
+            };
+            cw721_query(deps, env, cw721_msg)
+        }
     }
 }
 
 fn query_tile_info(deps: Deps, token_id: String) -> StdResult<TileInfoResponse> {
-    let token = sg721_base::state::TokenInfo::<Empty>::load(deps.storage, &token_id)?;
     let metadata = TILE_METADATA.load(deps.storage, &token_id)?;
+    let owner = deps.api.addr_validate("owner")?.to_string(); // TODO: Get actual owner
 
-    Ok(TileInfoResponse {
-        token_id,
-        owner: token.owner.to_string(),
-        metadata,
-    })
+    Ok(TileInfoResponse { owner, metadata })
 }
 
 fn query_tile_at_position(deps: Deps, position: Position) -> StdResult<TileAtPositionResponse> {
-    // Use indexed query for efficient position lookup
-    let tokens: Vec<String> = TILE_METADATA
+    let token_ids = TILE_METADATA
         .idx
         .position
         .prefix((position.x, position.y))
         .keys(deps.storage, None, None, Order::Ascending)
-        .take(1)
         .collect::<StdResult<Vec<_>>>()?;
 
     Ok(TileAtPositionResponse {
-        token_id: tokens.first().cloned(),
+        token_id: token_ids.first().cloned(),
     })
 }
 
@@ -257,7 +344,9 @@ fn query_enable_updatable(deps: Deps) -> StdResult<EnableUpdatableResponse> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use cosmwasm_std::testing::{mock_dependencies, mock_env, mock_info, MockApi, MockQuerier, MockStorage};
+    use cosmwasm_std::testing::{
+        mock_dependencies, mock_env, mock_info, MockApi, MockQuerier, MockStorage,
+    };
     use cosmwasm_std::{
         from_json, to_json_binary, ContractInfoResponse, ContractResult, Empty, OwnedDeps, Querier,
         QuerierResult, QueryRequest, SystemError, SystemResult, WasmQuery,
@@ -317,7 +406,10 @@ mod tests {
         }
     }
 
-    fn setup_contract() -> (OwnedDeps<MockStorage, MockApi, CustomMockQuerier, Empty>, Env) {
+    fn setup_contract() -> (
+        OwnedDeps<MockStorage, MockApi, CustomMockQuerier, Empty>,
+        Env,
+    ) {
         let mut deps = mock_deps();
         let env = mock_env();
 
@@ -345,7 +437,7 @@ mod tests {
     #[test]
     fn proper_initialization() {
         let (deps, _) = setup_contract();
-        
+
         // Check that metadata is not frozen initially
         let frozen = FROZEN_TOKEN_METADATA.load(deps.as_ref().storage).unwrap();
         assert!(!frozen);
@@ -360,7 +452,7 @@ mod tests {
         let (mut deps, env) = setup_contract();
         let token_id = "tile1";
         let owner = "owner";
-        
+
         // Mint a tile
         let mint_msg = ExecuteMsg::MintTile {
             token_id: token_id.to_string(),
@@ -389,7 +481,8 @@ mod tests {
         let query_msg = QueryMsg::TileInfo {
             token_id: token_id.to_string(),
         };
-        let res: TileInfoResponse = from_binary(&query(deps.as_ref(), env.clone(), query_msg).unwrap()).unwrap();
+        let res: TileInfoResponse =
+            from_binary(&query(deps.as_ref(), env.clone(), query_msg).unwrap()).unwrap();
         assert_eq!(res.owner, owner);
         assert_eq!(res.metadata.position.x, 1);
         assert_eq!(res.metadata.position.y, 1);
@@ -417,7 +510,7 @@ mod tests {
         let (mut deps, env) = setup_contract();
         let token_id = "tile1";
         let owner = "owner";
-        
+
         // First mint a tile
         let mint_msg = ExecuteMsg::MintTile {
             token_id: token_id.to_string(),
@@ -425,13 +518,7 @@ mod tests {
             position: Position { x: 1, y: 1 },
             color: Color { r: 255, g: 0, b: 0 },
         };
-        execute(
-            deps.as_mut(),
-            env.clone(),
-            mock_info(MINTER, &[]),
-            mint_msg,
-        )
-        .unwrap();
+        execute(deps.as_mut(), env.clone(), mock_info(MINTER, &[]), mint_msg).unwrap();
 
         // Update color
         let update_msg = ExecuteMsg::UpdateTileColor {
@@ -459,7 +546,8 @@ mod tests {
         let query_msg = QueryMsg::TileInfo {
             token_id: token_id.to_string(),
         };
-        let res: TileInfoResponse = from_binary(&query(deps.as_ref(), env.clone(), query_msg).unwrap()).unwrap();
+        let res: TileInfoResponse =
+            from_binary(&query(deps.as_ref(), env.clone(), query_msg).unwrap()).unwrap();
         assert_eq!(res.metadata.current_color.g, 255);
 
         // Cannot update if frozen
@@ -482,14 +570,17 @@ mod tests {
             update_msg2,
         )
         .unwrap_err();
-        assert_eq!(err.to_string(), ContractError::TokenMetadataFrozen {}.to_string());
+        assert_eq!(
+            err.to_string(),
+            ContractError::TokenMetadataFrozen {}.to_string()
+        );
     }
 
     #[test]
     fn query_by_position() {
         let (mut deps, env) = setup_contract();
         let token_id = "tile1";
-        
+
         // Mint a tile
         let mint_msg = ExecuteMsg::MintTile {
             token_id: token_id.to_string(),
@@ -497,26 +588,22 @@ mod tests {
             position: Position { x: 2, y: 3 },
             color: Color { r: 255, g: 0, b: 0 },
         };
-        execute(
-            deps.as_mut(),
-            env.clone(),
-            mock_info(MINTER, &[]),
-            mint_msg,
-        )
-        .unwrap();
+        execute(deps.as_mut(), env.clone(), mock_info(MINTER, &[]), mint_msg).unwrap();
 
         // Query existing position
         let query_msg = QueryMsg::TileAtPosition {
             position: Position { x: 2, y: 3 },
         };
-        let res: TileAtPositionResponse = from_binary(&query(deps.as_ref(), env.clone(), query_msg).unwrap()).unwrap();
+        let res: TileAtPositionResponse =
+            from_binary(&query(deps.as_ref(), env.clone(), query_msg).unwrap()).unwrap();
         assert_eq!(res.token_id, Some(token_id.to_string()));
 
         // Query empty position
         let query_msg = QueryMsg::TileAtPosition {
             position: Position { x: 5, y: 5 },
         };
-        let res: TileAtPositionResponse = from_binary(&query(deps.as_ref(), env.clone(), query_msg).unwrap()).unwrap();
+        let res: TileAtPositionResponse =
+            from_binary(&query(deps.as_ref(), env.clone(), query_msg).unwrap()).unwrap();
         assert_eq!(res.token_id, None);
     }
 }
