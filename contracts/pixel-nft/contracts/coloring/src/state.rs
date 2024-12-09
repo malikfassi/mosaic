@@ -8,12 +8,12 @@ pub struct Config {
     pub owner: Addr,
     pub nft_contract: Addr,
     pub price_per_color_change: Uint128,
-    pub color_change_cooldown: u64,  // Time in seconds between color changes
+    pub color_change_cooldown: u64,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct ColorChange {
-    pub last_change: u64,  // Timestamp of last color change
+    pub last_change: u64,
     pub color: String,
 }
 

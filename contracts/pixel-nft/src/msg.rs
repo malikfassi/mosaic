@@ -23,6 +23,11 @@ pub enum ExecuteMsg {
         color_change_price: Option<u128>,
         color_change_cooldown: Option<u64>,
     },
+    MintPixel {
+        x: u32,
+        y: u32,
+        owner: String,
+    },
 }
 
 #[cw_serde]

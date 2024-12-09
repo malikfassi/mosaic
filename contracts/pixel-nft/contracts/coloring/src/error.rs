@@ -12,18 +12,15 @@ pub enum ContractError {
     #[error("Invalid color format")]
     InvalidColorFormat {},
 
-    #[error("Invalid coordinates: x={x}, y={y}")]
-    InvalidCoordinates { x: u32, y: u32 },
-
     #[error("Insufficient funds")]
     InsufficientFunds {},
 
-    #[error("Color change cooldown not elapsed")]
+    #[error("Color change cooldown in effect")]
     ColorChangeCooldown {},
+
+    #[error("Not the pixel owner")]
+    NotPixelOwner {},
 
     #[error("Pixel not found")]
     PixelNotFound {},
-
-    #[error("Not pixel owner")]
-    NotPixelOwner {},
 } 

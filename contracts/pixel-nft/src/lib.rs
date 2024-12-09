@@ -1,14 +1,17 @@
 pub mod error;
 pub mod msg;
 pub mod state;
+#[cfg(test)]
+mod testing;
 
 use cosmwasm_std::{
     entry_point, to_binary, Binary, Deps, DepsMut, Env, MessageInfo, Response, StdResult,
     SubMsg, WasmMsg, Addr, Reply, StdError,
 };
 use cw2::set_contract_version;
-use sg721::InstantiateMsg as Sg721InstantiateMsg;
-use sg721::CollectionInfo;
+use sg721_pixel::msg::InstantiateMsg as Sg721InstantiateMsg;
+use sg721_pixel::metadata::PixelMetadata;
+use sg721_base::msg::CollectionInfo;
 
 use crate::error::ContractError;
 use crate::msg::{ExecuteMsg, InstantiateMsg, QueryMsg};
@@ -87,6 +90,7 @@ pub fn execute(
             color_change_price,
             color_change_cooldown,
         } => execute_update_config(deps, info, pixel_price, color_change_price, color_change_cooldown),
+        ExecuteMsg::MintPixel { x, y, owner } => execute_mint_pixel(deps, info, x, y, owner),
     }
 }
 
@@ -114,6 +118,55 @@ pub fn execute_update_config(
 
     CONFIG.save(deps.storage, &config)?;
     Ok(Response::new().add_attribute("method", "update_config"))
+}
+
+pub fn execute_mint_pixel(
+    deps: DepsMut,
+    info: MessageInfo,
+    x: u32,
+    y: u32,
+    owner: String,
+) -> Result<Response, ContractError> {
+    let config = CONFIG.load(deps.storage)?;
+    let nft_contract = NFT_CONTRACT.load(deps.storage)?;
+
+    // Check payment
+    if info.funds.is_empty() || info.funds[0].amount < config.pixel_price {
+        return Err(ContractError::InsufficientFunds {});
+    }
+
+    // Check coordinates
+    if x >= config.canvas_width || y >= config.canvas_height {
+        return Err(ContractError::InvalidCoordinates { x, y });
+    }
+
+    // Create mint message
+    let token_id = format!("{}:{}", x, y);
+    let metadata = PixelMetadata {
+        x,
+        y,
+        color: "#FFFFFF".to_string(), // Default to white
+    };
+    let mint_msg = Sg721ExecuteMsg::Mint {
+        token_id: token_id.clone(),
+        owner: owner.clone(),
+        token_uri: None,
+        extension: metadata.into(),
+    };
+
+    let mint_msg = WasmMsg::Execute {
+        contract_addr: nft_contract.to_string(),
+        msg: to_binary(&mint_msg)?,
+        funds: vec![],
+    };
+
+    Ok(Response::new()
+        .add_message(mint_msg)
+        .add_attribute("action", "mint_pixel")
+        .add_attribute("token_id", token_id)
+        .add_attribute("owner", owner)
+        .add_attribute("x", x.to_string())
+        .add_attribute("y", y.to_string()))
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
@@ -205,11 +258,11 @@ fn handle_coloring_instantiate_reply(deps: DepsMut, msg: Reply) -> Result<Respon
 #[cfg(test)]
 mod tests {
     use super::*;
-    use cosmwasm_std::testing::{mock_dependencies, mock_env, mock_info};
-    use cosmwasm_std::{coins, from_json, Addr};
+    use cosmwasm_std::testing::{mock_dependencies, mock_env, mock_info, MockApi, MockQuerier, MockStorage};
+    use cosmwasm_std::{coins, from_json, Addr, OwnedDeps};
+    use sg721_base::msg::CollectionInfoResponse;
 
-    #[test]
-    fn proper_initialization() {
+    fn setup_test() -> OwnedDeps<MockStorage, MockApi, MockQuerier> {
         let mut deps = mock_dependencies();
         let msg = InstantiateMsg {
             name: "Pixel NFTs".to_string(),
@@ -228,10 +281,98 @@ mod tests {
         let res = instantiate(deps.as_mut(), mock_env(), info, msg).unwrap();
         assert_eq!(1, res.messages.len());
 
+        deps
+    }
+
+    #[test]
+    fn proper_initialization() {
+        let deps = setup_test();
+
         let res = query(deps.as_ref(), mock_env(), QueryMsg::GetConfig {}).unwrap();
         let config: Config = from_json(&res).unwrap();
         assert_eq!(config.admin, Addr::unchecked("creator"));
         assert_eq!(config.canvas_width, 1000);
         assert_eq!(config.canvas_height, 1000);
+        assert_eq!(config.pixel_price, 1000000u128.into());
+        assert_eq!(config.color_change_price, 500000u128.into());
+        assert_eq!(config.color_change_cooldown, 3600);
+        assert_eq!(config.nft_code_id, 1);
+        assert_eq!(config.coloring_code_id, 2);
+    }
+
+    #[test]
+    fn mint_pixel() {
+        let mut deps = setup_test();
+
+        // Mock NFT contract address
+        NFT_CONTRACT.save(deps.as_mut().storage, &Addr::unchecked("nft_contract")).unwrap();
+
+        // Try to mint without payment
+        let info = mock_info("buyer", &[]);
+        let msg = ExecuteMsg::MintPixel {
+            x: 0,
+            y: 0,
+            owner: "buyer".to_string(),
+        };
+        let err = execute(deps.as_mut(), mock_env(), info, msg.clone()).unwrap_err();
+        assert_eq!(err, ContractError::InsufficientFunds {});
+
+        // Try to mint with correct payment
+        let info = mock_info("buyer", &coins(1000000, "ustars"));
+        let msg = ExecuteMsg::MintPixel {
+            x: 0,
+            y: 0,
+            owner: "buyer".to_string(),
+        };
+        let res = execute(deps.as_mut(), mock_env(), info, msg).unwrap();
+        assert_eq!(1, res.messages.len());
+
+        // Verify mint message
+        let mint_msg = res.messages[0].msg.clone();
+        match mint_msg {
+            CosmosMsg::Wasm(WasmMsg::Execute { contract_addr, msg, .. }) => {
+                assert_eq!(contract_addr, "nft_contract");
+                let decoded: Sg721ExecuteMsg = from_json(&msg).unwrap();
+                match decoded {
+                    Sg721ExecuteMsg::Mint { token_id, owner, .. } => {
+                        assert_eq!(token_id, "0:0");
+                        assert_eq!(owner, "buyer");
+                    },
+                    _ => panic!("unexpected message type"),
+                }
+            },
+            _ => panic!("unexpected message type"),
+        }
+    }
+
+    #[test]
+    fn update_config() {
+        let mut deps = setup_test();
+
+        // Try to update with unauthorized user
+        let info = mock_info("unauthorized", &[]);
+        let msg = ExecuteMsg::UpdateConfig {
+            pixel_price: Some(2000000),
+            color_change_price: Some(1000000),
+            color_change_cooldown: Some(7200),
+        };
+        let err = execute(deps.as_mut(), mock_env(), info, msg.clone()).unwrap_err();
+        assert_eq!(err, ContractError::Unauthorized {});
+
+        // Update with authorized user
+        let info = mock_info("creator", &[]);
+        let msg = ExecuteMsg::UpdateConfig {
+            pixel_price: Some(2000000),
+            color_change_price: Some(1000000),
+            color_change_cooldown: Some(7200),
+        };
+        let _res = execute(deps.as_mut(), mock_env(), info, msg).unwrap();
+
+        // Verify config update
+        let res = query(deps.as_ref(), mock_env(), QueryMsg::GetConfig {}).unwrap();
+        let config: Config = from_json(&res).unwrap();
+        assert_eq!(config.pixel_price, 2000000u128.into());
+        assert_eq!(config.color_change_price, 1000000u128.into());
+        assert_eq!(config.color_change_cooldown, 7200);
     }
 } 

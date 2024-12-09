@@ -11,6 +11,7 @@ pub struct Config {
     pub pixel_price: Uint128,
     pub color_change_price: Uint128,
     pub color_change_cooldown: u64,
+    pub nft_code_id: u64,
     pub coloring_code_id: u64,
 }
 

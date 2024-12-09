@@ -17,4 +17,10 @@ pub enum ContractError {
 
     #[error("Invalid contract address")]
     InvalidContractAddress {},
+
+    #[error("Invalid coordinates: x={x}, y={y}")]
+    InvalidCoordinates { x: u32, y: u32 },
+
+    #[error("Insufficient funds")]
+    InsufficientFunds {},
 } 
