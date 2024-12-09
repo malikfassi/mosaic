@@ -44,7 +44,7 @@ export function KeplrConnection() {
     return (
       <div className="flex items-center gap-2">
         <span className="text-sm text-muted-foreground">
-          {`${address.slice(0, 6)}...${address.slice(-4)}`}
+          {address === 'stars1mock...' ? address : `${address.slice(0, 6)}...${address.slice(-4)}`}
         </span>
         <Button variant="outline" onClick={handleDisconnect}>
           Disconnect

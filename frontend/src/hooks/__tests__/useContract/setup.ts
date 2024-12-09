@@ -83,7 +83,11 @@ export const simulateFailedConnection = () => {
   if (!window.keplr) {
     throw new Error('Keplr mock not initialized');
   }
-  jest.spyOn(window.keplr, 'enable').mockRejectedValueOnce(new Error('Connection failed'));
+  const error = new Error('Connection failed');
+  jest.spyOn(window.keplr, 'enable').mockImplementationOnce(() => {
+    return Promise.reject(error);
+  });
+  return error;
 };
 
 // Helper function to simulate successful transaction

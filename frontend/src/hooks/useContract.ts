@@ -50,29 +50,33 @@ const initialState: ContractState = {
 export function useContract() {
   const [state, setState] = useState<ContractState>(initialState);
 
-  const updateTransactionStatus = useCallback((
-    transaction: keyof ContractState['transactionStatus'],
-    updates: Partial<TransactionStatus>
-  ) => {
-    setState(prev => ({
-      ...prev,
-      transactionStatus: {
-        ...prev.transactionStatus,
-        [transaction]: {
-          ...prev.transactionStatus[transaction],
-          ...updates,
-        },
-      },
-    }));
-  }, []);
-
   const connect = useCallback(async () => {
     try {
-      updateTransactionStatus('connect', { isLoading: true, error: null });
+      // Reset error state and set loading
+      setState(prev => ({
+        ...prev,
+        isConnected: false,
+        error: null,
+        transactionStatus: {
+          ...prev.transactionStatus,
+          connect: { isLoading: true, error: null }
+        }
+      }));
 
       // Check if Keplr is installed
       if (!window.keplr) {
-        throw new Error('Please install Keplr extension');
+        const error = new Error('Please install Keplr extension');
+        setState(prev => ({
+          ...prev,
+          isInitialized: true,
+          isConnected: false,
+          error,
+          transactionStatus: {
+            ...prev.transactionStatus,
+            connect: { isLoading: false, error }
+          }
+        }));
+        throw error;
       }
 
       // Get chain info and suggest it to Keplr
@@ -98,6 +102,7 @@ export function useContract() {
         }
       );
 
+      // Update state with successful connection
       setState(prev => ({
         ...prev,
         client,
@@ -105,9 +110,11 @@ export function useContract() {
         isConnected: true,
         isInitialized: true,
         error: null,
+        transactionStatus: {
+          ...prev.transactionStatus,
+          connect: { isLoading: false, error: null }
+        }
       }));
-
-      updateTransactionStatus('connect', { isLoading: false });
     } catch (error) {
       const keplrError = error as KeplrError;
       console.error('Connection error:', {
@@ -116,23 +123,30 @@ export function useContract() {
         details: keplrError.details,
       });
 
+      // Update state with error
       setState(prev => ({
         ...prev,
-        error: keplrError,
+        client: null,
+        address: '',
         isConnected: false,
+        isInitialized: true,
+        error: keplrError,
+        transactionStatus: {
+          ...prev.transactionStatus,
+          connect: { isLoading: false, error: keplrError }
+        }
       }));
 
-      updateTransactionStatus('connect', {
-        isLoading: false,
-        error: keplrError,
-      });
-
-      throw error;
+      throw keplrError;
     }
-  }, [updateTransactionStatus]);
+  }, []);
 
   const disconnect = useCallback(() => {
-    setState(initialState);
+    setState({
+      ...initialState,
+      isInitialized: true,
+      error: null,
+    });
   }, []);
 
   // Auto-connect if Keplr is available
