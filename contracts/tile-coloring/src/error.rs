@@ -9,8 +9,11 @@ pub enum ContractError {
     #[error("Unauthorized")]
     Unauthorized {},
 
-    #[error("Invalid tile position: x={x}, y={y}")]
-    InvalidPosition { x: u32, y: u32 },
+    #[error("Permission already granted to {address}")]
+    PermissionAlreadyGranted { address: String },
+
+    #[error("Permission not found for {address}")]
+    PermissionNotFound { address: String },
 
     #[error("Rate limit exceeded. Try again in {seconds} seconds")]
     RateLimitExceeded { seconds: u64 },
@@ -18,36 +21,33 @@ pub enum ContractError {
     #[error("Insufficient payment. Required: {required}, sent: {sent}")]
     InsufficientPayment { required: u128, sent: u128 },
 
-    #[error("Permission expired")]
-    PermissionExpired {},
+    #[error("Invalid token ID format")]
+    InvalidTokenId {},
 
-    #[error("Public editing disabled for this tile")]
-    PublicEditingDisabled {},
+    #[error("NFT ownership verification failed")]
+    OwnershipVerificationFailed {},
 
-    #[error("Invalid color value")]
+    #[error("Invalid position: {x}, {y}")]
+    InvalidPosition { x: u32, y: u32 },
+
+    #[error("Invalid color values")]
     InvalidColor {},
-
-    #[error("Tile not found in NFT contract")]
-    TileNotFound {},
-
-    #[error("Color change not allowed")]
-    ColorChangeNotAllowed {},
-
-    #[error("Invalid configuration update")]
-    InvalidConfigUpdate {},
-
-    #[error("Permission already granted to {address}")]
-    PermissionAlreadyGranted { address: String },
-
-    #[error("Permission not found for {address}")]
-    PermissionNotFound { address: String },
-
-    #[error("Invalid expiry time")]
-    InvalidExpiryTime {},
 
     #[error("Invalid fee amount")]
     InvalidFeeAmount {},
 
-    #[error("Contract paused")]
-    ContractPaused {},
+    #[error("Invalid time window")]
+    InvalidTimeWindow {},
+
+    #[error("Invalid batch size")]
+    InvalidBatchSize {},
+
+    #[error("Permission expired")]
+    PermissionExpired {},
+
+    #[error("Feature disabled")]
+    FeatureDisabled {},
+
+    #[error("Custom Error val: {val:?}")]
+    CustomError { val: String },
 } 

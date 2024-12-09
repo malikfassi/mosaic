@@ -28,20 +28,20 @@ This TODO list tracks the development of the Mosaic NFT platform, a tile-based N
 2. tile-coloring Contract
    - [x] Contract structure
    - [x] State definitions
-   - [ ] Core functionality
-     - [ ] Permission system
+   - [x] Core functionality
+     - [x] Permission system
      - [ ] Rate limiting
      - [ ] Fee collection
-   - [ ] Integration with NFT contract
+   - [x] Integration with NFT contract
    - [ ] Comprehensive tests
 
 3. mosaic-vending-minter Contract
    - [x] Contract structure
    - [x] Basic minting logic
-   - [ ] Position-based minting
-   - [ ] Batch minting support
-   - [ ] Integration tests
-   - [ ] Documentation updates
+   - [x] Position-based minting
+   - [x] Batch minting support
+   - [x] Integration tests
+   - [x] Documentation updates
 
 ### 🔄 CI/CD Setup
 1. Infrastructure

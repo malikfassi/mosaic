@@ -1,18 +1,22 @@
-use crate::error::ContractError;
-use crate::msg::{
-    BatchMintPositionsResponse, ConfigResponse, ExecuteMsg, InstantiateMsg, MintCountResponse,
-    MintPositionResponse, MintPriceResponse, MintablePositionsResponse, QueryMsg,
-};
-use crate::state::{Config, MintPosition, CONFIG, NEXT_POSITION, POSITION_TOKENS, TOTAL_MINTED, get_next_position, validate_position};
 use cosmwasm_std::{
-    entry_point, to_binary, Binary, Deps, DepsMut, Env, MessageInfo, Response, StdResult,
-    Uint128, WasmMsg, CosmosMsg, BankMsg, coins,
+    entry_point, to_binary, Binary, Deps, DepsMut, Env, MessageInfo,
+    Response, StdResult, Addr, Uint128, Event, CosmosMsg, WasmMsg, coin,
 };
 use cw2::set_contract_version;
-use mosaic_tile_nft::msg::ExecuteMsg as NFTExecuteMsg;
-use mosaic_tile_nft::state::{Position, Color};
 use rand::{Rng, SeedableRng};
 use rand::rngs::StdRng;
+
+use crate::error::ContractError;
+use crate::msg::{
+    ExecuteMsg, InstantiateMsg, QueryMsg, ConfigResponse, MintPositionResponse,
+    MintCountResponse, MintPriceResponse, MintablePositionsResponse,
+};
+use crate::state::{
+    Config, MintPosition, CONFIG, POSITION_TOKENS, TOTAL_MINTED, NEXT_POSITION,
+    get_next_position, validate_position,
+};
+use mosaic_tile_nft::msg::ExecuteMsg as NFTExecuteMsg;
+use mosaic_tile_nft::state::{Position, Color};
 
 // Version info for migration
 const CONTRACT_NAME: &str = "crates.io:mosaic-vending-minter";
@@ -35,15 +39,14 @@ pub fn instantiate(
         random_minting_enabled: msg.random_minting_enabled,
         position_minting_enabled: msg.position_minting_enabled,
     };
-    CONFIG.save(deps.storage, &config)?;
 
-    // Initialize starting position for random minting
+    CONFIG.save(deps.storage, &config)?;
+    TOTAL_MINTED.save(deps.storage, &0u32)?;
     NEXT_POSITION.save(deps.storage, &Position { x: 0, y: 0 })?;
-    TOTAL_MINTED.save(deps.storage, &0)?;
 
     Ok(Response::new()
-        .add_attribute("method", "instantiate")
-        .add_attribute("owner", info.sender))
+        .add_attribute("action", "instantiate")
+        .add_attribute("admin", info.sender))
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
@@ -91,20 +94,55 @@ pub fn execute_mint_random(
     color: Color,
 ) -> Result<Response, ContractError> {
     let config = CONFIG.load(deps.storage)?;
-    
     if !config.random_minting_enabled {
         return Err(ContractError::RandomMintingDisabled {});
     }
 
-    // Validate payment
-    validate_payment(&info, config.unit_price)?;
+    // Verify payment
+    let payment = cw_utils::must_pay(&info, "ustars")?;
+    if payment < config.unit_price {
+        return Err(ContractError::InsufficientPayment {
+            required: config.unit_price.u128(),
+            sent: payment.u128(),
+        });
+    }
 
-    // Get next available position
-    let position = find_random_position(deps.as_ref(), &env)?;
+    // Find next available position
+    let mut current_pos = NEXT_POSITION.load(deps.storage)?;
+    while POSITION_TOKENS.has(deps.storage, (current_pos.x, current_pos.y)) {
+        current_pos = get_next_position(current_pos)
+            .ok_or(ContractError::NoAvailablePositions {})?;
+    }
 
-    // Mint the tile
-    let res = mint_tile(deps, env, info, config, position, color)?;
-    Ok(res)
+    // Generate token ID
+    let total_minted = TOTAL_MINTED.load(deps.storage)?;
+    let token_id = format!("tile_{}", total_minted + 1);
+
+    // Save position and update counters
+    POSITION_TOKENS.save(deps.storage, (current_pos.x, current_pos.y), &Some(token_id.clone()))?;
+    TOTAL_MINTED.save(deps.storage, &(total_minted + 1))?;
+    NEXT_POSITION.save(deps.storage, &current_pos)?;
+
+    // Create mint message
+    let mint_msg = NFTExecuteMsg::MintTile {
+        token_id: token_id.clone(),
+        owner: info.sender.to_string(),
+        position: current_pos.clone(),
+        color: color.clone(),
+    };
+
+    let mint_msg = CosmosMsg::Wasm(WasmMsg::Execute {
+        contract_addr: config.mosaic_nft_address.to_string(),
+        msg: to_binary(&mint_msg)?,
+        funds: vec![],
+    });
+
+    Ok(Response::new()
+        .add_message(mint_msg)
+        .add_attribute("action", "mint_random")
+        .add_attribute("token_id", token_id)
+        .add_attribute("position_x", current_pos.x.to_string())
+        .add_attribute("position_y", current_pos.y.to_string()))
 }
 
 pub fn execute_mint_position(
@@ -115,7 +153,6 @@ pub fn execute_mint_position(
     color: Color,
 ) -> Result<Response, ContractError> {
     let config = CONFIG.load(deps.storage)?;
-    
     if !config.position_minting_enabled {
         return Err(ContractError::PositionMintingDisabled {});
     }
@@ -128,7 +165,7 @@ pub fn execute_mint_position(
         });
     }
 
-    // Check if position is already taken
+    // Check if position is available
     if POSITION_TOKENS.has(deps.storage, (position.x, position.y)) {
         return Err(ContractError::PositionTaken {
             x: position.x,
@@ -136,12 +173,43 @@ pub fn execute_mint_position(
         });
     }
 
-    // Validate payment
-    validate_payment(&info, config.unit_price)?;
+    // Verify payment
+    let payment = cw_utils::must_pay(&info, "ustars")?;
+    if payment < config.unit_price {
+        return Err(ContractError::InsufficientPayment {
+            required: config.unit_price.u128(),
+            sent: payment.u128(),
+        });
+    }
 
-    // Mint the tile
-    let res = mint_tile(deps, env, info, config, position, color)?;
-    Ok(res)
+    // Generate token ID
+    let total_minted = TOTAL_MINTED.load(deps.storage)?;
+    let token_id = format!("tile_{}", total_minted + 1);
+
+    // Save position and update counter
+    POSITION_TOKENS.save(deps.storage, (position.x, position.y), &Some(token_id.clone()))?;
+    TOTAL_MINTED.save(deps.storage, &(total_minted + 1))?;
+
+    // Create mint message
+    let mint_msg = NFTExecuteMsg::MintTile {
+        token_id: token_id.clone(),
+        owner: info.sender.to_string(),
+        position: position.clone(),
+        color: color.clone(),
+    };
+
+    let mint_msg = CosmosMsg::Wasm(WasmMsg::Execute {
+        contract_addr: config.mosaic_nft_address.to_string(),
+        msg: to_binary(&mint_msg)?,
+        funds: vec![],
+    });
+
+    Ok(Response::new()
+        .add_message(mint_msg)
+        .add_attribute("action", "mint_position")
+        .add_attribute("token_id", token_id)
+        .add_attribute("position_x", position.x.to_string())
+        .add_attribute("position_y", position.y.to_string()))
 }
 
 pub fn execute_batch_mint_random(
@@ -152,55 +220,68 @@ pub fn execute_batch_mint_random(
     colors: Vec<Color>,
 ) -> Result<Response, ContractError> {
     let config = CONFIG.load(deps.storage)?;
-    
     if !config.random_minting_enabled {
         return Err(ContractError::RandomMintingDisabled {});
     }
 
+    // Validate batch size
     if count > config.max_batch_size {
         return Err(ContractError::BatchSizeExceeded {});
     }
-
-    if colors.len() != count as usize {
+    if count as usize != colors.len() {
         return Err(ContractError::ColorCountMismatch {});
     }
 
-    // Validate total payment
+    // Verify total payment
     let total_price = config.unit_price * Uint128::from(count);
-    validate_payment(&info, total_price)?;
-
-    let mut messages = vec![];
-    let mut positions = vec![];
-
-    // Generate random positions and create mint messages
-    for color in colors {
-        let position = find_random_position(deps.as_ref(), &env)?;
-        positions.push(position.clone());
-        
-        let mint_msg = create_mint_message(
-            &config.mosaic_nft_address,
-            position.clone(),
-            color,
-        )?;
-        messages.push(mint_msg);
-
-        // Update position tracking
-        POSITION_TOKENS.save(deps.storage, (position.x, position.y), &None)?;
+    let payment = cw_utils::must_pay(&info, "ustars")?;
+    if payment < total_price {
+        return Err(ContractError::InsufficientPayment {
+            required: total_price.u128(),
+            sent: payment.u128(),
+        });
     }
 
-    // Update total minted count
-    let current_total = TOTAL_MINTED.load(deps.storage)?;
-    TOTAL_MINTED.save(deps.storage, &(current_total + count))?;
+    let mut messages = Vec::with_capacity(count as usize);
+    let mut current_pos = NEXT_POSITION.load(deps.storage)?;
+    let mut total_minted = TOTAL_MINTED.load(deps.storage)?;
 
-    // Create payment message
-    let payment_msg = BankMsg::Send {
-        to_address: config.payment_address.to_string(),
-        amount: coins(total_price.u128(), "ustars"),
-    };
+    for (i, color) in colors.into_iter().enumerate() {
+        // Find next available position
+        while POSITION_TOKENS.has(deps.storage, (current_pos.x, current_pos.y)) {
+            current_pos = get_next_position(current_pos)
+                .ok_or(ContractError::NoAvailablePositions {})?;
+        }
+
+        // Generate token ID and save position
+        let token_id = format!("tile_{}", total_minted + 1);
+        POSITION_TOKENS.save(deps.storage, (current_pos.x, current_pos.y), &Some(token_id.clone()))?;
+
+        // Create mint message
+        let mint_msg = NFTExecuteMsg::MintTile {
+            token_id,
+            owner: info.sender.to_string(),
+            position: current_pos.clone(),
+            color,
+        };
+
+        messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
+            contract_addr: config.mosaic_nft_address.to_string(),
+            msg: to_binary(&mint_msg)?,
+            funds: vec![],
+        }));
+
+        total_minted += 1;
+        current_pos = get_next_position(current_pos)
+            .ok_or(ContractError::NoAvailablePositions {})?;
+    }
+
+    // Update state
+    TOTAL_MINTED.save(deps.storage, &total_minted)?;
+    NEXT_POSITION.save(deps.storage, &current_pos)?;
 
     Ok(Response::new()
         .add_messages(messages)
-        .add_message(payment_msg)
         .add_attribute("action", "batch_mint_random")
         .add_attribute("count", count.to_string()))
 }
@@ -212,30 +293,38 @@ pub fn execute_batch_mint_positions(
     mints: Vec<(Position, Color)>,
 ) -> Result<Response, ContractError> {
     let config = CONFIG.load(deps.storage)?;
-    
     if !config.position_minting_enabled {
         return Err(ContractError::PositionMintingDisabled {});
     }
 
+    // Validate batch size
     if mints.len() as u32 > config.max_batch_size {
         return Err(ContractError::BatchSizeExceeded {});
     }
 
-    // Validate total payment
+    // Verify total payment
     let total_price = config.unit_price * Uint128::from(mints.len() as u32);
-    validate_payment(&info, total_price)?;
+    let payment = cw_utils::must_pay(&info, "ustars")?;
+    if payment < total_price {
+        return Err(ContractError::InsufficientPayment {
+            required: total_price.u128(),
+            sent: payment.u128(),
+        });
+    }
 
-    let mut messages = vec![];
+    let mut messages = Vec::with_capacity(mints.len());
+    let mut total_minted = TOTAL_MINTED.load(deps.storage)?;
 
-    // Validate positions and create mint messages
-    for (position, color) in mints.iter() {
-        if !validate_position(position) {
+    for (position, color) in mints {
+        // Validate position
+        if !validate_position(&position) {
             return Err(ContractError::InvalidPosition {
                 x: position.x,
                 y: position.y,
             });
         }
 
+        // Check if position is available
         if POSITION_TOKENS.has(deps.storage, (position.x, position.y)) {
             return Err(ContractError::PositionTaken {
                 x: position.x,
@@ -243,30 +332,32 @@ pub fn execute_batch_mint_positions(
             });
         }
 
-        let mint_msg = create_mint_message(
-            &config.mosaic_nft_address,
-            position.clone(),
-            color.clone(),
-        )?;
-        messages.push(mint_msg);
+        // Generate token ID and save position
+        let token_id = format!("tile_{}", total_minted + 1);
+        POSITION_TOKENS.save(deps.storage, (position.x, position.y), &Some(token_id.clone()))?;
 
-        // Update position tracking
-        POSITION_TOKENS.save(deps.storage, (position.x, position.y), &None)?;
+        // Create mint message
+        let mint_msg = NFTExecuteMsg::MintTile {
+            token_id,
+            owner: info.sender.to_string(),
+            position: position.clone(),
+            color,
+        };
+
+        messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
+            contract_addr: config.mosaic_nft_address.to_string(),
+            msg: to_binary(&mint_msg)?,
+            funds: vec![],
+        }));
+
+        total_minted += 1;
     }
 
-    // Update total minted count
-    let current_total = TOTAL_MINTED.load(deps.storage)?;
-    TOTAL_MINTED.save(deps.storage, &(current_total + mints.len() as u32))?;
-
-    // Create payment message
-    let payment_msg = BankMsg::Send {
-        to_address: config.payment_address.to_string(),
-        amount: coins(total_price.u128(), "ustars"),
-    };
+    // Update total minted
+    TOTAL_MINTED.save(deps.storage, &total_minted)?;
 
     Ok(Response::new()
         .add_messages(messages)
-        .add_message(payment_msg)
         .add_attribute("action", "batch_mint_positions")
         .add_attribute("count", mints.len().to_string()))
 }
@@ -281,142 +372,34 @@ pub fn execute_update_config(
     random_minting_enabled: Option<bool>,
     position_minting_enabled: Option<bool>,
 ) -> Result<Response, ContractError> {
-    let mut config = CONFIG.load(deps.storage)?;
+    CONFIG.update(deps.storage, |mut config| -> Result<_, ContractError> {
+        if info.sender != config.payment_address {
+            return Err(ContractError::Unauthorized {});
+        }
 
-    // Only the payment address (contract owner) can update config
-    if info.sender != config.payment_address {
-        return Err(ContractError::Unauthorized {});
-    }
+        if let Some(addr) = mosaic_nft_address {
+            config.mosaic_nft_address = deps.api.addr_validate(&addr)?;
+        }
+        if let Some(addr) = payment_address {
+            config.payment_address = deps.api.addr_validate(&addr)?;
+        }
+        if let Some(price) = unit_price {
+            config.unit_price = price;
+        }
+        if let Some(size) = max_batch_size {
+            config.max_batch_size = size;
+        }
+        if let Some(enabled) = random_minting_enabled {
+            config.random_minting_enabled = enabled;
+        }
+        if let Some(enabled) = position_minting_enabled {
+            config.position_minting_enabled = enabled;
+        }
 
-    if let Some(address) = mosaic_nft_address {
-        config.mosaic_nft_address = deps.api.addr_validate(&address)?;
-    }
-    if let Some(address) = payment_address {
-        config.payment_address = deps.api.addr_validate(&address)?;
-    }
-    if let Some(price) = unit_price {
-        config.unit_price = price;
-    }
-    if let Some(size) = max_batch_size {
-        config.max_batch_size = size;
-    }
-    if let Some(enabled) = random_minting_enabled {
-        config.random_minting_enabled = enabled;
-    }
-    if let Some(enabled) = position_minting_enabled {
-        config.position_minting_enabled = enabled;
-    }
-
-    CONFIG.save(deps.storage, &config)?;
+        Ok(config)
+    })?;
 
     Ok(Response::new().add_attribute("action", "update_config"))
-}
-
-// Helper functions
-
-fn validate_payment(info: &MessageInfo, required_price: Uint128) -> Result<(), ContractError> {
-    let payment = info
-        .funds
-        .iter()
-        .find(|c| c.denom == "ustars")
-        .map(|c| c.amount)
-        .unwrap_or_default();
-
-    if payment != required_price {
-        return Err(ContractError::InvalidPayment {});
-    }
-
-    Ok(())
-}
-
-fn find_random_position(deps: Deps, env: &Env) -> Result<Position, ContractError> {
-    // Create a deterministic RNG based on block time and height
-    let seed = (env.block.time.nanos() as u64)
-        .wrapping_mul(env.block.height as u64);
-    let mut rng = StdRng::seed_from_u64(seed);
-
-    // Try up to 100 times to find an available position
-    for _ in 0..100 {
-        let x = rng.gen_range(0..=MAX_POSITION);
-        let y = rng.gen_range(0..=MAX_POSITION);
-        let position = Position { x, y };
-
-        if !POSITION_TOKENS.has(deps.storage, (x, y)) {
-            return Ok(position);
-        }
-    }
-
-    // If we couldn't find a random position, fall back to sequential search
-    let current = NEXT_POSITION.load(deps.storage)?;
-    let mut next = current;
-
-    while POSITION_TOKENS.has(deps.storage, (next.x, next.y)) {
-        next = get_next_position(next)
-            .ok_or(ContractError::NoAvailablePositions {})?;
-    }
-
-    NEXT_POSITION.save(deps.storage, &next)?;
-    Ok(next)
-}
-
-fn create_mint_message(
-    nft_contract: &str,
-    position: Position,
-    color: Color,
-) -> StdResult<CosmosMsg> {
-    let token_id = format!("tile_{}-{}", position.x, position.y);
-    
-    let msg = NFTExecuteMsg::MintTile {
-        token_id: token_id.clone(),
-        owner: info.sender.to_string(),
-        position,
-        color,
-    };
-
-    Ok(CosmosMsg::Wasm(WasmMsg::Execute {
-        contract_addr: nft_contract.to_string(),
-        msg: to_binary(&msg)?,
-        funds: vec![],
-    }))
-}
-
-fn mint_tile(
-    deps: DepsMut,
-    env: Env,
-    info: MessageInfo,
-    config: Config,
-    position: Position,
-    color: Color,
-) -> Result<Response, ContractError> {
-    let token_id = format!("tile_{}-{}", position.x, position.y);
-
-    // Create mint message
-    let mint_msg = create_mint_message(
-        &config.mosaic_nft_address.to_string(),
-        position.clone(),
-        color,
-    )?;
-
-    // Update position tracking
-    POSITION_TOKENS.save(deps.storage, (position.x, position.y), &Some(token_id.clone()))?;
-
-    // Update total minted count
-    let current_total = TOTAL_MINTED.load(deps.storage)?;
-    TOTAL_MINTED.save(deps.storage, &(current_total + 1))?;
-
-    // Create payment message
-    let payment_msg = BankMsg::Send {
-        to_address: config.payment_address.to_string(),
-        amount: coins(config.unit_price.u128(), "ustars"),
-    };
-
-    Ok(Response::new()
-        .add_message(mint_msg)
-        .add_message(payment_msg)
-        .add_attribute("action", "mint_tile")
-        .add_attribute("token_id", token_id)
-        .add_attribute("position_x", position.x.to_string())
-        .add_attribute("position_y", position.y.to_string()))
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
@@ -460,8 +443,9 @@ fn query_mint_count(deps: Deps) -> StdResult<MintCountResponse> {
 
 fn query_mint_price(deps: Deps, count: u32) -> StdResult<MintPriceResponse> {
     let config = CONFIG.load(deps.storage)?;
-    let price = config.unit_price * Uint128::from(count);
-    Ok(MintPriceResponse { price })
+    Ok(MintPriceResponse {
+        price: config.unit_price * Uint128::from(count),
+    })
 }
 
 fn query_mintable_positions(
@@ -471,9 +455,9 @@ fn query_mintable_positions(
 ) -> StdResult<MintablePositionsResponse> {
     let limit = limit.unwrap_or(10) as usize;
     let start = start_after.unwrap_or(Position { x: 0, y: 0 });
-    let mut positions = vec![];
-
+    let mut positions = Vec::with_capacity(limit);
     let mut current = start;
+
     while positions.len() < limit {
         if !POSITION_TOKENS.has(deps.storage, (current.x, current.y)) {
             positions.push(current.clone());
@@ -525,6 +509,13 @@ mod tests {
         assert_eq!(config.max_batch_size, 10);
         assert!(config.random_minting_enabled);
         assert!(config.position_minting_enabled);
+
+        let total_minted = TOTAL_MINTED.load(deps.as_ref().storage).unwrap();
+        assert_eq!(total_minted, 0);
+
+        let next_pos = NEXT_POSITION.load(deps.as_ref().storage).unwrap();
+        assert_eq!(next_pos.x, 0);
+        assert_eq!(next_pos.y, 0);
     }
 
     #[test]
@@ -532,43 +523,81 @@ mod tests {
         let mut deps = mock_dependencies();
         setup_contract(deps.as_mut());
 
-        let info = mock_info(
-            "buyer",
-            &coins(UNIT_PRICE, "ustars"),
-        );
+        // Test insufficient payment
+        let info = mock_info("buyer", &coins(UNIT_PRICE - 1, "ustars"));
         let msg = ExecuteMsg::MintRandom {
             color: Color { r: 255, g: 0, b: 0 },
         };
+        let err = execute(deps.as_mut(), mock_env(), info, msg.clone()).unwrap_err();
+        assert!(matches!(err, ContractError::InsufficientPayment { .. }));
 
-        let res = execute(deps.as_mut(), mock_env(), info, msg).unwrap();
-        assert_eq!(2, res.messages.len()); // Mint message and payment message
-        assert!(res.attributes.iter().any(|attr| attr.key == "action" && attr.value == "mint_tile"));
+        // Test successful mint
+        let info = mock_info("buyer", &coins(UNIT_PRICE, "ustars"));
+        let res = execute(deps.as_mut(), mock_env(), info.clone(), msg).unwrap();
+        assert_eq!(1, res.messages.len());
+        assert!(res.attributes.iter().any(|attr| attr.key == "action" && attr.value == "mint_random"));
+        assert!(res.attributes.iter().any(|attr| attr.key == "token_id" && attr.value == "tile_1"));
+
+        // Verify state updates
+        let total_minted = TOTAL_MINTED.load(deps.as_ref().storage).unwrap();
+        assert_eq!(total_minted, 1);
+
+        let next_pos = NEXT_POSITION.load(deps.as_ref().storage).unwrap();
+        assert_eq!(next_pos.x, 1);
+        assert_eq!(next_pos.y, 0);
+
+        // Test when random minting is disabled
+        CONFIG.update(deps.as_mut().storage, |mut config| -> StdResult<_> {
+            config.random_minting_enabled = false;
+            Ok(config)
+        }).unwrap();
+
+        let err = execute(deps.as_mut(), mock_env(), info, msg).unwrap_err();
+        assert!(matches!(err, ContractError::RandomMintingDisabled {}));
     }
 
     #[test]
-    fn mint_specific_position() {
+    fn mint_position_tile() {
         let mut deps = mock_dependencies();
         setup_contract(deps.as_mut());
 
-        let info = mock_info(
-            "buyer",
-            &coins(UNIT_PRICE, "ustars"),
-        );
+        let position = Position { x: 5, y: 5 };
+        let color = Color { r: 0, g: 255, b: 0 };
+
+        // Test insufficient payment
+        let info = mock_info("buyer", &coins(UNIT_PRICE - 1, "ustars"));
         let msg = ExecuteMsg::MintPosition {
-            position: Position { x: 5, y: 5 },
-            color: Color { r: 0, g: 255, b: 0 },
+            position: position.clone(),
+            color: color.clone(),
         };
+        let err = execute(deps.as_mut(), mock_env(), info, msg.clone()).unwrap_err();
+        assert!(matches!(err, ContractError::InsufficientPayment { .. }));
 
+        // Test successful mint
+        let info = mock_info("buyer", &coins(UNIT_PRICE, "ustars"));
         let res = execute(deps.as_mut(), mock_env(), info.clone(), msg.clone()).unwrap();
-        assert_eq!(2, res.messages.len());
+        assert_eq!(1, res.messages.len());
+        assert!(res.attributes.iter().any(|attr| attr.key == "action" && attr.value == "mint_position"));
+        assert!(res.attributes.iter().any(|attr| attr.key == "token_id" && attr.value == "tile_1"));
         assert!(res.attributes.iter().any(|attr| attr.key == "position_x" && attr.value == "5"));
+        assert!(res.attributes.iter().any(|attr| attr.key == "position_y" && attr.value == "5"));
 
-        // Try to mint same position again
+        // Test minting same position again
+        let err = execute(deps.as_mut(), mock_env(), info.clone(), msg).unwrap_err();
+        assert!(matches!(err, ContractError::PositionTaken { .. }));
+
+        // Test when position minting is disabled
+        CONFIG.update(deps.as_mut().storage, |mut config| -> StdResult<_> {
+            config.position_minting_enabled = false;
+            Ok(config)
+        }).unwrap();
+
+        let msg = ExecuteMsg::MintPosition {
+            position: Position { x: 6, y: 6 },
+            color,
+        };
         let err = execute(deps.as_mut(), mock_env(), info, msg).unwrap_err();
-        assert_eq!(
-            err,
-            ContractError::PositionTaken { x: 5, y: 5 }
-        );
+        assert!(matches!(err, ContractError::PositionMintingDisabled {}));
     }
 
     #[test]
@@ -576,22 +605,88 @@ mod tests {
         let mut deps = mock_dependencies();
         setup_contract(deps.as_mut());
 
-        let info = mock_info(
-            "buyer",
-            &coins(UNIT_PRICE * 3, "ustars"),
-        );
+        let colors = vec![
+            Color { r: 255, g: 0, b: 0 },
+            Color { r: 0, g: 255, b: 0 },
+            Color { r: 0, g: 0, b: 255 },
+        ];
+
+        // Test insufficient payment
+        let info = mock_info("buyer", &coins(UNIT_PRICE * 2, "ustars"));
         let msg = ExecuteMsg::BatchMintRandom {
             count: 3,
-            colors: vec![
-                Color { r: 255, g: 0, b: 0 },
-                Color { r: 0, g: 255, b: 0 },
-                Color { r: 0, g: 0, b: 255 },
-            ],
+            colors: colors.clone(),
         };
+        let err = execute(deps.as_mut(), mock_env(), info, msg.clone()).unwrap_err();
+        assert!(matches!(err, ContractError::InsufficientPayment { .. }));
 
-        let res = execute(deps.as_mut(), mock_env(), info, msg).unwrap();
-        assert_eq!(4, res.messages.len()); // 3 mint messages + 1 payment message
+        // Test successful batch mint
+        let info = mock_info("buyer", &coins(UNIT_PRICE * 3, "ustars"));
+        let res = execute(deps.as_mut(), mock_env(), info.clone(), msg.clone()).unwrap();
+        assert_eq!(3, res.messages.len());
+        assert!(res.attributes.iter().any(|attr| attr.key == "action" && attr.value == "batch_mint_random"));
         assert!(res.attributes.iter().any(|attr| attr.key == "count" && attr.value == "3"));
+
+        // Verify state updates
+        let total_minted = TOTAL_MINTED.load(deps.as_ref().storage).unwrap();
+        assert_eq!(total_minted, 3);
+
+        // Test batch size exceeded
+        let msg = ExecuteMsg::BatchMintRandom {
+            count: 11,
+            colors: vec![Color { r: 0, g: 0, b: 0 }; 11],
+        };
+        let err = execute(deps.as_mut(), mock_env(), info.clone(), msg).unwrap_err();
+        assert!(matches!(err, ContractError::BatchSizeExceeded {}));
+
+        // Test color count mismatch
+        let msg = ExecuteMsg::BatchMintRandom {
+            count: 3,
+            colors: vec![Color { r: 0, g: 0, b: 0 }; 2],
+        };
+        let err = execute(deps.as_mut(), mock_env(), info, msg).unwrap_err();
+        assert!(matches!(err, ContractError::ColorCountMismatch {}));
+    }
+
+    #[test]
+    fn batch_mint_positions() {
+        let mut deps = mock_dependencies();
+        setup_contract(deps.as_mut());
+
+        let mints = vec![
+            (Position { x: 1, y: 1 }, Color { r: 255, g: 0, b: 0 }),
+            (Position { x: 2, y: 2 }, Color { r: 0, g: 255, b: 0 }),
+            (Position { x: 3, y: 3 }, Color { r: 0, g: 0, b: 255 }),
+        ];
+
+        // Test insufficient payment
+        let info = mock_info("buyer", &coins(UNIT_PRICE * 2, "ustars"));
+        let msg = ExecuteMsg::BatchMintPositions {
+            mints: mints.clone(),
+        };
+        let err = execute(deps.as_mut(), mock_env(), info, msg.clone()).unwrap_err();
+        assert!(matches!(err, ContractError::InsufficientPayment { .. }));
+
+        // Test successful batch mint
+        let info = mock_info("buyer", &coins(UNIT_PRICE * 3, "ustars"));
+        let res = execute(deps.as_mut(), mock_env(), info.clone(), msg.clone()).unwrap();
+        assert_eq!(3, res.messages.len());
+        assert!(res.attributes.iter().any(|attr| attr.key == "action" && attr.value == "batch_mint_positions"));
+        assert!(res.attributes.iter().any(|attr| attr.key == "count" && attr.value == "3"));
+
+        // Test minting same positions again
+        let err = execute(deps.as_mut(), mock_env(), info.clone(), msg).unwrap_err();
+        assert!(matches!(err, ContractError::PositionTaken { .. }));
+
+        // Test batch size exceeded
+        let large_mints = (0..11).map(|i| {
+            (Position { x: i + 10, y: i + 10 }, Color { r: 0, g: 0, b: 0 })
+        }).collect::<Vec<_>>();
+        let msg = ExecuteMsg::BatchMintPositions {
+            mints: large_mints,
+        };
+        let err = execute(deps.as_mut(), mock_env(), info, msg).unwrap_err();
+        assert!(matches!(err, ContractError::BatchSizeExceeded {}));
     }
 
     #[test]
@@ -599,7 +694,7 @@ mod tests {
         let mut deps = mock_dependencies();
         setup_contract(deps.as_mut());
 
-        // Only owner can update config
+        // Test unauthorized update
         let info = mock_info("anyone", &[]);
         let msg = ExecuteMsg::UpdateConfig {
             mosaic_nft_address: None,
@@ -610,14 +705,59 @@ mod tests {
             position_minting_enabled: None,
         };
         let err = execute(deps.as_mut(), mock_env(), info, msg.clone()).unwrap_err();
-        assert_eq!(err, ContractError::Unauthorized {});
+        assert!(matches!(err, ContractError::Unauthorized {}));
 
-        // Owner can update config
+        // Test successful update
         let info = mock_info(OWNER, &[]);
         let res = execute(deps.as_mut(), mock_env(), info, msg).unwrap();
         assert!(res.attributes.iter().any(|attr| attr.key == "action" && attr.value == "update_config"));
 
         let config = CONFIG.load(deps.as_ref().storage).unwrap();
         assert_eq!(config.unit_price, Uint128::from(2_000_000u128));
+    }
+
+    #[test]
+    fn query_tests() {
+        let mut deps = mock_dependencies();
+        setup_contract(deps.as_mut());
+
+        // Test config query
+        let config: ConfigResponse = from_binary(&query(deps.as_ref(), mock_env(), QueryMsg::Config {}).unwrap()).unwrap();
+        assert_eq!(config.unit_price, Uint128::from(UNIT_PRICE));
+
+        // Test mint position query
+        let pos = Position { x: 5, y: 5 };
+        let pos_info: MintPositionResponse = from_binary(&query(
+            deps.as_ref(),
+            mock_env(),
+            QueryMsg::MintPosition { position: pos.clone() },
+        ).unwrap()).unwrap();
+        assert!(!pos_info.is_minted);
+        assert_eq!(pos_info.token_id, None);
+
+        // Test mint count query
+        let count: MintCountResponse = from_binary(&query(
+            deps.as_ref(),
+            mock_env(),
+            QueryMsg::MintCount {},
+        ).unwrap()).unwrap();
+        assert_eq!(count.total_minted, 0);
+
+        // Test mint price query
+        let price: MintPriceResponse = from_binary(&query(
+            deps.as_ref(),
+            mock_env(),
+            QueryMsg::MintPrice { count: 3 },
+        ).unwrap()).unwrap();
+        assert_eq!(price.price, Uint128::from(UNIT_PRICE * 3));
+
+        // Test mintable positions query
+        let positions: MintablePositionsResponse = from_binary(&query(
+            deps.as_ref(),
+            mock_env(),
+            QueryMsg::MintablePositions { start_after: None, limit: Some(5) },
+        ).unwrap()).unwrap();
+        assert_eq!(positions.positions.len(), 5);
+        assert_eq!(positions.positions[0], Position { x: 0, y: 0 });
     }
 } 

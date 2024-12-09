@@ -70,6 +70,18 @@ pub fn execute(
         ExecuteMsg::WithdrawFees { amount } => {
             execute_withdraw_fees(deps, env, info, amount)
         }
+        ExecuteMsg::HandleNFTTransfer { token_id, from, to } => {
+            execute_handle_nft_transfer(deps, env, info, token_id, from, to)
+        }
+        ExecuteMsg::BatchGrantPermission { permissions } => {
+            execute_batch_grant_permission(deps, env, info, permissions)
+        }
+        ExecuteMsg::BatchRevokePermission { permissions } => {
+            execute_batch_revoke_permission(deps, env, info, permissions)
+        }
+        ExecuteMsg::BatchSetPublicEditing { settings } => {
+            execute_batch_set_public_editing(deps, env, info, settings)
+        }
     }
 }
 
@@ -82,11 +94,21 @@ pub fn execute_change_color(
 ) -> Result<Response, ContractError> {
     let config = CONFIG.load(deps.storage)?;
     
-    // Load or create tile permissions
+    // Query NFT contract for current owner
+    let token_id = format!("tile_{}_{}",  position.x, position.y);
+    let owner: String = deps.querier.query_wasm_smart(
+        config.nft_contract.clone(),
+        &mosaic_tile_nft::msg::QueryMsg::OwnerOf {
+            token_id: token_id.clone(),
+            include_expired: None,
+        },
+    )?;
+
+    // Load or create tile permissions with verified owner
     let permissions = TILE_PERMISSIONS
         .may_load(deps.storage, (position.x, position.y))?
         .unwrap_or_else(|| TilePermissions {
-            owner: info.sender.clone(), // Default to sender as owner
+            owner: deps.api.addr_validate(&owner).unwrap(),
             allowed_editors: vec![],
             public_editing: false,
             permission_expiry: None,
@@ -363,6 +385,214 @@ pub fn execute_withdraw_fees(
         .add_message(bank_msg)
         .add_attribute("action", "withdraw_fees")
         .add_attribute("amount", withdraw_amount.to_string()))
+}
+
+pub fn execute_handle_nft_transfer(
+    deps: DepsMut,
+    env: Env,
+    info: MessageInfo,
+    token_id: String,
+    from: String,
+    to: String,
+) -> Result<Response, ContractError> {
+    let config = CONFIG.load(deps.storage)?;
+
+    // Only NFT contract can call this
+    if info.sender != config.nft_contract {
+        return Err(ContractError::Unauthorized {});
+    }
+
+    // Parse token_id to get position (format: "tile_x_y")
+    let parts: Vec<&str> = token_id.split('_').collect();
+    if parts.len() != 3 || parts[0] != "tile" {
+        return Err(ContractError::InvalidTokenId {});
+    }
+
+    let x: u32 = parts[1].parse().map_err(|_| ContractError::InvalidTokenId {})?;
+    let y: u32 = parts[2].parse().map_err(|_| ContractError::InvalidTokenId {})?;
+    let position = Position { x, y };
+
+    // Update tile permissions
+    TILE_PERMISSIONS.update(
+        deps.storage,
+        (position.x, position.y),
+        |existing| -> Result<_, ContractError> {
+            let mut permissions = existing.unwrap_or_else(|| TilePermissions {
+                owner: deps.api.addr_validate(&to)?,
+                allowed_editors: vec![],
+                public_editing: false,
+                permission_expiry: None,
+                public_change_fee: None,
+            });
+
+            // Update owner
+            permissions.owner = deps.api.addr_validate(&to)?;
+            // Clear allowed editors on transfer
+            permissions.allowed_editors.clear();
+            // Reset public editing on transfer
+            permissions.public_editing = false;
+            permissions.public_change_fee = None;
+
+            Ok(permissions)
+        },
+    )?;
+
+    Ok(Response::new()
+        .add_attribute("action", "handle_nft_transfer")
+        .add_attribute("token_id", token_id)
+        .add_attribute("from", from)
+        .add_attribute("to", to))
+}
+
+pub fn execute_batch_grant_permission(
+    deps: DepsMut,
+    env: Env,
+    info: MessageInfo,
+    permissions: Vec<(Position, String, Option<Timestamp>)>,
+) -> Result<Response, ContractError> {
+    let mut attrs = vec![("action".to_string(), "batch_grant_permission".to_string())];
+
+    for (position, editor, expires_at) in permissions {
+        let editor_addr = deps.api.addr_validate(&editor)?;
+        
+        // Verify NFT ownership
+        let token_id = format!("tile_{}_{}",  position.x, position.y);
+        let owner: String = deps.querier.query_wasm_smart(
+            CONFIG.load(deps.storage)?.nft_contract,
+            &mosaic_tile_nft::msg::QueryMsg::OwnerOf {
+                token_id: token_id.clone(),
+                include_expired: None,
+            },
+        )?;
+
+        if owner != info.sender {
+            return Err(ContractError::Unauthorized {});
+        }
+
+        TILE_PERMISSIONS.update(
+            deps.storage,
+            (position.x, position.y),
+            |existing| -> Result<_, ContractError> {
+                let mut perms = existing.unwrap_or_else(|| TilePermissions {
+                    owner: info.sender.clone(),
+                    allowed_editors: vec![],
+                    public_editing: false,
+                    permission_expiry: None,
+                    public_change_fee: None,
+                });
+
+                if !perms.allowed_editors.contains(&editor_addr) {
+                    perms.allowed_editors.push(editor_addr.clone());
+                }
+                perms.permission_expiry = expires_at;
+
+                Ok(perms)
+            },
+        )?;
+
+        attrs.push(("position".to_string(), format!("{},{}", position.x, position.y)));
+        attrs.push(("editor".to_string(), editor));
+    }
+
+    Ok(Response::new().add_attributes(attrs))
+}
+
+pub fn execute_batch_revoke_permission(
+    deps: DepsMut,
+    env: Env,
+    info: MessageInfo,
+    permissions: Vec<(Position, String)>,
+) -> Result<Response, ContractError> {
+    let mut attrs = vec![("action".to_string(), "batch_revoke_permission".to_string())];
+
+    for (position, editor) in permissions {
+        let editor_addr = deps.api.addr_validate(&editor)?;
+        
+        // Verify NFT ownership
+        let token_id = format!("tile_{}_{}",  position.x, position.y);
+        let owner: String = deps.querier.query_wasm_smart(
+            CONFIG.load(deps.storage)?.nft_contract,
+            &mosaic_tile_nft::msg::QueryMsg::OwnerOf {
+                token_id: token_id.clone(),
+                include_expired: None,
+            },
+        )?;
+
+        if owner != info.sender {
+            return Err(ContractError::Unauthorized {});
+        }
+
+        TILE_PERMISSIONS.update(
+            deps.storage,
+            (position.x, position.y),
+            |existing| -> Result<_, ContractError> {
+                let mut perms = existing.ok_or(ContractError::PermissionNotFound {
+                    address: editor.clone(),
+                })?;
+
+                perms.allowed_editors.retain(|addr| addr != &editor_addr);
+
+                Ok(perms)
+            },
+        )?;
+
+        attrs.push(("position".to_string(), format!("{},{}", position.x, position.y)));
+        attrs.push(("editor".to_string(), editor));
+    }
+
+    Ok(Response::new().add_attributes(attrs))
+}
+
+pub fn execute_batch_set_public_editing(
+    deps: DepsMut,
+    env: Env,
+    info: MessageInfo,
+    settings: Vec<(Position, bool, Option<Uint128>)>,
+) -> Result<Response, ContractError> {
+    let mut attrs = vec![("action".to_string(), "batch_set_public_editing".to_string())];
+
+    for (position, public_editing, public_change_fee) in settings {
+        // Verify NFT ownership
+        let token_id = format!("tile_{}_{}",  position.x, position.y);
+        let owner: String = deps.querier.query_wasm_smart(
+            CONFIG.load(deps.storage)?.nft_contract,
+            &mosaic_tile_nft::msg::QueryMsg::OwnerOf {
+                token_id: token_id.clone(),
+                include_expired: None,
+            },
+        )?;
+
+        if owner != info.sender {
+            return Err(ContractError::Unauthorized {});
+        }
+
+        TILE_PERMISSIONS.update(
+            deps.storage,
+            (position.x, position.y),
+            |existing| -> Result<_, ContractError> {
+                let mut perms = existing.unwrap_or_else(|| TilePermissions {
+                    owner: info.sender.clone(),
+                    allowed_editors: vec![],
+                    public_editing: false,
+                    permission_expiry: None,
+                    public_change_fee: None,
+                });
+
+                perms.public_editing = public_editing;
+                perms.public_change_fee = public_change_fee;
+
+                Ok(perms)
+            },
+        )?;
+
+        attrs.push(("position".to_string(), format!("{},{}", position.x, position.y)));
+        attrs.push(("public_editing".to_string(), public_editing.to_string()));
+        if let Some(fee) = public_change_fee {
+            attrs.push(("public_change_fee".to_string(), fee.to_string()));
+        }
+    }
+
+    Ok(Response::new().add_attributes(attrs))
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
