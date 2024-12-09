@@ -29,6 +29,27 @@
      - [ ] Loading states
      - [ ] Transaction feedback
      - [ ] Connection stability
+<<<<<<< HEAD
+=======
+   - [ ] Transaction Handling
+     - [ ] Batch transaction support
+     - [ ] Transaction preview
+     - [ ] Gas estimation
+     - [ ] Transaction history
+     - [ ] Retry mechanism
+   - [ ] UI/UX Improvements
+     - [ ] Canvas zoom and pan
+     - [ ] Color palette presets
+     - [ ] Pixel ownership hover
+     - [ ] Undo/Redo functionality
+     - [ ] Mobile responsiveness
+   - [ ] Loading States & Animations
+     - [ ] Pixel placement animation
+     - [ ] Transaction progress indicator
+     - [ ] Loading skeletons
+     - [ ] Success/Error animations
+     - [ ] Network status indicator
+>>>>>>> 5a17691 (feat: implement contract interactions and remove websocket - Add contract methods, remove WS for MVP, update env config, add batch transactions)
    - [ ] Documentation
      - [ ] Setup instructions
      - [ ] Testing guide
@@ -59,7 +80,28 @@
      - [ ] Rental marketplace
      - [ ] Revenue sharing
 
+<<<<<<< HEAD
 2. Analytics & Dashboard
+=======
+2. Real-time Updates
+   - [ ] WebSocket Integration
+     - [ ] Set up WebSocket server
+     - [ ] Implement connection handling
+     - [ ] Add authentication
+     - [ ] Add rate limiting
+   - [ ] Canvas Sync
+     - [ ] Real-time pixel updates
+     - [ ] User presence indicators
+     - [ ] Live transaction status
+     - [ ] Connection status indicator
+   - [ ] Performance Optimization
+     - [ ] Message batching
+     - [ ] Reconnection strategy
+     - [ ] State reconciliation
+     - [ ] Conflict resolution
+
+3. Analytics & Dashboard
+>>>>>>> 5a17691 (feat: implement contract interactions and remove websocket - Add contract methods, remove WS for MVP, update env config, add batch transactions)
    - [ ] User Dashboard
      - [ ] Owned pixels overview
      - [ ] Rental management
@@ -220,3 +262,38 @@
    - Add troubleshooting guide
    - Document CI/CD process
 
+<<<<<<< HEAD
+=======
+## Infrastructure & Setup Requirements
+1. Environment Variables Setup
+   - [ ] Create root `.env`:
+     - [ ] STARGAZE_TESTNET_RPC
+     - [ ] STARGAZE_TESTNET_CHAIN_ID
+     - [ ] DEPLOYMENT_WALLET_MNEMONIC
+     - [ ] DEPLOYMENT_WALLET_ADDRESS
+   - [ ] Create frontend `.env`:
+     - [ ] NEXT_PUBLIC_BASE_URL
+     - [ ] NEXT_PUBLIC_STARGAZE_RPC
+     - [ ] NEXT_PUBLIC_STARGAZE_REST
+     - [ ] NEXT_PUBLIC_STARGAZE_CHAIN_ID
+     - [ ] NEXT_PUBLIC_CONTRACT_ADDRESS
+   - [ ] Create `.env.example` templates
+
+2. GitHub Repository Configuration
+   - [ ] Enable GitHub Actions
+   - [ ] Set up repository secrets:
+     - [ ] DEPLOYMENT_WALLET_MNEMONIC
+     - [ ] DEPLOYMENT_WALLET_ADDRESS
+     - [ ] CODECOV_TOKEN
+   - [ ] Configure branch protection rules:
+     - [ ] Require pull request reviews
+     - [ ] Require status checks
+     - [ ] Enforce linear history
+
+3. Stargaze Network Setup
+   - [ ] Create and fund testnet wallet
+   - [ ] Obtain testnet STARS (~100 minimum)
+   - [ ] Set up mainnet wallet
+   - [ ] Verify contract deployment permissions
+
+>>>>>>> 5a17691 (feat: implement contract interactions and remove websocket - Add contract methods, remove WS for MVP, update env config, add batch transactions)
