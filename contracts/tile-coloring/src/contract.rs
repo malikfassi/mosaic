@@ -1,20 +1,17 @@
-use crate::error::ContractError;
-use crate::msg::{
-    ExecuteMsg, InstantiateMsg, QueryMsg, ConfigResponse, TilePermissionsResponse,
-    ColorHistoryResponse, UserStatisticsResponse, TotalFeesResponse, CanChangeColorResponse,
-};
-use crate::state::{
-    Config, UserStatistics, TilePermissions, ColorChangeEvent,
-    CONFIG, USER_STATS, TILE_PERMISSIONS, COLOR_HISTORY, TOTAL_FEES,
-    can_change_color, check_rate_limit,
-};
 use cosmwasm_std::{
-    entry_point, to_binary, Binary, Deps, DepsMut, Env, MessageInfo, Response,
-    StdResult, Uint128, WasmMsg, CosmosMsg, BankMsg, coins, Addr,
+    entry_point, to_binary, Binary, Deps, DepsMut, Env, MessageInfo,
+    Response, StdResult, Addr, Uint128, Event, CosmosMsg, BankMsg,
 };
 use cw2::set_contract_version;
-use mosaic_tile_nft::msg::ExecuteMsg as NFTExecuteMsg;
-use mosaic_tile_nft::state::{Position, Color};
+
+use crate::error::ContractError;
+use crate::msg::{ExecuteMsg, InstantiateMsg, QueryMsg};
+use crate::state::{
+    Config, UserStatistics, TilePermissions, ColorChangeEvent,
+    CONFIG, USER_STATS, TILE_PERMISSIONS, TOTAL_FEES,
+    can_change_color, check_rate_limit,
+};
+use mosaic_tile_nft::state::{Color, Position};
 
 // Version info for migration
 const CONTRACT_NAME: &str = "crates.io:tile-coloring";
@@ -38,14 +35,13 @@ pub fn instantiate(
         requires_payment: msg.requires_payment,
         rate_limiting_enabled: msg.rate_limiting_enabled,
     };
-    CONFIG.save(deps.storage, &config)?;
 
-    // Initialize total fees
+    CONFIG.save(deps.storage, &config)?;
     TOTAL_FEES.save(deps.storage, &Uint128::zero())?;
 
     Ok(Response::new()
-        .add_attribute("method", "instantiate")
-        .add_attribute("admin", msg.admin))
+        .add_attribute("action", "instantiate")
+        .add_attribute("admin", config.admin))
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
@@ -68,36 +64,14 @@ pub fn execute(
         ExecuteMsg::SetPublicEditing { position, public_editing, public_change_fee } => {
             execute_set_public_editing(deps, env, info, position, public_editing, public_change_fee)
         }
-        ExecuteMsg::UpdateConfig { 
-            nft_contract, admin, color_change_fee, rate_limit,
-            rate_limit_window, requires_payment, rate_limiting_enabled 
-        } => execute_update_config(
-            deps, info, nft_contract, admin, color_change_fee, rate_limit,
-            rate_limit_window, requires_payment, rate_limiting_enabled,
-        ),
-        ExecuteMsg::WithdrawFees { amount } => execute_withdraw_fees(deps, info, amount),
+        ExecuteMsg::UpdateConfig { nft_contract, admin, color_change_fee, rate_limit, rate_limit_window, requires_payment, rate_limiting_enabled } => {
+            execute_update_config(deps, env, info, nft_contract, admin, color_change_fee, rate_limit, rate_limit_window, requires_payment, rate_limiting_enabled)
+        }
+        ExecuteMsg::WithdrawFees { amount } => {
+            execute_withdraw_fees(deps, env, info, amount)
+        }
     }
 }
-
-#[cfg_attr(not(feature = "library"), entry_point)]
-pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
-    match msg {
-        QueryMsg::Config {} => to_binary(&query_config(deps)?),
-        QueryMsg::TilePermissions { position } => {
-            to_binary(&query_tile_permissions(deps, position)?)
-        }
-        QueryMsg::ColorHistory { position, start_after, limit } => {
-            to_binary(&query_color_history(deps, position, start_after, limit)?)
-        }
-        QueryMsg::UserStatistics { address } => {
-            to_binary(&query_user_statistics(deps, address)?)
-        }
-        QueryMsg::TotalFees {} => to_binary(&query_total_fees(deps)?),
-        QueryMsg::CanChangeColor { position, editor } => {
-            to_binary(&query_can_change_color(deps, env, position, editor)?)
-        }
-    }
-} 
 
 pub fn execute_change_color(
     deps: DepsMut,
@@ -112,44 +86,46 @@ pub fn execute_change_color(
     let permissions = TILE_PERMISSIONS
         .may_load(deps.storage, (position.x, position.y))?
         .unwrap_or_else(|| TilePermissions {
-            owner: info.sender.clone(), // Will be updated with NFT owner
+            owner: info.sender.clone(), // Default to sender as owner
             allowed_editors: vec![],
             public_editing: false,
             permission_expiry: None,
             public_change_fee: None,
         });
 
-    // Verify permission to change color
+    // Check permissions
     if !can_change_color(&permissions, &info.sender, &env.block.time) {
-        return Err(ContractError::ColorChangeNotAllowed {});
+        return Err(ContractError::Unauthorized {});
     }
 
-    // Check rate limit
-    let mut user_stats = USER_STATS
+    // Check and update rate limit
+    let mut stats = USER_STATS
         .may_load(deps.storage, &info.sender)?
         .unwrap_or_default();
-    
-    if !check_rate_limit(&user_stats, &config, env.block.time) {
-        let window_end = user_stats.current_window_start.unwrap()
-            .plus_seconds(config.rate_limit_window);
-        let remaining = window_end.seconds() - env.block.time.seconds();
-        return Err(ContractError::RateLimitExceeded { seconds: remaining });
+
+    if !check_rate_limit(&stats, &config, env.block.time) {
+        return Err(ContractError::RateLimitExceeded {
+            seconds: config.rate_limit_window,
+        });
     }
 
-    // Calculate and verify payment
-    let required_fee = if permissions.owner == info.sender {
-        Uint128::zero()
+    // Handle payment
+    let required_fee = if config.requires_payment {
+        if let Some(public_fee) = permissions.public_change_fee {
+            if !permissions.owner.eq(&info.sender) {
+                public_fee
+            } else {
+                config.color_change_fee
+            }
+        } else {
+            config.color_change_fee
+        }
     } else {
-        permissions.public_change_fee.unwrap_or(config.color_change_fee)
+        Uint128::zero()
     };
 
-    if config.requires_payment && required_fee > Uint128::zero() {
-        let payment = info.funds
-            .iter()
-            .find(|c| c.denom == "ustars")
-            .map(|c| c.amount)
-            .unwrap_or_default();
-
+    if required_fee > Uint128::zero() {
+        let payment = cw_utils::must_pay(&info, "ustars")?;
         if payment < required_fee {
             return Err(ContractError::InsufficientPayment {
                 required: required_fee.u128(),
@@ -159,14 +135,14 @@ pub fn execute_change_color(
     }
 
     // Update user statistics
-    user_stats.total_color_changes += 1;
-    user_stats.total_fees_paid += required_fee;
-    user_stats.last_color_change = Some(env.block.time);
-    user_stats.changes_in_window += 1;
-    if user_stats.current_window_start.is_none() {
-        user_stats.current_window_start = Some(env.block.time);
+    stats.total_color_changes += 1;
+    stats.total_fees_paid += required_fee;
+    stats.last_color_change = Some(env.block.time);
+    stats.changes_in_window += 1;
+    if stats.current_window_start.is_none() {
+        stats.current_window_start = Some(env.block.time);
     }
-    USER_STATS.save(deps.storage, &info.sender, &user_stats)?;
+    USER_STATS.save(deps.storage, &info.sender, &stats)?;
 
     // Update total fees
     if required_fee > Uint128::zero() {
@@ -175,43 +151,20 @@ pub fn execute_change_color(
         })?;
     }
 
-    // Record color change event
-    let event = ColorChangeEvent {
-        editor: info.sender.clone(),
-        from_color: color.clone(), // TODO: Get current color from NFT contract
-        to_color: color.clone(),
-        timestamp: env.block.time,
-        fee_paid: Some(required_fee),
-    };
-
-    COLOR_HISTORY.update(
-        deps.storage,
-        (position.x, position.y),
-        |history| -> StdResult<_> {
-            let mut history = history.unwrap_or_default();
-            history.push(event);
-            Ok(history)
-        },
-    )?;
-
-    // Create color update message for NFT contract
-    let update_msg = NFTExecuteMsg::UpdateTileColor {
-        token_id: format!("tile_{}-{}", position.x, position.y),
-        color,
-    };
-
-    let update_color_msg = CosmosMsg::Wasm(WasmMsg::Execute {
-        contract_addr: config.nft_contract.to_string(),
-        msg: to_binary(&update_msg)?,
-        funds: vec![],
-    });
+    // Create color update event
+    let color_event = Event::new("tile_color_update")
+        .add_attribute("token_id", position.x.to_string() + "," + &position.y.to_string())
+        .add_attribute("color_r", color.r.to_string())
+        .add_attribute("color_g", color.g.to_string())
+        .add_attribute("color_b", color.b.to_string())
+        .add_attribute("updater", info.sender.to_string())
+        .add_attribute("timestamp", env.block.time.seconds().to_string());
 
     Ok(Response::new()
-        .add_message(update_color_msg)
+        .add_event(color_event)
         .add_attribute("action", "change_color")
         .add_attribute("position_x", position.x.to_string())
-        .add_attribute("position_y", position.y.to_string())
-        .add_attribute("editor", info.sender))
+        .add_attribute("position_y", position.y.to_string()))
 }
 
 pub fn execute_grant_permission(
@@ -227,8 +180,8 @@ pub fn execute_grant_permission(
     TILE_PERMISSIONS.update(
         deps.storage,
         (position.x, position.y),
-        |permissions| -> Result<_, ContractError> {
-            let mut permissions = permissions.unwrap_or_else(|| TilePermissions {
+        |existing| -> Result<_, ContractError> {
+            let mut permissions = existing.unwrap_or_else(|| TilePermissions {
                 owner: info.sender.clone(),
                 allowed_editors: vec![],
                 public_editing: false,
@@ -237,26 +190,20 @@ pub fn execute_grant_permission(
             });
 
             // Only owner can grant permissions
-            if info.sender != permissions.owner {
+            if permissions.owner != info.sender {
                 return Err(ContractError::Unauthorized {});
             }
 
-            // Check if editor already has permission
+            // Check if editor is already in the list
             if permissions.allowed_editors.contains(&editor_addr) {
-                return Err(ContractError::PermissionAlreadyGranted {
-                    address: editor.clone(),
+                return Err(ContractError::PermissionAlreadyGranted { 
+                    address: editor.clone() 
                 });
-            }
-
-            // Validate expiry time
-            if let Some(expiry) = expires_at {
-                if expiry <= env.block.time {
-                    return Err(ContractError::InvalidExpiryTime {});
-                }
             }
 
             permissions.allowed_editors.push(editor_addr.clone());
             permissions.permission_expiry = expires_at;
+
             Ok(permissions)
         },
     )?;
@@ -280,21 +227,18 @@ pub fn execute_revoke_permission(
     TILE_PERMISSIONS.update(
         deps.storage,
         (position.x, position.y),
-        |permissions| -> Result<_, ContractError> {
-            let mut permissions = permissions.ok_or(ContractError::TileNotFound {})?;
+        |existing| -> Result<_, ContractError> {
+            let mut permissions = existing.ok_or(ContractError::PermissionNotFound {
+                address: editor.clone(),
+            })?;
 
             // Only owner can revoke permissions
-            if info.sender != permissions.owner {
+            if permissions.owner != info.sender {
                 return Err(ContractError::Unauthorized {});
             }
 
             // Remove editor from allowed list
-            let pos = permissions.allowed_editors.iter()
-                .position(|addr| addr == &editor_addr)
-                .ok_or_else(|| ContractError::PermissionNotFound {
-                    address: editor.clone(),
-                })?;
-            permissions.allowed_editors.remove(pos);
+            permissions.allowed_editors.retain(|addr| addr != &editor_addr);
 
             Ok(permissions)
         },
@@ -318,11 +262,17 @@ pub fn execute_set_public_editing(
     TILE_PERMISSIONS.update(
         deps.storage,
         (position.x, position.y),
-        |permissions| -> Result<_, ContractError> {
-            let mut permissions = permissions.ok_or(ContractError::TileNotFound {})?;
+        |existing| -> Result<_, ContractError> {
+            let mut permissions = existing.unwrap_or_else(|| TilePermissions {
+                owner: info.sender.clone(),
+                allowed_editors: vec![],
+                public_editing: false,
+                permission_expiry: None,
+                public_change_fee: None,
+            });
 
             // Only owner can change public editing settings
-            if info.sender != permissions.owner {
+            if permissions.owner != info.sender {
                 return Err(ContractError::Unauthorized {});
             }
 
@@ -342,6 +292,7 @@ pub fn execute_set_public_editing(
 
 pub fn execute_update_config(
     deps: DepsMut,
+    _env: Env,
     info: MessageInfo,
     nft_contract: Option<String>,
     admin: Option<String>,
@@ -351,72 +302,80 @@ pub fn execute_update_config(
     requires_payment: Option<bool>,
     rate_limiting_enabled: Option<bool>,
 ) -> Result<Response, ContractError> {
-    let mut config = CONFIG.load(deps.storage)?;
+    CONFIG.update(deps.storage, |mut config| -> Result<_, ContractError> {
+        if info.sender != config.admin {
+            return Err(ContractError::Unauthorized {});
+        }
 
-    // Only admin can update config
-    if info.sender != config.admin {
-        return Err(ContractError::Unauthorized {});
-    }
+        if let Some(contract) = nft_contract {
+            config.nft_contract = deps.api.addr_validate(&contract)?;
+        }
+        if let Some(new_admin) = admin {
+            config.admin = deps.api.addr_validate(&new_admin)?;
+        }
+        if let Some(fee) = color_change_fee {
+            config.color_change_fee = fee;
+        }
+        if let Some(limit) = rate_limit {
+            config.rate_limit = limit;
+        }
+        if let Some(window) = rate_limit_window {
+            config.rate_limit_window = window;
+        }
+        if let Some(payment_required) = requires_payment {
+            config.requires_payment = payment_required;
+        }
+        if let Some(rate_limiting) = rate_limiting_enabled {
+            config.rate_limiting_enabled = rate_limiting;
+        }
 
-    if let Some(contract) = nft_contract {
-        config.nft_contract = deps.api.addr_validate(&contract)?;
-    }
-    if let Some(new_admin) = admin {
-        config.admin = deps.api.addr_validate(&new_admin)?;
-    }
-    if let Some(fee) = color_change_fee {
-        config.color_change_fee = fee;
-    }
-    if let Some(limit) = rate_limit {
-        config.rate_limit = limit;
-    }
-    if let Some(window) = rate_limit_window {
-        config.rate_limit_window = window;
-    }
-    if let Some(payment) = requires_payment {
-        config.requires_payment = payment;
-    }
-    if let Some(enabled) = rate_limiting_enabled {
-        config.rate_limiting_enabled = enabled;
-    }
-
-    CONFIG.save(deps.storage, &config)?;
+        Ok(config)
+    })?;
 
     Ok(Response::new().add_attribute("action", "update_config"))
 }
 
 pub fn execute_withdraw_fees(
     deps: DepsMut,
+    _env: Env,
     info: MessageInfo,
     amount: Option<Uint128>,
 ) -> Result<Response, ContractError> {
     let config = CONFIG.load(deps.storage)?;
-
-    // Only admin can withdraw fees
     if info.sender != config.admin {
         return Err(ContractError::Unauthorized {});
     }
 
-    let total_fees = TOTAL_FEES.load(deps.storage)?;
-    let withdraw_amount = amount.unwrap_or(total_fees);
+    let withdraw_amount = TOTAL_FEES.update(deps.storage, |fees| -> Result<_, ContractError> {
+        let amount_to_withdraw = amount.unwrap_or(fees);
+        if amount_to_withdraw > fees {
+            return Err(ContractError::InsufficientFunds {});
+        }
+        Ok(fees - amount_to_withdraw)
+    })?;
 
-    if withdraw_amount > total_fees {
-        return Err(ContractError::InvalidFeeAmount {});
-    }
-
-    // Update total fees
-    TOTAL_FEES.save(deps.storage, &(total_fees - withdraw_amount))?;
-
-    // Create bank send message
-    let bank_msg = BankMsg::Send {
+    let bank_msg = CosmosMsg::Bank(BankMsg::Send {
         to_address: info.sender.to_string(),
-        amount: coins(withdraw_amount.u128(), "ustars"),
-    };
+        amount: vec![coin(withdraw_amount.u128(), "ustars")],
+    });
 
     Ok(Response::new()
         .add_message(bank_msg)
         .add_attribute("action", "withdraw_fees")
-        .add_attribute("amount", withdraw_amount))
+        .add_attribute("amount", withdraw_amount.to_string()))
+}
+
+#[cfg_attr(not(feature = "library"), entry_point)]
+pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
+    match msg {
+        QueryMsg::Config {} => to_binary(&query_config(deps)?),
+        QueryMsg::TilePermissions { position } => to_binary(&query_tile_permissions(deps, position)?),
+        QueryMsg::UserStatistics { address } => to_binary(&query_user_statistics(deps, address)?),
+        QueryMsg::TotalFees {} => to_binary(&query_total_fees(deps)?),
+        QueryMsg::CanChangeColor { position, editor } => {
+            to_binary(&query_can_change_color(deps, env, position, editor)?)
+        }
+    }
 }
 
 fn query_config(deps: Deps) -> StdResult<ConfigResponse> {
@@ -429,7 +388,6 @@ fn query_config(deps: Deps) -> StdResult<ConfigResponse> {
         rate_limit_window: config.rate_limit_window,
         requires_payment: config.requires_payment,
         rate_limiting_enabled: config.rate_limiting_enabled,
-        total_tiles_modified: 0, // TODO: Track this in state
     })
 }
 
@@ -447,35 +405,6 @@ fn query_tile_permissions(deps: Deps, position: Position) -> StdResult<TilePermi
     Ok(TilePermissionsResponse {
         position,
         permissions,
-    })
-}
-
-fn query_color_history(
-    deps: Deps,
-    position: Position,
-    start_after: Option<Timestamp>,
-    limit: Option<u32>,
-) -> StdResult<ColorHistoryResponse> {
-    let history = COLOR_HISTORY
-        .may_load(deps.storage, (position.x, position.y))?
-        .unwrap_or_default();
-
-    let limit = limit.unwrap_or(30) as usize;
-    let filtered: Vec<ColorChangeEvent> = history
-        .into_iter()
-        .filter(|event| {
-            if let Some(start) = start_after {
-                event.timestamp > start
-            } else {
-                true
-            }
-        })
-        .take(limit)
-        .collect();
-
-    Ok(ColorHistoryResponse {
-        position,
-        history: filtered,
     })
 }
 
@@ -531,18 +460,27 @@ fn query_can_change_color(
         .unwrap_or_default();
     
     if !check_rate_limit(&user_stats, &config, env.block.time) {
+        let window_end = user_stats.current_window_start
+            .unwrap_or(env.block.time)
+            .plus_seconds(config.rate_limit_window);
+        let remaining = window_end.seconds() - env.block.time.seconds();
+        
         return Ok(CanChangeColorResponse {
             can_change: false,
-            reason: Some("Rate limit exceeded".to_string()),
+            reason: Some(format!("Rate limit exceeded. Try again in {} seconds", remaining)),
             required_fee: None,
         });
     }
 
     // Calculate required fee
-    let required_fee = if permissions.owner == editor_addr {
-        None
+    let required_fee = if config.requires_payment {
+        if permissions.owner == editor_addr {
+            Some(config.color_change_fee)
+        } else {
+            Some(permissions.public_change_fee.unwrap_or(config.color_change_fee))
+        }
     } else {
-        Some(permissions.public_change_fee.unwrap_or(config.color_change_fee))
+        None
     };
 
     Ok(CanChangeColorResponse {
@@ -556,7 +494,7 @@ fn query_can_change_color(
 mod tests {
     use super::*;
     use cosmwasm_std::testing::{mock_dependencies, mock_env, mock_info};
-    use cosmwasm_std::{coins, Addr};
+    use cosmwasm_std::{coins, Addr, Timestamp};
 
     const ADMIN: &str = "admin";
     const NFT_CONTRACT: &str = "nft_contract";
@@ -610,20 +548,23 @@ mod tests {
             .save(deps.as_mut().storage, (position.x, position.y), &permissions)
             .unwrap();
 
-        // Owner can change color without payment
+        // Owner can change color with payment
         let msg = ExecuteMsg::ChangeColor {
             position: position.clone(),
             color: Color { r: 255, g: 0, b: 0 },
         };
-        let info = mock_info(USER1, &[]);
+        let info = mock_info(USER1, &coins(1000000, "ustars"));
         let env = mock_env();
         let res = execute(deps.as_mut(), env.clone(), info, msg.clone()).unwrap();
-        assert_eq!(1, res.messages.len()); // NFT update message
+        
+        // Verify color update event
+        let color_event = res.events.iter().find(|e| e.ty == "tile_color_update").expect("Color update event not found");
+        assert!(color_event.attributes.iter().any(|attr| attr.key == "color_r" && attr.value == "255"));
 
         // Non-owner cannot change color
         let info = mock_info(USER2, &coins(1000000, "ustars"));
         let err = execute(deps.as_mut(), env, info, msg).unwrap_err();
-        assert_eq!(err, ContractError::ColorChangeNotAllowed {});
+        assert!(matches!(err, ContractError::Unauthorized {}));
     }
 
     #[test]
@@ -632,6 +573,18 @@ mod tests {
         setup_contract(deps.as_mut());
 
         let position = Position { x: 1, y: 1 };
+
+        // Set up initial permissions
+        let permissions = TilePermissions {
+            owner: Addr::unchecked(USER1),
+            allowed_editors: vec![],
+            public_editing: false,
+            permission_expiry: None,
+            public_change_fee: None,
+        };
+        TILE_PERMISSIONS
+            .save(deps.as_mut().storage, (position.x, position.y), &permissions)
+            .unwrap();
 
         // Grant permission
         let msg = ExecuteMsg::GrantPermission {
@@ -647,13 +600,25 @@ mod tests {
         let res = query_tile_permissions(deps.as_ref(), position.clone()).unwrap();
         assert!(res.permissions.allowed_editors.contains(&Addr::unchecked(USER2)));
 
+        // Editor can change color with payment
+        let msg = ExecuteMsg::ChangeColor {
+            position: position.clone(),
+            color: Color { r: 0, g: 255, b: 0 },
+        };
+        let info = mock_info(USER2, &coins(1000000, "ustars"));
+        let res = execute(deps.as_mut(), env.clone(), info, msg).unwrap();
+        
+        // Verify color update event
+        let color_event = res.events.iter().find(|e| e.ty == "tile_color_update").expect("Color update event not found");
+        assert!(color_event.attributes.iter().any(|attr| attr.key == "color_g" && attr.value == "255"));
+
         // Revoke permission
         let msg = ExecuteMsg::RevokePermission {
-            position,
+            position: position.clone(),
             editor: USER2.to_string(),
         };
         let info = mock_info(USER1, &[]);
-        execute(deps.as_mut(), env, info, msg).unwrap();
+        execute(deps.as_mut(), env.clone(), info, msg).unwrap();
 
         // Check if permission was revoked
         let res = query_tile_permissions(deps.as_ref(), position).unwrap();
@@ -667,6 +632,18 @@ mod tests {
 
         let position = Position { x: 1, y: 1 };
         let fee = Uint128::from(500000u128);
+
+        // Set up initial permissions
+        let permissions = TilePermissions {
+            owner: Addr::unchecked(USER1),
+            allowed_editors: vec![],
+            public_editing: false,
+            permission_expiry: None,
+            public_change_fee: None,
+        };
+        TILE_PERMISSIONS
+            .save(deps.as_mut().storage, (position.x, position.y), &permissions)
+            .unwrap();
 
         // Enable public editing
         let msg = ExecuteMsg::SetPublicEditing {
@@ -690,7 +667,10 @@ mod tests {
         };
         let info = mock_info(USER2, &coins(500000, "ustars"));
         let res = execute(deps.as_mut(), env, info, msg).unwrap();
-        assert_eq!(1, res.messages.len());
+        
+        // Verify color update event
+        let color_event = res.events.iter().find(|e| e.ty == "tile_color_update").expect("Color update event not found");
+        assert!(color_event.attributes.iter().any(|attr| attr.key == "color_g" && attr.value == "255"));
     }
 
     #[test]
@@ -701,13 +681,25 @@ mod tests {
         let position = Position { x: 1, y: 1 };
         let mut env = mock_env();
 
+        // Set up initial permissions
+        let permissions = TilePermissions {
+            owner: Addr::unchecked(USER1),
+            allowed_editors: vec![],
+            public_editing: false,
+            permission_expiry: None,
+            public_change_fee: None,
+        };
+        TILE_PERMISSIONS
+            .save(deps.as_mut().storage, (position.x, position.y), &permissions)
+            .unwrap();
+
         // Make multiple color changes
         for i in 0..10 {
             let msg = ExecuteMsg::ChangeColor {
                 position: position.clone(),
                 color: Color { r: i as u8, g: 0, b: 0 },
             };
-            let info = mock_info(USER1, &[]);
+            let info = mock_info(USER1, &coins(1000000, "ustars"));
             execute(deps.as_mut(), env.clone(), info, msg).unwrap();
         }
 
@@ -716,11 +708,55 @@ mod tests {
             position,
             color: Color { r: 255, g: 0, b: 0 },
         };
-        let info = mock_info(USER1, &[]);
+        let info = mock_info(USER1, &coins(1000000, "ustars"));
         let err = execute(deps.as_mut(), env, info, msg).unwrap_err();
-        match err {
-            ContractError::RateLimitExceeded { seconds: _ } => {}
-            _ => panic!("Expected RateLimitExceeded error"),
+        assert!(matches!(err, ContractError::RateLimitExceeded { seconds: 3600 }));
+    }
+
+    #[test]
+    fn test_fee_collection() {
+        let mut deps = mock_dependencies();
+        setup_contract(deps.as_mut());
+
+        let position = Position { x: 1, y: 1 };
+        let env = mock_env();
+
+        // Set up initial permissions
+        let permissions = TilePermissions {
+            owner: Addr::unchecked(USER1),
+            allowed_editors: vec![],
+            public_editing: false,
+            permission_expiry: None,
+            public_change_fee: None,
+        };
+        TILE_PERMISSIONS
+            .save(deps.as_mut().storage, (position.x, position.y), &permissions)
+            .unwrap();
+
+        // Change color with fee
+        let msg = ExecuteMsg::ChangeColor {
+            position,
+            color: Color { r: 255, g: 0, b: 0 },
+        };
+        let info = mock_info(USER1, &coins(1000000, "ustars"));
+        execute(deps.as_mut(), env.clone(), info, msg).unwrap();
+
+        // Check total fees
+        let res = query_total_fees(deps.as_ref()).unwrap();
+        assert_eq!(res.total_fees, Uint128::from(1000000u128));
+
+        // Withdraw fees
+        let msg = ExecuteMsg::WithdrawFees { amount: None };
+        let info = mock_info(ADMIN, &[]);
+        let res = execute(deps.as_mut(), env, info, msg).unwrap();
+        
+        // Verify bank message
+        assert_eq!(1, res.messages.len());
+        match &res.messages[0].msg {
+            CosmosMsg::Bank(BankMsg::Send { amount, .. }) => {
+                assert_eq!(amount[0].amount, Uint128::from(1000000u128));
+            }
+            _ => panic!("Expected bank message"),
         }
     }
 }
