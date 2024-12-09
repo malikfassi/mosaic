@@ -91,42 +91,61 @@ jobs:
             echo $success
           }
           
-          # Check each component for CI, deploy, and E2E
-          for component in frontend mosaic_tile tile_coloring mosaic_vending; do
-            # Get component-specific paths
-            case $component in
-              frontend)
-                path="frontend"
-                ;;
-              mosaic_tile)
-                path="contracts/mosaic-tile-nft"
-                ;;
-              tile_coloring)
-                path="contracts/tile-coloring"
-                ;;
-              mosaic_vending)
-                path="contracts/mosaic-vending-minter"
-                ;;
-            esac
+          # Frontend
+          if [[ "${{ steps.filter.outputs.frontend }}" == "true" ]]; then
+            echo "frontend_needs_run=true" >> $GITHUB_OUTPUT
+            echo "frontend_deploy_needs_run=true" >> $GITHUB_OUTPUT
+            echo "frontend_e2e_needs_run=true" >> $GITHUB_OUTPUT
+          else
+            ci_success=$(check_job_success "frontend-ci" "${{ steps.hashes.outputs.frontend_hash }}" "frontend")
+            echo "frontend_needs_run=$([ "$ci_success" == "false" ] && echo "true" || echo "false")" >> $GITHUB_OUTPUT
+            deploy_success=$(check_job_success "deploy-frontend" "${{ steps.hashes.outputs.frontend_hash }}" "frontend")
+            echo "frontend_deploy_needs_run=$([ "$deploy_success" == "false" ] && echo "true" || echo "false")" >> $GITHUB_OUTPUT
+            e2e_success=$(check_job_success "frontend-e2e" "${{ steps.hashes.outputs.frontend_hash }}" "frontend")
+            echo "frontend_e2e_needs_run=$([ "$e2e_success" == "false" ] && echo "true" || echo "false")" >> $GITHUB_OUTPUT
+          fi
 
-            # Check if component has changes
-            if [[ "${{ contains(steps.filter.outputs.*, format('{0}', component)) }}" == "true" ]]; then
-              # If changes detected, all jobs for this component need to run
-              echo "${component}_needs_run=true" >> $GITHUB_OUTPUT
-              echo "${component}_deploy_needs_run=true" >> $GITHUB_OUTPUT
-              echo "${component}_e2e_needs_run=true" >> $GITHUB_OUTPUT
-            else
-              # No changes, check previous runs
-              ci_success=$(check_job_success "${component}-ci" "${{ format('steps.hashes.outputs.{0}_hash', component) }}" "$path")
-              echo "${component}_needs_run=$([ "$ci_success" == "false" ] && echo "true" || echo "false")" >> $GITHUB_OUTPUT
-              
-              deploy_success=$(check_job_success "deploy-${component}" "${{ format('steps.hashes.outputs.{0}_hash', component) }}" "$path")
-              echo "${component}_deploy_needs_run=$([ "$deploy_success" == "false" ] && echo "true" || echo "false")" >> $GITHUB_OUTPUT
-              
-              e2e_success=$(check_job_success "${component}-e2e" "${{ format('steps.hashes.outputs.{0}_hash', component) }}" "$path")
-              echo "${component}_e2e_needs_run=$([ "$e2e_success" == "false" ] && echo "true" || echo "false")" >> $GITHUB_OUTPUT
-            fi
-          done
+          # Mosaic Tile
+          if [[ "${{ steps.filter.outputs.mosaic_tile }}" == "true" ]]; then
+            echo "mosaic_tile_needs_run=true" >> $GITHUB_OUTPUT
+            echo "mosaic_tile_deploy_needs_run=true" >> $GITHUB_OUTPUT
+            echo "mosaic_tile_e2e_needs_run=true" >> $GITHUB_OUTPUT
+          else
+            ci_success=$(check_job_success "mosaic-tile-ci" "${{ steps.hashes.outputs.mosaic_tile_hash }}" "contracts/mosaic-tile-nft")
+            echo "mosaic_tile_needs_run=$([ "$ci_success" == "false" ] && echo "true" || echo "false")" >> $GITHUB_OUTPUT
+            deploy_success=$(check_job_success "deploy-mosaic-tile" "${{ steps.hashes.outputs.mosaic_tile_hash }}" "contracts/mosaic-tile-nft")
+            echo "mosaic_tile_deploy_needs_run=$([ "$deploy_success" == "false" ] && echo "true" || echo "false")" >> $GITHUB_OUTPUT
+            e2e_success=$(check_job_success "mosaic-tile-e2e" "${{ steps.hashes.outputs.mosaic_tile_hash }}" "contracts/mosaic-tile-nft")
+            echo "mosaic_tile_e2e_needs_run=$([ "$e2e_success" == "false" ] && echo "true" || echo "false")" >> $GITHUB_OUTPUT
+          fi
+
+          # Tile Coloring
+          if [[ "${{ steps.filter.outputs.tile_coloring }}" == "true" ]]; then
+            echo "tile_coloring_needs_run=true" >> $GITHUB_OUTPUT
+            echo "tile_coloring_deploy_needs_run=true" >> $GITHUB_OUTPUT
+            echo "tile_coloring_e2e_needs_run=true" >> $GITHUB_OUTPUT
+          else
+            ci_success=$(check_job_success "tile-coloring-ci" "${{ steps.hashes.outputs.tile_coloring_hash }}" "contracts/tile-coloring")
+            echo "tile_coloring_needs_run=$([ "$ci_success" == "false" ] && echo "true" || echo "false")" >> $GITHUB_OUTPUT
+            deploy_success=$(check_job_success "deploy-tile-coloring" "${{ steps.hashes.outputs.tile_coloring_hash }}" "contracts/tile-coloring")
+            echo "tile_coloring_deploy_needs_run=$([ "$deploy_success" == "false" ] && echo "true" || echo "false")" >> $GITHUB_OUTPUT
+            e2e_success=$(check_job_success "tile-coloring-e2e" "${{ steps.hashes.outputs.tile_coloring_hash }}" "contracts/tile-coloring")
+            echo "tile_coloring_e2e_needs_run=$([ "$e2e_success" == "false" ] && echo "true" || echo "false")" >> $GITHUB_OUTPUT
+          fi
+
+          # Mosaic Vending
+          if [[ "${{ steps.filter.outputs.mosaic_vending }}" == "true" ]]; then
+            echo "mosaic_vending_needs_run=true" >> $GITHUB_OUTPUT
+            echo "mosaic_vending_deploy_needs_run=true" >> $GITHUB_OUTPUT
+            echo "mosaic_vending_e2e_needs_run=true" >> $GITHUB_OUTPUT
+          else
+            ci_success=$(check_job_success "mosaic-vending-ci" "${{ steps.hashes.outputs.mosaic_vending_hash }}" "contracts/mosaic-vending-minter")
+            echo "mosaic_vending_needs_run=$([ "$ci_success" == "false" ] && echo "true" || echo "false")" >> $GITHUB_OUTPUT
+            deploy_success=$(check_job_success "deploy-mosaic-vending" "${{ steps.hashes.outputs.mosaic_vending_hash }}" "contracts/mosaic-vending-minter")
+            echo "mosaic_vending_deploy_needs_run=$([ "$deploy_success" == "false" ] && echo "true" || echo "false")" >> $GITHUB_OUTPUT
+            e2e_success=$(check_job_success "mosaic-vending-e2e" "${{ steps.hashes.outputs.mosaic_vending_hash }}" "contracts/mosaic-vending-minter")
+            echo "mosaic_vending_e2e_needs_run=$([ "$e2e_success" == "false" ] && echo "true" || echo "false")" >> $GITHUB_OUTPUT
+          fi
 
           # Check full-e2e needs run
           if [[ "${{ steps.filter.outputs.frontend }}" == "true" || \
@@ -137,9 +156,10 @@ jobs:
           else
             # Create combined hash of all components
             combined_hash=""
-            for component in frontend mosaic_tile tile_coloring mosaic_vending; do
-              combined_hash+="${{ format('steps.hashes.outputs.{0}_hash', component) }}"
-            done
+            combined_hash+="${{ steps.hashes.outputs.frontend_hash }}"
+            combined_hash+="${{ steps.hashes.outputs.mosaic_tile_hash }}"
+            combined_hash+="${{ steps.hashes.outputs.tile_coloring_hash }}"
+            combined_hash+="${{ steps.hashes.outputs.mosaic_vending_hash }}"
             combined_hash=$(echo "$combined_hash" | sha256sum | cut -d' ' -f1)
             
             full_e2e_success=$(check_job_success "full-e2e" "$combined_hash" ".")
