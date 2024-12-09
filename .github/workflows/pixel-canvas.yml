@@ -110,20 +110,20 @@ jobs:
             esac
 
             # Check if component has changes
-            if [[ "${{ steps.filter.outputs.$component }}" == "true" ]]; then
+            if [[ "${{ contains(steps.filter.outputs.*, format('{0}', component)) }}" == "true" ]]; then
               # If changes detected, all jobs for this component need to run
               echo "${component}_needs_run=true" >> $GITHUB_OUTPUT
               echo "${component}_deploy_needs_run=true" >> $GITHUB_OUTPUT
               echo "${component}_e2e_needs_run=true" >> $GITHUB_OUTPUT
             else
               # No changes, check previous runs
-              ci_success=$(check_job_success "${component}-ci" "${{ steps.hashes.outputs.${component}_hash }}" "$path")
+              ci_success=$(check_job_success "${component}-ci" "${{ format('steps.hashes.outputs.{0}_hash', component) }}" "$path")
               echo "${component}_needs_run=$([ "$ci_success" == "false" ] && echo "true" || echo "false")" >> $GITHUB_OUTPUT
               
-              deploy_success=$(check_job_success "deploy-${component}" "${{ steps.hashes.outputs.${component}_hash }}" "$path")
+              deploy_success=$(check_job_success "deploy-${component}" "${{ format('steps.hashes.outputs.{0}_hash', component) }}" "$path")
               echo "${component}_deploy_needs_run=$([ "$deploy_success" == "false" ] && echo "true" || echo "false")" >> $GITHUB_OUTPUT
               
-              e2e_success=$(check_job_success "${component}-e2e" "${{ steps.hashes.outputs.${component}_hash }}" "$path")
+              e2e_success=$(check_job_success "${component}-e2e" "${{ format('steps.hashes.outputs.{0}_hash', component) }}" "$path")
               echo "${component}_e2e_needs_run=$([ "$e2e_success" == "false" ] && echo "true" || echo "false")" >> $GITHUB_OUTPUT
             fi
           done
@@ -138,7 +138,7 @@ jobs:
             # Create combined hash of all components
             combined_hash=""
             for component in frontend mosaic_tile tile_coloring mosaic_vending; do
-              combined_hash+="${{ steps.hashes.outputs.${component}_hash }}"
+              combined_hash+="${{ format('steps.hashes.outputs.{0}_hash', component) }}"
             done
             combined_hash=$(echo "$combined_hash" | sha256sum | cut -d' ' -f1)
             
