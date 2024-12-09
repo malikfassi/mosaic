@@ -1,0 +1,124 @@
+name: Deploy Contracts
+
+on:
+  workflow_dispatch:
+    inputs:
+      network:
+        description: 'Network to deploy to'
+        required: true
+        default: 'testnet'
+        type: choice
+        options:
+          - testnet
+          - mainnet
+      contracts:
+        description: 'Contracts to deploy (comma-separated)'
+        required: true
+        default: 'factory,sg721-pixel,coloring'
+        type: string
+
+env:
+  CARGO_TERM_COLOR: always
+  RUSTFLAGS: "-C link-arg=-s"
+
+jobs:
+  optimize:
+    name: Optimize Contracts
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          target: wasm32-unknown-unknown
+          override: true
+      
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y binaryen
+
+      - name: Cache contract builds
+        uses: actions/cache@v3
+        with:
+          path: |
+            contracts/*/target
+            target
+          key: ${{ runner.os }}-contract-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-contract-
+
+      - name: Compile and optimize selected contracts
+        run: |
+          IFS=',' read -ra CONTRACTS <<< "${{ github.event.inputs.contracts }}"
+          for contract in "${CONTRACTS[@]}"; do
+            echo "Building $contract..."
+            cd contracts/pixel-nft/contracts/$contract
+            cargo build --release --target wasm32-unknown-unknown --locked
+            wasm-opt -Oz ./target/wasm32-unknown-unknown/release/*.wasm -o ../../artifacts/$contract.wasm
+            cd ../../../..
+          done
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: contract-artifacts
+          path: contracts/pixel-nft/artifacts/*.wasm
+
+  deploy:
+    needs: optimize
+    name: Deploy to ${{ github.event.inputs.network }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Download artifacts
+        uses: actions/download-artifact@v3
+        with:
+          name: contract-artifacts
+          path: artifacts
+
+      - name: Set up environment
+        run: |
+          if [ "${{ github.event.inputs.network }}" = "testnet" ]; then
+            echo "STARGAZE_RPC=${{ secrets.STARGAZE_TESTNET_RPC }}" >> $GITHUB_ENV
+            echo "STARGAZE_CHAIN_ID=${{ secrets.STARGAZE_TESTNET_CHAIN_ID }}" >> $GITHUB_ENV
+          else
+            echo "STARGAZE_RPC=${{ secrets.STARGAZE_MAINNET_RPC }}" >> $GITHUB_ENV
+            echo "STARGAZE_CHAIN_ID=${{ secrets.STARGAZE_MAINNET_CHAIN_ID }}" >> $GITHUB_ENV
+          fi
+
+      - name: Install deployment tools
+        run: |
+          curl -s https://get.starsd.com | bash
+          sudo mv starsd /usr/local/bin/
+
+      - name: Deploy contracts
+        env:
+          WALLET_MNEMONIC: ${{ secrets.DEPLOYMENT_WALLET_MNEMONIC }}
+        run: |
+          IFS=',' read -ra CONTRACTS <<< "${{ github.event.inputs.contracts }}"
+          
+          # Store contract codes and save code IDs
+          declare -A CODE_IDS
+          for contract in "${CONTRACTS[@]}"; do
+            echo "Storing $contract..."
+            CODE_ID=$(starsd tx wasm store artifacts/$contract.wasm \
+              --from deployer --gas auto --gas-adjustment 1.3 \
+              -y --output json | jq -r '.logs[0].events[0].attributes[] | select(.key=="code_id").value')
+            CODE_IDS[$contract]=$CODE_ID
+            echo "$contract code ID: $CODE_ID"
+          done
+          
+          # Save code IDs to artifact for future reference
+          echo "Deployed code IDs:" > code_ids.txt
+          for contract in "${!CODE_IDS[@]}"; do
+            echo "$contract: ${CODE_IDS[$contract]}" >> code_ids.txt
+          done
+
+      - name: Upload deployment info
+        uses: actions/upload-artifact@v3
+        with:
+          name: deployment-info
+          path: code_ids.txt 
