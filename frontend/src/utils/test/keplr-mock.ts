@@ -1,6 +1,5 @@
 import { jest } from '@jest/globals';
-import { DirectSignResponse } from '@cosmjs/proto-signing';
-import { Keplr, Key, KeplrSignOptions } from '@keplr-wallet/types';
+import { Keplr, Key, KeplrSignOptions, DirectSignResponse } from '@keplr-wallet/types';
 import Long from 'long';
 
 type EnableFn = (chainIds: string | string[]) => Promise<void>;

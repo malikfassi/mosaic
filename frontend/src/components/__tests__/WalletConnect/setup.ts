@@ -1,7 +1,6 @@
 import '@testing-library/jest-dom'
 import { jest } from '@jest/globals'
-import { DirectSignResponse } from '@cosmjs/proto-signing'
-import { Keplr, AminoSignResponse, OfflineAminoSigner, OfflineDirectSigner, StdSignDoc, SignDoc, ChainInfo } from '@keplr-wallet/types'
+import { Keplr, AminoSignResponse, OfflineAminoSigner, OfflineDirectSigner, StdSignDoc, SignDoc, DirectSignResponse, ChainInfo } from '@keplr-wallet/types'
 import Long from 'long'
 
 // Mock offline signer with both Direct and Amino signing capabilities

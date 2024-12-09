@@ -1,8 +1,8 @@
 import '@testing-library/jest-dom'
 import { jest } from '@jest/globals'
-import { DirectSignResponse, AccountData } from '@cosmjs/proto-signing';
-import { Keplr, Key, ChainInfo, KeplrSignOptions, OfflineAminoSigner, OfflineDirectSigner, StdSignDoc, SignDoc, AminoSignResponse } from '@keplr-wallet/types';
-import Long from 'long';
+import { AccountData } from '@cosmjs/proto-signing'
+import { Keplr, Key, ChainInfo, KeplrSignOptions, OfflineAminoSigner, OfflineDirectSigner, StdSignDoc, SignDoc, AminoSignResponse, DirectSignResponse } from '@keplr-wallet/types'
+import Long from 'long'
 
 // Mock Keplr wallet
 const mockKeplr = {
