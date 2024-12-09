@@ -1,0 +1,326 @@
+name: Contracts
+
+on:
+  push:
+    paths:
+      - 'contracts/**'
+  pull_request:
+    paths:
+      - 'contracts/**'
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to deploy to'
+        required: true
+        default: 'testnet'
+        type: choice
+        options:
+          - testnet
+          - mainnet
+
+env:
+  CARGO_TERM_COLOR: always
+  RUSTFLAGS: "-D warnings"
+  # Testnet configuration (used for all CI/testing)
+  STARGAZE_RPC: "https://rpc.elgafar-1.stargaze-apis.com"
+  STARGAZE_CHAIN_ID: "elgafar-1"
+  STARGAZE_DENOM: "ustars"
+  GAS_PRICE: "0.025ustars"
+  # Only used for manual deployments
+  STARGAZE_MAINNET_RPC: "https://stargaze-rpc.polkachu.com"
+  STARGAZE_MAINNET_CHAIN_ID: "stargaze-1"
+
+jobs:
+  # Parallel CI jobs for each contract
+  nft-contract-ci:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+          components: rustfmt, clippy
+      
+      - name: Cache dependencies
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-nft-${{ hashFiles('contracts/pixel-nft/**/Cargo.lock') }}
+      
+      - name: Check format
+        working-directory: ./contracts/pixel-nft
+        run: cargo fmt -- --check
+      
+      - name: Run clippy
+        working-directory: ./contracts/pixel-nft
+        run: cargo clippy --all-targets --all-features
+      
+      - name: Run unit tests
+        working-directory: ./contracts/pixel-nft
+        run: cargo test --verbose --all-features
+        
+      - name: Build contract
+        working-directory: ./contracts/pixel-nft
+        run: |
+          cargo build --release --target wasm32-unknown-unknown
+          cargo wasm
+      
+      - name: Upload artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: nft-contract
+          path: contracts/pixel-nft/artifacts/*.wasm
+          retention-days: 1
+
+  coloring-contract-ci:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+          components: rustfmt, clippy
+      
+      - name: Cache dependencies
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-coloring-${{ hashFiles('contracts/pixel-nft/contracts/coloring/Cargo.lock') }}
+      
+      - name: Check format
+        working-directory: ./contracts/pixel-nft/contracts/coloring
+        run: cargo fmt -- --check
+      
+      - name: Run clippy
+        working-directory: ./contracts/pixel-nft/contracts/coloring
+        run: cargo clippy --all-targets --all-features
+      
+      - name: Run unit tests
+        working-directory: ./contracts/pixel-nft/contracts/coloring
+        run: cargo test --verbose --all-features
+        
+      - name: Build contract
+        working-directory: ./contracts/pixel-nft/contracts/coloring
+        run: |
+          cargo build --release --target wasm32-unknown-unknown
+          cargo wasm
+      
+      - name: Upload artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: coloring-contract
+          path: contracts/pixel-nft/contracts/coloring/artifacts/*.wasm
+          retention-days: 1
+
+  # Contract E2E tests on testnet
+  contract-e2e:
+    needs: [nft-contract-ci, coloring-contract-ci]
+    runs-on: ubuntu-latest
+    environment: testnet
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Download contract artifacts
+        uses: actions/download-artifact@v3
+        with:
+          path: artifacts
+      
+      - name: Setup Go for starsd
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.20'
+      
+      - name: Install starsd
+        run: |
+          git clone https://github.com/public-awesome/stargaze
+          cd stargaze
+          make install
+          starsd version
+      
+      - name: Generate test wallet
+        id: wallet
+        run: |
+          KEY_OUTPUT=$(starsd keys add test-wallet --output json)
+          echo "ADDRESS=$(echo $KEY_OUTPUT | jq -r .address)" >> $GITHUB_OUTPUT
+          echo "MNEMONIC=$(echo $KEY_OUTPUT | jq -r .mnemonic)" >> $GITHUB_ENV
+      
+      - name: Request testnet funds
+        run: |
+          curl -X POST -d '{"address": "${{ steps.wallet.outputs.ADDRESS }}"}' \
+            https://faucet.elgafar-1.stargaze-apis.com/claim
+          
+          # Wait for transaction to be processed
+          sleep 10
+      
+      - name: Verify balance
+        run: |
+          BALANCE=$(starsd query bank balances ${{ steps.wallet.outputs.ADDRESS }} \
+            --node $STARGAZE_RPC --chain-id $STARGAZE_CHAIN_ID \
+            --output json | jq -r '.balances[] | select(.denom=="ustars") | .amount')
+          
+          if [ "$BALANCE" -lt "1000000" ]; then
+            echo "::error::Insufficient balance for testing: $BALANCE ustars"
+            exit 1
+          fi
+          echo "::notice::Test wallet funded with $BALANCE ustars"
+      
+      - name: Store NFT contract
+        id: store-nft
+        run: |
+          TX_OUTPUT=$(starsd tx wasm store artifacts/nft-contract/*.wasm \
+            --from test-wallet --gas-prices $GAS_PRICE --gas auto --gas-adjustment 1.3 \
+            --node $STARGAZE_RPC --chain-id $STARGAZE_CHAIN_ID \
+            -y --output json)
+          
+          CODE_ID=$(echo $TX_OUTPUT | jq -r '.logs[0].events[] | 
+            select(.type=="store_code") | .attributes[] | 
+            select(.key=="code_id") | .value')
+          
+          echo "CODE_ID=$CODE_ID" >> $GITHUB_OUTPUT
+          echo "::notice::NFT contract stored with code ID: $CODE_ID"
+      
+      - name: Store coloring contract
+        id: store-coloring
+        run: |
+          TX_OUTPUT=$(starsd tx wasm store artifacts/coloring-contract/*.wasm \
+            --from test-wallet --gas-prices $GAS_PRICE --gas auto --gas-adjustment 1.3 \
+            --node $STARGAZE_RPC --chain-id $STARGAZE_CHAIN_ID \
+            -y --output json)
+          
+          CODE_ID=$(echo $TX_OUTPUT | jq -r '.logs[0].events[] | 
+            select(.type=="store_code") | .attributes[] | 
+            select(.key=="code_id") | .value')
+          
+          echo "CODE_ID=$CODE_ID" >> $GITHUB_OUTPUT
+          echo "::notice::Coloring contract stored with code ID: $CODE_ID"
+      
+      - name: Run E2E tests
+        run: |
+          cd contracts/pixel-nft/tests/e2e
+          NFT_CODE_ID=${{ steps.store-nft.outputs.CODE_ID }} \
+          COLORING_CODE_ID=${{ steps.store-coloring.outputs.CODE_ID }} \
+          WALLET_MNEMONIC=$MNEMONIC \
+          STARGAZE_RPC=$STARGAZE_RPC \
+          STARGAZE_CHAIN_ID=$STARGAZE_CHAIN_ID \
+          cargo test --test e2e -- --nocapture
+      
+      - name: Return unused funds
+        if: always()
+        run: |
+          BALANCE=$(starsd query bank balances ${{ steps.wallet.outputs.ADDRESS }} \
+            --node $STARGAZE_RPC --chain-id $STARGAZE_CHAIN_ID \
+            --output json | jq -r '.balances[] | select(.denom=="ustars") | .amount')
+          
+          if [ "$BALANCE" -gt "10000" ]; then
+            starsd tx bank send test-wallet \
+              stars1k8c2m5cn322akk5wy8lpt87dd2f4yh9azg7dtq \
+              $(($BALANCE - 10000))ustars \
+              --from test-wallet --gas-prices $GAS_PRICE \
+              --node $STARGAZE_RPC --chain-id $STARGAZE_CHAIN_ID -y
+            echo "::notice::Returned $(($BALANCE - 10000)) ustars"
+          fi
+
+  # Manual deployment job (testnet or mainnet)
+  deploy:
+    needs: [contract-e2e]
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    environment: ${{ github.event.inputs.environment }}
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Download artifacts
+        uses: actions/download-artifact@v3
+        with:
+          path: artifacts
+      
+      - name: Setup environment
+        run: |
+          if [ "${{ github.event.inputs.environment }}" = "mainnet" ]; then
+            echo "RPC_URL=$STARGAZE_MAINNET_RPC" >> $GITHUB_ENV
+            echo "CHAIN_ID=$STARGAZE_MAINNET_CHAIN_ID" >> $GITHUB_ENV
+            echo "MNEMONIC=${{ secrets.MAINNET_MNEMONIC }}" >> $GITHUB_ENV
+          else
+            echo "RPC_URL=$STARGAZE_RPC" >> $GITHUB_ENV
+            echo "CHAIN_ID=$STARGAZE_CHAIN_ID" >> $GITHUB_ENV
+            echo "MNEMONIC=${{ secrets.TESTNET_MNEMONIC }}" >> $GITHUB_ENV
+          fi
+      
+      - name: Setup Go for starsd
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.20'
+      
+      - name: Install starsd
+        run: |
+          git clone https://github.com/public-awesome/stargaze
+          cd stargaze
+          make install
+      
+      - name: Deploy NFT contract
+        id: deploy-nft
+        run: |
+          echo "$MNEMONIC" > wallet.txt
+          chmod 600 wallet.txt
+          
+          TX_OUTPUT=$(starsd tx wasm store artifacts/nft-contract/*.wasm \
+            --from wallet.txt --gas-prices $GAS_PRICE --gas auto --gas-adjustment 1.3 \
+            --node $RPC_URL --chain-id $CHAIN_ID -y --output json)
+          
+          CODE_ID=$(echo $TX_OUTPUT | jq -r '.logs[0].events[] | 
+            select(.type=="store_code") | .attributes[] | 
+            select(.key=="code_id") | .value')
+          
+          echo "NFT contract deployed with code ID: $CODE_ID"
+          echo "CODE_ID=$CODE_ID" >> $GITHUB_OUTPUT
+      
+      - name: Deploy coloring contract
+        id: deploy-coloring
+        run: |
+          TX_OUTPUT=$(starsd tx wasm store artifacts/coloring-contract/*.wasm \
+            --from wallet.txt --gas-prices $GAS_PRICE --gas auto --gas-adjustment 1.3 \
+            --node $RPC_URL --chain-id $CHAIN_ID -y --output json)
+          
+          CODE_ID=$(echo $TX_OUTPUT | jq -r '.logs[0].events[] | 
+            select(.type=="store_code") | .attributes[] | 
+            select(.key=="code_id") | .value')
+          
+          echo "Coloring contract deployed with code ID: $CODE_ID"
+          echo "CODE_ID=$CODE_ID" >> $GITHUB_OUTPUT
+      
+      - name: Cleanup
+        if: always()
+        run: rm -f wallet.txt
+
+  # Discord notification job
+  notify:
+    needs: [contract-e2e, deploy]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send notification
+        uses: Ilshidur/action-discord@master
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
+        with:
+          args: |
+            🔄 **Contract Workflow Complete**
+            
+            CI Status: ${{ needs.nft-contract-ci.result == 'success' && '✅' || '❌' }} NFT Contract
+            CI Status: ${{ needs.coloring-contract-ci.result == 'success' && '✅' || '❌' }} Coloring Contract
+            E2E Status: ${{ needs.contract-e2e.result == 'success' && '✅' || '❌' }} Tests
+            
+            ${{ github.event_name == 'workflow_dispatch' && format('Deployment Status: {0} {1}', needs.deploy.result == 'success' && '✅' || '❌', github.event.inputs.environment) || '' }}
+            
+            [View Details](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}) 
