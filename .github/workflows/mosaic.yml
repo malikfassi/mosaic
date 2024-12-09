@@ -1,0 +1,201 @@
+name: Mosaic Contracts CI
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'contracts/**'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+      - '.github/workflows/mosaic.yml'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'contracts/**'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+      - '.github/workflows/mosaic.yml'
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+
+jobs:
+  changes:
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: read
+    outputs:
+      mosaic_tile_nft: ${{ steps.filter.outputs.mosaic_tile_nft }}
+      tile_coloring: ${{ steps.filter.outputs.tile_coloring }}
+      vending_minter: ${{ steps.filter.outputs.vending_minter }}
+    steps:
+      - uses: actions/checkout@v3
+      - uses: dorny/paths-filter@v2
+        id: filter
+        with:
+          filters: |
+            mosaic_tile_nft:
+              - 'contracts/mosaic-tile-nft/**'
+              - 'Cargo.toml'
+              - 'Cargo.lock'
+            tile_coloring:
+              - 'contracts/tile-coloring/**'
+              - 'Cargo.toml'
+              - 'Cargo.lock'
+            vending_minter:
+              - 'contracts/vending-minter/**'
+              - 'Cargo.toml'
+              - 'Cargo.lock'
+
+  lint:
+    needs: changes
+    if: |
+      needs.changes.outputs.mosaic_tile_nft == 'true' ||
+      needs.changes.outputs.tile_coloring == 'true' ||
+      needs.changes.outputs.vending_minter == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Install Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
+          components: rustfmt, clippy
+      
+      - name: Cache dependencies
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+      
+      - name: Check formatting
+        uses: actions-rs/cargo@v1
+        with:
+          command: fmt
+          args: --all -- --check
+      
+      - name: Run clippy
+        uses: actions-rs/cargo@v1
+        with:
+          command: clippy
+          args: --all-targets --all-features -- -D warnings
+
+  test:
+    needs: changes
+    if: |
+      needs.changes.outputs.mosaic_tile_nft == 'true' ||
+      needs.changes.outputs.tile_coloring == 'true' ||
+      needs.changes.outputs.vending_minter == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Install Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
+      
+      - name: Cache dependencies
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+      
+      - name: Install cargo-tarpaulin
+        uses: actions-rs/cargo@v1
+        with:
+          command: install
+          args: cargo-tarpaulin
+      
+      - name: Run tests with coverage
+        uses: actions-rs/cargo@v1
+        with:
+          command: tarpaulin
+          args: --verbose --workspace --timeout 120 --out Xml
+      
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v3
+        with:
+          fail_ci_if_error: true
+
+  security-audit:
+    needs: changes
+    if: |
+      needs.changes.outputs.mosaic_tile_nft == 'true' ||
+      needs.changes.outputs.tile_coloring == 'true' ||
+      needs.changes.outputs.vending_minter == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Install Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
+      
+      - name: Install cargo-audit
+        uses: actions-rs/cargo@v1
+        with:
+          command: install
+          args: cargo-audit
+      
+      - name: Run security audit
+        uses: actions-rs/cargo@v1
+        with:
+          command: audit
+      
+      - name: Run cargo-deny
+        uses: EmbarkStudios/cargo-deny-action@v1
+        with:
+          arguments: --workspace
+
+  build:
+    needs: [lint, test, security-audit]
+    if: |
+      needs.changes.outputs.mosaic_tile_nft == 'true' ||
+      needs.changes.outputs.tile_coloring == 'true' ||
+      needs.changes.outputs.vending_minter == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Install Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          target: wasm32-unknown-unknown
+          override: true
+      
+      - name: Cache dependencies
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+      
+      - name: Build contracts
+        run: |
+          cargo build --release --target wasm32-unknown-unknown
+      
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: wasm-artifacts
+          path: target/wasm32-unknown-unknown/release/*.wasm 

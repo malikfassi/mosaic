@@ -6,6 +6,10 @@ on:
   pull_request:
     branches: [ main ]
 
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+
 jobs:
   changes:
     runs-on: ubuntu-latest
@@ -15,9 +19,15 @@ jobs:
       frontend: ${{ steps.filter.outputs.frontend }}
       coloring: ${{ steps.filter.outputs.coloring }}
       nft: ${{ steps.filter.outputs.nft }}
+      mosaic_tile_nft: ${{ steps.filter.outputs.mosaic_tile_nft }}
+      tile_coloring: ${{ steps.filter.outputs.tile_coloring }}
+      mosaic_vending_minter: ${{ steps.filter.outputs.mosaic_vending_minter }}
       frontend_needs_run: ${{ steps.check-runs.outputs.frontend_needs_run }}
       coloring_needs_run: ${{ steps.check-runs.outputs.coloring_needs_run }}
       nft_needs_run: ${{ steps.check-runs.outputs.nft_needs_run }}
+      mosaic_tile_nft_needs_run: ${{ steps.check-runs.outputs.mosaic_tile_nft_needs_run }}
+      tile_coloring_needs_run: ${{ steps.check-runs.outputs.tile_coloring_needs_run }}
+      mosaic_vending_minter_needs_run: ${{ steps.check-runs.outputs.mosaic_vending_minter_needs_run }}
     steps:
       - uses: actions/checkout@v3
       - uses: dorny/paths-filter@v2
@@ -32,6 +42,18 @@ jobs:
             nft:
               - 'contracts/pixel-nft/contracts/sg721-pixel/**'
               - 'contracts/pixel-nft/Cargo.toml'
+            mosaic_tile_nft:
+              - 'contracts/mosaic-tile-nft/**'
+              - 'Cargo.toml'
+              - 'Cargo.lock'
+            tile_coloring:
+              - 'contracts/tile-coloring/**'
+              - 'Cargo.toml'
+              - 'Cargo.lock'
+            mosaic_vending_minter:
+              - 'contracts/mosaic-vending-minter/**'
+              - 'Cargo.toml'
+              - 'Cargo.lock'
 
       - name: Check previous workflow runs
         id: check-runs
@@ -56,11 +78,17 @@ jobs:
           frontend_success=$(check_job_success "frontend-ci")
           nft_success=$(check_job_success "nft-ci")
           coloring_success=$(check_job_success "coloring-ci")
+          mosaic_tile_nft_success=$(check_job_success "mosaic-tile-nft-ci")
+          tile_coloring_success=$(check_job_success "tile-coloring-ci")
+          mosaic_vending_minter_success=$(check_job_success "mosaic-vending-minter-ci")
           
           # A component needs to run if it either has changes or never succeeded for current commit
           echo "frontend_needs_run=$([ "${{ steps.filter.outputs.frontend }}" == "true" ] || [ "$frontend_success" == "false" ] && echo "true" || echo "false")" >> $GITHUB_OUTPUT
           echo "nft_needs_run=$([ "${{ steps.filter.outputs.nft }}" == "true" ] || [ "$nft_success" == "false" ] && echo "true" || echo "false")" >> $GITHUB_OUTPUT
           echo "coloring_needs_run=$([ "${{ steps.filter.outputs.coloring }}" == "true" ] || [ "$coloring_success" == "false" ] && echo "true" || echo "false")" >> $GITHUB_OUTPUT
+          echo "mosaic_tile_nft_needs_run=$([ "${{ steps.filter.outputs.mosaic_tile_nft }}" == "true" ] || [ "$mosaic_tile_nft_success" == "false" ] && echo "true" || echo "false")" >> $GITHUB_OUTPUT
+          echo "tile_coloring_needs_run=$([ "${{ steps.filter.outputs.tile_coloring }}" == "true" ] || [ "$tile_coloring_success" == "false" ] && echo "true" || echo "false")" >> $GITHUB_OUTPUT
+          echo "mosaic_vending_minter_needs_run=$([ "${{ steps.filter.outputs.mosaic_vending_minter }}" == "true" ] || [ "$mosaic_vending_minter_success" == "false" ] && echo "true" || echo "false")" >> $GITHUB_OUTPUT
 
   frontend-ci:
     needs: changes
@@ -170,9 +198,114 @@ jobs:
           name: nft-logs
           path: nft-logs.tar.gz
 
+  mosaic-tile-nft-ci:
+    needs: changes
+    if: needs.changes.outputs.mosaic_tile_nft_needs_run == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+      - name: Run tests
+        run: |
+          cd contracts/mosaic-tile-nft
+          cargo test
+      - name: Generate badge
+        uses: schneegans/dynamic-badges-action@v1.6.0
+        with:
+          auth: ${{ secrets.GIST_SECRET }}
+          gistID: ${{ secrets.BADGE_GIST_ID }}
+          filename: mosaic-tile-nft-ci.json
+          label: mosaic-tile-nft
+          message: ${{ job.status }}
+          color: ${{ job.status == 'success' && 'success' || 'critical' }}
+      - name: Collect logs
+        if: failure()
+        run: |
+          mkdir -p logs/mosaic-tile-nft
+          cp contracts/mosaic-tile-nft/target/debug/deps/*.stderr logs/mosaic-tile-nft/ || true
+          tar czf mosaic-tile-nft-logs.tar.gz logs/
+      - name: Upload logs
+        if: failure()
+        uses: actions/upload-artifact@v3
+        with:
+          name: mosaic-tile-nft-logs
+          path: mosaic-tile-nft-logs.tar.gz
+
+  tile-coloring-ci:
+    needs: changes
+    if: needs.changes.outputs.tile_coloring_needs_run == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+      - name: Run tests
+        run: |
+          cd contracts/tile-coloring
+          cargo test
+      - name: Generate badge
+        uses: schneegans/dynamic-badges-action@v1.6.0
+        with:
+          auth: ${{ secrets.GIST_SECRET }}
+          gistID: ${{ secrets.BADGE_GIST_ID }}
+          filename: tile-coloring-ci.json
+          label: tile-coloring
+          message: ${{ job.status }}
+          color: ${{ job.status == 'success' && 'success' || 'critical' }}
+      - name: Collect logs
+        if: failure()
+        run: |
+          mkdir -p logs/tile-coloring
+          cp contracts/tile-coloring/target/debug/deps/*.stderr logs/tile-coloring/ || true
+          tar czf tile-coloring-logs.tar.gz logs/
+      - name: Upload logs
+        if: failure()
+        uses: actions/upload-artifact@v3
+        with:
+          name: tile-coloring-logs
+          path: tile-coloring-logs.tar.gz
+
+  mosaic-vending-minter-ci:
+    needs: changes
+    if: needs.changes.outputs.mosaic_vending_minter_needs_run == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+      - name: Run tests
+        run: |
+          cd contracts/mosaic-vending-minter
+          cargo test
+      - name: Generate badge
+        uses: schneegans/dynamic-badges-action@v1.6.0
+        with:
+          auth: ${{ secrets.GIST_SECRET }}
+          gistID: ${{ secrets.BADGE_GIST_ID }}
+          filename: mosaic-vending-minter-ci.json
+          label: mosaic-vending-minter
+          message: ${{ job.status }}
+          color: ${{ job.status == 'success' && 'success' || 'critical' }}
+      - name: Collect logs
+        if: failure()
+        run: |
+          mkdir -p logs/mosaic-vending-minter
+          cp contracts/mosaic-vending-minter/target/debug/deps/*.stderr logs/mosaic-vending-minter/ || true
+          tar czf mosaic-vending-minter-logs.tar.gz logs/
+      - name: Upload logs
+        if: failure()
+        uses: actions/upload-artifact@v3
+        with:
+          name: mosaic-vending-minter-logs
+          path: mosaic-vending-minter-logs.tar.gz
+
   deploy-coloring:
     needs: [changes, coloring-ci]
-    if: needs.changes.outputs.coloring == 'true' && github.ref == 'refs/heads/main'
+    if: needs.changes.outputs.coloring == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
@@ -190,7 +323,7 @@ jobs:
 
   deploy-nft:
     needs: [changes, nft-ci]
-    if: needs.changes.outputs.nft == 'true' && github.ref == 'refs/heads/main'
+    if: needs.changes.outputs.nft == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
@@ -206,9 +339,63 @@ jobs:
           message: ${{ job.status }}
           color: ${{ job.status == 'success' && 'success' || 'critical' }}
 
+  deploy-mosaic-tile-nft:
+    needs: [changes, mosaic-tile-nft-ci]
+    if: needs.changes.outputs.mosaic_tile_nft == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Deploy mosaic-tile-nft contract
+        run: echo "Deploying mosaic-tile-nft contract..."
+      - name: Generate badge
+        uses: schneegans/dynamic-badges-action@v1.6.0
+        with:
+          auth: ${{ secrets.GIST_SECRET }}
+          gistID: ${{ secrets.BADGE_GIST_ID }}
+          filename: deploy-mosaic-tile-nft.json
+          label: deploy-mosaic-tile-nft
+          message: ${{ job.status }}
+          color: ${{ job.status == 'success' && 'success' || 'critical' }}
+
+  deploy-tile-coloring:
+    needs: [changes, tile-coloring-ci]
+    if: needs.changes.outputs.tile_coloring == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Deploy tile-coloring contract
+        run: echo "Deploying tile-coloring contract..."
+      - name: Generate badge
+        uses: schneegans/dynamic-badges-action@v1.6.0
+        with:
+          auth: ${{ secrets.GIST_SECRET }}
+          gistID: ${{ secrets.BADGE_GIST_ID }}
+          filename: deploy-tile-coloring.json
+          label: deploy-tile-coloring
+          message: ${{ job.status }}
+          color: ${{ job.status == 'success' && 'success' || 'critical' }}
+
+  deploy-mosaic-vending-minter:
+    needs: [changes, mosaic-vending-minter-ci]
+    if: needs.changes.outputs.mosaic_vending_minter == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Deploy mosaic-vending-minter contract
+        run: echo "Deploying mosaic-vending-minter contract..."
+      - name: Generate badge
+        uses: schneegans/dynamic-badges-action@v1.6.0
+        with:
+          auth: ${{ secrets.GIST_SECRET }}
+          gistID: ${{ secrets.BADGE_GIST_ID }}
+          filename: deploy-mosaic-vending-minter.json
+          label: deploy-mosaic-vending-minter
+          message: ${{ job.status }}
+          color: ${{ job.status == 'success' && 'success' || 'critical' }}
+
   coloring-e2e:
     needs: [changes, deploy-coloring]
-    if: needs.changes.outputs.coloring == 'true' && github.ref == 'refs/heads/main'
+    if: needs.changes.outputs.coloring == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
@@ -226,7 +413,7 @@ jobs:
 
   nft-e2e:
     needs: [changes, deploy-nft]
-    if: needs.changes.outputs.nft == 'true' && github.ref == 'refs/heads/main'
+    if: needs.changes.outputs.nft == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
@@ -242,9 +429,69 @@ jobs:
           message: ${{ job.status }}
           color: ${{ job.status == 'success' && 'success' || 'critical' }}
 
+  mosaic-tile-nft-e2e:
+    needs: [changes, deploy-mosaic-tile-nft]
+    if: needs.changes.outputs.mosaic_tile_nft == 'true' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Run E2E tests for mosaic-tile-nft contract
+        run: echo "Running mosaic-tile-nft contract E2E tests..."
+      - name: Generate badge
+        uses: schneegans/dynamic-badges-action@v1.6.0
+        with:
+          auth: ${{ secrets.GIST_SECRET }}
+          gistID: ${{ secrets.BADGE_GIST_ID }}
+          filename: mosaic-tile-nft-e2e.json
+          label: mosaic-tile-nft-e2e
+          message: ${{ job.status }}
+          color: ${{ job.status == 'success' && 'success' || 'critical' }}
+
+  tile-coloring-e2e:
+    needs: [changes, deploy-tile-coloring]
+    if: needs.changes.outputs.tile_coloring == 'true' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Run E2E tests for tile-coloring contract
+        run: echo "Running tile-coloring contract E2E tests..."
+      - name: Generate badge
+        uses: schneegans/dynamic-badges-action@v1.6.0
+        with:
+          auth: ${{ secrets.GIST_SECRET }}
+          gistID: ${{ secrets.BADGE_GIST_ID }}
+          filename: tile-coloring-e2e.json
+          label: tile-coloring-e2e
+          message: ${{ job.status }}
+          color: ${{ job.status == 'success' && 'success' || 'critical' }}
+
+  mosaic-vending-minter-e2e:
+    needs: [changes, deploy-mosaic-vending-minter]
+    if: needs.changes.outputs.mosaic_vending_minter == 'true' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Run E2E tests for mosaic-vending-minter contract
+        run: echo "Running mosaic-vending-minter contract E2E tests..."
+      - name: Generate badge
+        uses: schneegans/dynamic-badges-action@v1.6.0
+        with:
+          auth: ${{ secrets.GIST_SECRET }}
+          gistID: ${{ secrets.BADGE_GIST_ID }}
+          filename: mosaic-vending-minter-e2e.json
+          label: mosaic-vending-minter-e2e
+          message: ${{ job.status }}
+          color: ${{ job.status == 'success' && 'success' || 'critical' }}
+
   full-e2e:
-    needs: [changes, coloring-e2e, nft-e2e]
-    if: (needs.changes.outputs.coloring == 'true' || needs.changes.outputs.nft == 'true') && github.ref == 'refs/heads/main'
+    needs: [changes, coloring-e2e, nft-e2e, mosaic-tile-nft-e2e, tile-coloring-e2e, mosaic-vending-minter-e2e]
+    if: |
+      (needs.changes.outputs.coloring == 'true' || 
+       needs.changes.outputs.nft == 'true' || 
+       needs.changes.outputs.mosaic_tile_nft == 'true' || 
+       needs.changes.outputs.tile_coloring == 'true' || 
+       needs.changes.outputs.mosaic_vending_minter == 'true') && 
+      github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
@@ -261,17 +508,18 @@ jobs:
           color: ${{ job.status == 'success' && 'success' || 'critical' }}
 
   notify:
-    needs: [frontend-ci, coloring-ci, nft-ci, deploy-coloring, deploy-nft, coloring-e2e, nft-e2e, full-e2e]
+    needs: [frontend-ci, coloring-ci, nft-ci, mosaic-tile-nft-ci, tile-coloring-ci, mosaic-vending-minter-ci,
+            deploy-coloring, deploy-nft, deploy-mosaic-tile-nft, deploy-tile-coloring, deploy-mosaic-vending-minter,
+            coloring-e2e, nft-e2e, mosaic-tile-nft-e2e, tile-coloring-e2e, mosaic-vending-minter-e2e, full-e2e]
     if: always()
     runs-on: ubuntu-latest
     steps:
       - name: Get skip reasons
         id: skip-reasons
         run: |
-          # Function to get skip reason
           get_skip_reason() {
             local job_name=$1
-            local needs_run=$2
+            local component=$2
             local is_main=${{ github.ref == 'refs/heads/main' }}
             
             if [[ "${{ needs.changes.outputs[needs_run] }}" != "true" ]]; then
@@ -279,50 +527,37 @@ jobs:
             elif [[ "$job_name" =~ ^deploy || "$job_name" =~ e2e$ ]] && [[ "$is_main" != "true" ]]; then
               echo "Not on main branch"
             else
-              echo "Unknown reason"
+              echo ""
             fi
           }
           
-          # Get reasons for each job
-          echo "frontend=$([ "${{ needs.frontend-ci.result }}" == "skipped" ] && get_skip_reason "frontend-ci" "frontend_needs_run" || echo "")" >> $GITHUB_OUTPUT
-          echo "coloring=$([ "${{ needs.coloring-ci.result }}" == "skipped" ] && get_skip_reason "coloring-ci" "coloring_needs_run" || echo "")" >> $GITHUB_OUTPUT
-          echo "nft=$([ "${{ needs.nft-ci.result }}" == "skipped" ] && get_skip_reason "nft-ci" "nft_needs_run" || echo "")" >> $GITHUB_OUTPUT
+          echo "frontend_ci=$([ "${{ needs.frontend-ci.result }}" == "skipped" ] && get_skip_reason "frontend-ci" "frontend" || echo "")" >> $GITHUB_OUTPUT
+          echo "coloring_ci=$([ "${{ needs.coloring-ci.result }}" == "skipped" ] && get_skip_reason "coloring-ci" "coloring" || echo "")" >> $GITHUB_OUTPUT
+          echo "nft_ci=$([ "${{ needs.nft-ci.result }}" == "skipped" ] && get_skip_reason "nft-ci" "nft" || echo "")" >> $GITHUB_OUTPUT
+          echo "mosaic_tile_nft_ci=$([ "${{ needs.mosaic-tile-nft-ci.result }}" == "skipped" ] && get_skip_reason "mosaic-tile-nft-ci" "mosaic_tile_nft" || echo "")" >> $GITHUB_OUTPUT
+          echo "tile_coloring_ci=$([ "${{ needs.tile-coloring-ci.result }}" == "skipped" ] && get_skip_reason "tile-coloring-ci" "tile_coloring" || echo "")" >> $GITHUB_OUTPUT
+          echo "mosaic_vending_minter_ci=$([ "${{ needs.mosaic-vending-minter-ci.result }}" == "skipped" ] && get_skip_reason "mosaic-vending-minter-ci" "mosaic_vending_minter" || echo "")" >> $GITHUB_OUTPUT
+          
           echo "deploy_coloring=$([ "${{ needs.deploy-coloring.result }}" == "skipped" ] && get_skip_reason "deploy-coloring" "coloring" || echo "")" >> $GITHUB_OUTPUT
           echo "deploy_nft=$([ "${{ needs.deploy-nft.result }}" == "skipped" ] && get_skip_reason "deploy-nft" "nft" || echo "")" >> $GITHUB_OUTPUT
+          echo "deploy_mosaic_tile_nft=$([ "${{ needs.deploy-mosaic-tile-nft.result }}" == "skipped" ] && get_skip_reason "deploy-mosaic-tile-nft" "mosaic_tile_nft" || echo "")" >> $GITHUB_OUTPUT
+          echo "deploy_tile_coloring=$([ "${{ needs.deploy-tile-coloring.result }}" == "skipped" ] && get_skip_reason "deploy-tile-coloring" "tile_coloring" || echo "")" >> $GITHUB_OUTPUT
+          echo "deploy_mosaic_vending_minter=$([ "${{ needs.deploy-mosaic-vending-minter.result }}" == "skipped" ] && get_skip_reason "deploy-mosaic-vending-minter" "mosaic_vending_minter" || echo "")" >> $GITHUB_OUTPUT
+          
           echo "coloring_e2e=$([ "${{ needs.coloring-e2e.result }}" == "skipped" ] && get_skip_reason "coloring-e2e" "coloring" || echo "")" >> $GITHUB_OUTPUT
           echo "nft_e2e=$([ "${{ needs.nft-e2e.result }}" == "skipped" ] && get_skip_reason "nft-e2e" "nft" || echo "")" >> $GITHUB_OUTPUT
-          echo "full_e2e=$([ "${{ needs.full-e2e.result }}" == "skipped" ] && get_skip_reason "full-e2e" "nft" || echo "")" >> $GITHUB_OUTPUT
+          echo "mosaic_tile_nft_e2e=$([ "${{ needs.mosaic-tile-nft-e2e.result }}" == "skipped" ] && get_skip_reason "mosaic-tile-nft-e2e" "mosaic_tile_nft" || echo "")" >> $GITHUB_OUTPUT
+          echo "tile_coloring_e2e=$([ "${{ needs.tile-coloring-e2e.result }}" == "skipped" ] && get_skip_reason "tile-coloring-e2e" "tile_coloring" || echo "")" >> $GITHUB_OUTPUT
+          echo "mosaic_vending_minter_e2e=$([ "${{ needs.mosaic-vending-minter-e2e.result }}" == "skipped" ] && get_skip_reason "mosaic-vending-minter-e2e" "mosaic_vending_minter" || echo "")" >> $GITHUB_OUTPUT
+          echo "full_e2e=$([ "${{ needs.full-e2e.result }}" == "skipped" ] && get_skip_reason "full-e2e" "full" || echo "")" >> $GITHUB_OUTPUT
 
       - name: Send Discord notification
-        uses: sarisia/actions-status-discord@v1
-        with:
-          webhook: ${{ secrets.DISCORD_WEBHOOK }}
-          title: "Pixel Canvas CI/CD Status"
-          description: |
-            **Commit:** ${{ github.sha }}
-            **Branch:** ${{ github.ref }}
-            **Author:** ${{ github.actor }}
-            
-            **CI Jobs:**
-            • Frontend: ${{ needs.frontend-ci.result || 'skipped' }} ${{ steps.skip-reasons.outputs.frontend != '' && format('(Reason: {0})', steps.skip-reasons.outputs.frontend) || '' }}
-            • Coloring: ${{ needs.coloring-ci.result || 'skipped' }} ${{ steps.skip-reasons.outputs.coloring != '' && format('(Reason: {0})', steps.skip-reasons.outputs.coloring) || '' }}
-            • NFT: ${{ needs.nft-ci.result || 'skipped' }} ${{ steps.skip-reasons.outputs.nft != '' && format('(Reason: {0})', steps.skip-reasons.outputs.nft) || '' }}
-            
-            **Deployments:**
-            • Coloring: ${{ needs.deploy-coloring.result || 'skipped' }} ${{ steps.skip-reasons.outputs.deploy_coloring != '' && format('(Reason: {0})', steps.skip-reasons.outputs.deploy_coloring) || '' }}
-            • NFT: ${{ needs.deploy-nft.result || 'skipped' }} ${{ steps.skip-reasons.outputs.deploy_nft != '' && format('(Reason: {0})', steps.skip-reasons.outputs.deploy_nft) || '' }}
-            
-            **E2E Tests:**
-            • Coloring: ${{ needs.coloring-e2e.result || 'skipped' }} ${{ steps.skip-reasons.outputs.coloring_e2e != '' && format('(Reason: {0})', steps.skip-reasons.outputs.coloring_e2e) || '' }}
-            • NFT: ${{ needs.nft-e2e.result || 'skipped' }} ${{ steps.skip-reasons.outputs.nft_e2e != '' && format('(Reason: {0})', steps.skip-reasons.outputs.nft_e2e) || '' }}
-            • Full: ${{ needs.full-e2e.result || 'skipped' }} ${{ steps.skip-reasons.outputs.full_e2e != '' && format('(Reason: {0})', steps.skip-reasons.outputs.full_e2e) || '' }}
-            
-            **Status Badges:**
-            - Frontend: ![Frontend](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/${{ github.repository_owner }}/${{ secrets.BADGE_GIST_ID }}/raw/frontend-ci.json)
-            - Coloring: ![Coloring](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/${{ github.repository_owner }}/${{ secrets.BADGE_GIST_ID }}/raw/coloring-ci.json)
-            - NFT: ![NFT](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/${{ github.repository_owner }}/${{ secrets.BADGE_GIST_ID }}/raw/nft-ci.json)
-            
-            **Logs:** Check the artifacts in the workflow run for any failed jobs.
-          color: ${{ contains(needs.*.result, 'failure') && 0xFF0000 || 0x00FF00 }}
-          username: Pixel Canvas Bot
-          avatar_url: https://github.com/pixel-canvas.png
+        if: always()
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
+        run: |
+          curl -H "Content-Type: application/json" -X POST -d '{
+            "username": "GitHub Actions",
+            "avatar_url": "https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png",
+            "content": "Workflow completed with status: **${{ job.status }}**\n\n**CI Jobs:**\n• Frontend: ${{ needs.frontend-ci.result || 'skipped' }} ${{ steps.skip-reasons.outputs.frontend_ci != '' && format('(Reason: {0})', steps.skip-reasons.outputs.frontend_ci) || '' }}\n• Coloring: ${{ needs.coloring-ci.result || 'skipped' }} ${{ steps.skip-reasons.outputs.coloring_ci != '' && format('(Reason: {0})', steps.skip-reasons.outputs.coloring_ci) || '' }}\n• NFT: ${{ needs.nft-ci.result || 'skipped' }} ${{ steps.skip-reasons.outputs.nft_ci != '' && format('(Reason: {0})', steps.skip-reasons.outputs.nft_ci) || '' }}\n• Mosaic Tile NFT: ${{ needs.mosaic-tile-nft-ci.result || 'skipped' }} ${{ steps.skip-reasons.outputs.mosaic_tile_nft_ci != '' && format('(Reason: {0})', steps.skip-reasons.outputs.mosaic_tile_nft_ci) || '' }}\n• Tile Coloring: ${{ needs.tile-coloring-ci.result || 'skipped' }} ${{ steps.skip-reasons.outputs.tile_coloring_ci != '' && format('(Reason: {0})', steps.skip-reasons.outputs.tile_coloring_ci) || '' }}\n• Vending Minter: ${{ needs.mosaic-vending-minter-ci.result || 'skipped' }} ${{ steps.skip-reasons.outputs.mosaic_vending_minter_ci != '' && format('(Reason: {0})', steps.skip-reasons.outputs.mosaic_vending_minter_ci) || '' }}\n\n**Deployments:**\n• Coloring: ${{ needs.deploy-coloring.result || 'skipped' }} ${{ steps.skip-reasons.outputs.deploy_coloring != '' && format('(Reason: {0})', steps.skip-reasons.outputs.deploy_coloring) || '' }}\n• NFT: ${{ needs.deploy-nft.result || 'skipped' }} ${{ steps.skip-reasons.outputs.deploy_nft != '' && format('(Reason: {0})', steps.skip-reasons.outputs.deploy_nft) || '' }}\n• Mosaic Tile NFT: ${{ needs.deploy-mosaic-tile-nft.result || 'skipped' }} ${{ steps.skip-reasons.outputs.deploy_mosaic_tile_nft != '' && format('(Reason: {0})', steps.skip-reasons.outputs.deploy_mosaic_tile_nft) || '' }}\n• Tile Coloring: ${{ needs.deploy-tile-coloring.result || 'skipped' }} ${{ steps.skip-reasons.outputs.deploy_tile_coloring != '' && format('(Reason: {0})', steps.skip-reasons.outputs.deploy_tile_coloring) || '' }}\n• Vending Minter: ${{ needs.deploy-mosaic-vending-minter.result || 'skipped' }} ${{ steps.skip-reasons.outputs.deploy_mosaic_vending_minter != '' && format('(Reason: {0})', steps.skip-reasons.outputs.deploy_mosaic_vending_minter) || '' }}\n\n**E2E Tests:**\n• Coloring: ${{ needs.coloring-e2e.result || 'skipped' }} ${{ steps.skip-reasons.outputs.coloring_e2e != '' && format('(Reason: {0})', steps.skip-reasons.outputs.coloring_e2e) || '' }}\n• NFT: ${{ needs.nft-e2e.result || 'skipped' }} ${{ steps.skip-reasons.outputs.nft_e2e != '' && format('(Reason: {0})', steps.skip-reasons.outputs.nft_e2e) || '' }}\n• Mosaic Tile NFT: ${{ needs.mosaic-tile-nft-e2e.result || 'skipped' }} ${{ steps.skip-reasons.outputs.mosaic_tile_nft_e2e != '' && format('(Reason: {0})', steps.skip-reasons.outputs.mosaic_tile_nft_e2e) || '' }}\n• Tile Coloring: ${{ needs.tile-coloring-e2e.result || 'skipped' }} ${{ steps.skip-reasons.outputs.tile_coloring_e2e != '' && format('(Reason: {0})', steps.skip-reasons.outputs.tile_coloring_e2e) || '' }}\n• Vending Minter: ${{ needs.mosaic-vending-minter-e2e.result || 'skipped' }} ${{ steps.skip-reasons.outputs.mosaic_vending_minter_e2e != '' && format('(Reason: {0})', steps.skip-reasons.outputs.mosaic_vending_minter_e2e) || '' }}\n• Full: ${{ needs.full-e2e.result || 'skipped' }} ${{ steps.skip-reasons.outputs.full_e2e != '' && format('(Reason: {0})', steps.skip-reasons.outputs.full_e2e) || '' }}\n\n**Status Badges:**\n- Frontend: ![Frontend](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/${{ github.repository_owner }}/${{ secrets.BADGE_GIST_ID }}/raw/frontend-ci.json)\n- Coloring: ![Coloring](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/${{ github.repository_owner }}/${{ secrets.BADGE_GIST_ID }}/raw/coloring-ci.json)\n- NFT: ![NFT](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/${{ github.repository_owner }}/${{ secrets.BADGE_GIST_ID }}/raw/nft-ci.json)\n- Mosaic Tile NFT: ![Mosaic Tile NFT](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/${{ github.repository_owner }}/${{ secrets.BADGE_GIST_ID }}/raw/mosaic-tile-nft-ci.json)\n- Tile Coloring: ![Tile Coloring](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/${{ github.repository_owner }}/${{ secrets.BADGE_GIST_ID }}/raw/tile-coloring-ci.json)\n- Vending Minter: ![Vending Minter](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/${{ github.repository_owner }}/${{ secrets.BADGE_GIST_ID }}/raw/mosaic-vending-minter-ci.json)\n\n**Logs:** Check the artifacts in the workflow run for any failed jobs."
+          }' $DISCORD_WEBHOOK
