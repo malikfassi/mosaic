@@ -12,6 +12,10 @@ jobs:
     permissions:
       pull-requests: read
     outputs:
+      frontend: ${{ steps.filter.outputs.frontend }}
+      mosaic_tile: ${{ steps.filter.outputs.mosaic_tile }}
+      tile_coloring: ${{ steps.filter.outputs.tile_coloring }}
+      mosaic_vending: ${{ steps.filter.outputs.mosaic_vending }}
       frontend_hash: ${{ steps.hashes.outputs.frontend_hash }}
       mosaic_tile_hash: ${{ steps.hashes.outputs.mosaic_tile_hash }}
       tile_coloring_hash: ${{ steps.hashes.outputs.tile_coloring_hash }}
@@ -87,54 +91,55 @@ jobs:
             echo $success
           }
           
-          # Check each component
-          if [[ "${{ steps.filter.outputs.frontend }}" == "true" ]]; then
-            frontend_success=$(check_job_success "frontend-ci" "${{ steps.hashes.outputs.frontend_hash }}" "frontend")
-            echo "frontend_needs_run=$([ "$frontend_success" == "false" ] && echo "true" || echo "false")" >> $GITHUB_OUTPUT
-          fi
-          
-          if [[ "${{ steps.filter.outputs.mosaic_tile }}" == "true" ]]; then
-            mosaic_tile_success=$(check_job_success "mosaic-tile-ci" "${{ steps.hashes.outputs.mosaic_tile_hash }}" "contracts/mosaic-tile-nft")
-            echo "mosaic_tile_needs_run=$([ "$mosaic_tile_success" == "false" ] && echo "true" || echo "false")" >> $GITHUB_OUTPUT
-          fi
-          
-          if [[ "${{ steps.filter.outputs.tile_coloring }}" == "true" ]]; then
-            tile_coloring_success=$(check_job_success "tile-coloring-ci" "${{ steps.hashes.outputs.tile_coloring_hash }}" "contracts/tile-coloring")
-            echo "tile_coloring_needs_run=$([ "$tile_coloring_success" == "false" ] && echo "true" || echo "false")" >> $GITHUB_OUTPUT
-          fi
-          
-          if [[ "${{ steps.filter.outputs.mosaic_vending }}" == "true" ]]; then
-            mosaic_vending_success=$(check_job_success "mosaic-vending-ci" "${{ steps.hashes.outputs.mosaic_vending_hash }}" "contracts/mosaic-vending-minter")
-            echo "mosaic_vending_needs_run=$([ "$mosaic_vending_success" == "false" ] && echo "true" || echo "false")" >> $GITHUB_OUTPUT
-          fi
-          
-          # Check E2E tests
-          if [[ "${{ steps.filter.outputs.mosaic_tile }}" == "true" ]]; then
-            mosaic_tile_e2e_success=$(check_job_success "mosaic-tile-e2e" "${{ steps.hashes.outputs.mosaic_tile_hash }}" "contracts/mosaic-tile-nft")
-            echo "mosaic_tile_e2e_needs_run=$([ "$mosaic_tile_e2e_success" == "false" ] && echo "true" || echo "false")" >> $GITHUB_OUTPUT
-          fi
-          
-          if [[ "${{ steps.filter.outputs.tile_coloring }}" == "true" ]]; then
-            tile_coloring_e2e_success=$(check_job_success "tile-coloring-e2e" "${{ steps.hashes.outputs.tile_coloring_hash }}" "contracts/tile-coloring")
-            echo "tile_coloring_e2e_needs_run=$([ "$tile_coloring_e2e_success" == "false" ] && echo "true" || echo "false")" >> $GITHUB_OUTPUT
-          fi
-          
-          if [[ "${{ steps.filter.outputs.mosaic_vending }}" == "true" ]]; then
-            mosaic_vending_e2e_success=$(check_job_success "mosaic-vending-e2e" "${{ steps.hashes.outputs.mosaic_vending_hash }}" "contracts/mosaic-vending-minter")
-            echo "mosaic_vending_e2e_needs_run=$([ "$mosaic_vending_e2e_success" == "false" ] && echo "true" || echo "false")" >> $GITHUB_OUTPUT
-          fi
-          
-          # Check full E2E
+          # Check each component for CI, deploy, and E2E
+          for component in frontend mosaic_tile tile_coloring mosaic_vending; do
+            # Get component-specific paths
+            case $component in
+              frontend)
+                path="frontend"
+                ;;
+              mosaic_tile)
+                path="contracts/mosaic-tile-nft"
+                ;;
+              tile_coloring)
+                path="contracts/tile-coloring"
+                ;;
+              mosaic_vending)
+                path="contracts/mosaic-vending-minter"
+                ;;
+            esac
+
+            # Check if component has changes
+            if [[ "${{ steps.filter.outputs.$component }}" == "true" ]]; then
+              # If changes detected, all jobs for this component need to run
+              echo "${component}_needs_run=true" >> $GITHUB_OUTPUT
+              echo "${component}_deploy_needs_run=true" >> $GITHUB_OUTPUT
+              echo "${component}_e2e_needs_run=true" >> $GITHUB_OUTPUT
+            else
+              # No changes, check previous runs
+              ci_success=$(check_job_success "${component}-ci" "${{ steps.hashes.outputs.${component}_hash }}" "$path")
+              echo "${component}_needs_run=$([ "$ci_success" == "false" ] && echo "true" || echo "false")" >> $GITHUB_OUTPUT
+              
+              deploy_success=$(check_job_success "deploy-${component}" "${{ steps.hashes.outputs.${component}_hash }}" "$path")
+              echo "${component}_deploy_needs_run=$([ "$deploy_success" == "false" ] && echo "true" || echo "false")" >> $GITHUB_OUTPUT
+              
+              e2e_success=$(check_job_success "${component}-e2e" "${{ steps.hashes.outputs.${component}_hash }}" "$path")
+              echo "${component}_e2e_needs_run=$([ "$e2e_success" == "false" ] && echo "true" || echo "false")" >> $GITHUB_OUTPUT
+            fi
+          done
+
+          # Check full-e2e needs run
           if [[ "${{ steps.filter.outputs.frontend }}" == "true" || \
                 "${{ steps.filter.outputs.mosaic_tile }}" == "true" || \
                 "${{ steps.filter.outputs.tile_coloring }}" == "true" || \
                 "${{ steps.filter.outputs.mosaic_vending }}" == "true" ]]; then
-            # Create a combined hash of all changed components
+            echo "full_e2e_needs_run=true" >> $GITHUB_OUTPUT
+          else
+            # Create combined hash of all components
             combined_hash=""
-            [[ "${{ steps.filter.outputs.frontend }}" == "true" ]] && combined_hash+="${{ steps.hashes.outputs.frontend_hash }}"
-            [[ "${{ steps.filter.outputs.mosaic_tile }}" == "true" ]] && combined_hash+="${{ steps.hashes.outputs.mosaic_tile_hash }}"
-            [[ "${{ steps.filter.outputs.tile_coloring }}" == "true" ]] && combined_hash+="${{ steps.hashes.outputs.tile_coloring_hash }}"
-            [[ "${{ steps.filter.outputs.mosaic_vending }}" == "true" ]] && combined_hash+="${{ steps.hashes.outputs.mosaic_vending_hash }}"
+            for component in frontend mosaic_tile tile_coloring mosaic_vending; do
+              combined_hash+="${{ steps.hashes.outputs.${component}_hash }}"
+            done
             combined_hash=$(echo "$combined_hash" | sha256sum | cut -d' ' -f1)
             
             full_e2e_success=$(check_job_success "full-e2e" "$combined_hash" ".")
@@ -192,7 +197,7 @@ jobs:
           color: ${{ job.status == 'success' && 'success' || 'critical' }}
 
   mosaic-tile-ci:
-    needs: [changes, rust-setup]
+    needs: changes
     if: needs.changes.outputs.mosaic_tile_needs_run == 'true'
     runs-on: ubuntu-latest
     steps:
@@ -228,7 +233,7 @@ jobs:
           color: ${{ job.status == 'success' && 'success' || 'critical' }}
 
   tile-coloring-ci:
-    needs: [changes, rust-setup]
+    needs: changes
     if: needs.changes.outputs.tile_coloring_needs_run == 'true'
     runs-on: ubuntu-latest
     steps:
@@ -264,7 +269,7 @@ jobs:
           color: ${{ job.status == 'success' && 'success' || 'critical' }}
 
   mosaic-vending-ci:
-    needs: [changes, rust-setup]
+    needs: changes
     if: needs.changes.outputs.mosaic_vending_needs_run == 'true'
     runs-on: ubuntu-latest
     steps:
@@ -301,9 +306,7 @@ jobs:
 
   deploy-mosaic-tile:
     needs: mosaic-tile-ci
-    if: |
-      needs.mosaic-tile-ci.result == 'success' &&
-      (needs.changes.outputs.mosaic_tile == 'true' || needs.changes.outputs.mosaic_tile_needs_run == 'true')
+    if: needs.changes.outputs.mosaic_tile_deploy_needs_run == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
@@ -312,9 +315,7 @@ jobs:
 
   deploy-tile-coloring:
     needs: tile-coloring-ci
-    if: |
-      needs.tile-coloring-ci.result == 'success' &&
-      (needs.changes.outputs.tile_coloring == 'true' || needs.changes.outputs.tile_coloring_needs_run == 'true')
+    if: needs.changes.outputs.tile_coloring_deploy_needs_run == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
@@ -323,9 +324,7 @@ jobs:
 
   deploy-mosaic-vending:
     needs: mosaic-vending-ci
-    if: |
-      needs.mosaic-vending-ci.result == 'success' &&
-      (needs.changes.outputs.mosaic_vending == 'true' || needs.changes.outputs.mosaic_vending_needs_run == 'true')
+    if: needs.changes.outputs.mosaic_vending_deploy_needs_run == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
@@ -335,9 +334,8 @@ jobs:
   mosaic-tile-e2e:
     needs: deploy-mosaic-tile
     if: |
-      needs.deploy-mosaic-tile.result == 'success' &&
-      github.ref == 'refs/heads/main' &&
-      (needs.changes.outputs.mosaic_tile == 'true' || needs.changes.outputs.mosaic_tile_e2e_needs_run == 'true')
+      needs.changes.outputs.mosaic_tile_e2e_needs_run == 'true' &&
+      github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
@@ -347,9 +345,8 @@ jobs:
   tile-coloring-e2e:
     needs: deploy-tile-coloring
     if: |
-      needs.deploy-tile-coloring.result == 'success' &&
-      github.ref == 'refs/heads/main' &&
-      (needs.changes.outputs.tile_coloring == 'true' || needs.changes.outputs.tile_coloring_e2e_needs_run == 'true')
+      needs.changes.outputs.tile_coloring_e2e_needs_run == 'true' &&
+      github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
@@ -359,9 +356,8 @@ jobs:
   mosaic-vending-e2e:
     needs: deploy-mosaic-vending
     if: |
-      needs.deploy-mosaic-vending.result == 'success' &&
-      github.ref == 'refs/heads/main' &&
-      (needs.changes.outputs.mosaic_vending == 'true' || needs.changes.outputs.mosaic_vending_e2e_needs_run == 'true')
+      needs.changes.outputs.mosaic_vending_e2e_needs_run == 'true' &&
+      github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
@@ -376,12 +372,8 @@ jobs:
       mosaic-vending-e2e
     ]
     if: |
-      github.ref == 'refs/heads/main' &&
-      needs.frontend-ci.result == 'success' &&
-      needs.mosaic-tile-e2e.result == 'success' &&
-      needs.tile-coloring-e2e.result == 'success' &&
-      needs.mosaic-vending-e2e.result == 'success' &&
-      needs.changes.outputs.full_e2e_needs_run == 'true'
+      needs.changes.outputs.full_e2e_needs_run == 'true' &&
+      github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
