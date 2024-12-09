@@ -302,25 +302,3 @@ jobs:
       - name: Cleanup
         if: always()
         run: rm -f wallet.txt
-
-  # Discord notification job
-  notify:
-    needs: [contract-e2e, deploy]
-    if: always()
-    runs-on: ubuntu-latest
-    steps:
-      - name: Send notification
-        uses: Ilshidur/action-discord@master
-        env:
-          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
-        with:
-          args: |
-            🔄 **Contract Workflow Complete**
-            
-            CI Status: ${{ needs.nft-contract-ci.result == 'success' && '✅' || '❌' }} NFT Contract
-            CI Status: ${{ needs.coloring-contract-ci.result == 'success' && '✅' || '❌' }} Coloring Contract
-            E2E Status: ${{ needs.contract-e2e.result == 'success' && '✅' || '❌' }} Tests
-            
-            ${{ github.event_name == 'workflow_dispatch' && format('Deployment Status: {0} {1}', needs.deploy.result == 'success' && '✅' || '❌', github.event.inputs.environment) || '' }}
-            
-            [View Details](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}) 

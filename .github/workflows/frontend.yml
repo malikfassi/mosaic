@@ -227,24 +227,3 @@ jobs:
               --node $STARGAZE_RPC --chain-id $STARGAZE_CHAIN_ID -y
             echo "::notice::Returned $(($BALANCE - 10000)) ustars"
           fi
-
-  # Discord notification
-  notify:
-    needs: [lint, unit-tests, build, e2e]
-    if: always()
-    runs-on: ubuntu-latest
-    steps:
-      - name: Send notification
-        uses: Ilshidur/action-discord@master
-        env:
-          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
-        with:
-          args: |
-            🌐 **Frontend Workflow Complete**
-            
-            Lint: ${{ needs.lint.result == 'success' && '✅' || '❌' }}
-            Unit Tests: ${{ needs.unit-tests.result == 'success' && '✅' || '❌' }}
-            Build: ${{ needs.build.result == 'success' && '✅' || '❌' }}
-            E2E Tests: ${{ needs.e2e.result == 'success' && '✅' || '❌' }}
-            
-            [View Details](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})

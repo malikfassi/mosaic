@@ -3,35 +3,50 @@ name: Discord Notifications
 on:
   workflow_run:
     workflows:
-      - "Frontend CI"
-      - "NFT Contract"
-      - "Coloring Contract"
-      - "End-to-End Tests"
+      - "Frontend"
+      - "Contracts"
     types:
       - completed
 
 jobs:
-  notify-discord:
+  notify:
     runs-on: ubuntu-latest
     steps:
       - name: Get workflow details
-        id: workflow-details
+        id: workflow
         run: |
-          echo "workflow_name=${{ github.event.workflow_run.name }}" >> $GITHUB_OUTPUT
-          echo "workflow_status=${{ github.event.workflow_run.conclusion }}" >> $GITHUB_OUTPUT
-          echo "workflow_url=${{ github.event.workflow_run.html_url }}" >> $GITHUB_OUTPUT
-          echo "actor=${{ github.event.workflow_run.actor.login }}" >> $GITHUB_OUTPUT
+          # Get workflow info
+          WORKFLOW_NAME="${{ github.event.workflow_run.name }}"
+          WORKFLOW_STATUS="${{ github.event.workflow_run.conclusion }}"
+          BRANCH="${{ github.event.workflow_run.head_branch }}"
+          COMMIT_SHA="${{ github.event.workflow_run.head_sha }}"
+          COMMIT_MSG=$(curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+            "${{ github.event.workflow_run.head_repository.url }}/git/commits/${{ github.event.workflow_run.head_sha }}" \
+            | jq -r '.message' | head -n 1)
+          ACTOR="${{ github.event.workflow_run.actor.login }}"
           
-      - name: Prepare status emoji
-        id: emoji
-        run: |
-          if [ "${{ steps.workflow-details.outputs.workflow_status }}" = "success" ]; then
-            echo "status=✅" >> $GITHUB_OUTPUT
-          elif [ "${{ steps.workflow-details.outputs.workflow_status }}" = "failure" ]; then
-            echo "status=❌" >> $GITHUB_OUTPUT
+          # Set emoji based on status
+          if [ "$WORKFLOW_STATUS" = "success" ]; then
+            STATUS_EMOJI="✅"
+            COLOR="3066993"  # Green
+          elif [ "$WORKFLOW_STATUS" = "failure" ]; then
+            STATUS_EMOJI="❌"
+            COLOR="15158332"  # Red
           else
-            echo "status=⚠️" >> $GITHUB_OUTPUT
+            STATUS_EMOJI="⚠️"
+            COLOR="16776960"  # Yellow
           fi
+          
+          # Export variables
+          echo "name=$WORKFLOW_NAME" >> $GITHUB_OUTPUT
+          echo "status=$WORKFLOW_STATUS" >> $GITHUB_OUTPUT
+          echo "emoji=$STATUS_EMOJI" >> $GITHUB_OUTPUT
+          echo "color=$COLOR" >> $GITHUB_OUTPUT
+          echo "branch=$BRANCH" >> $GITHUB_OUTPUT
+          echo "commit_sha=${COMMIT_SHA:0:7}" >> $GITHUB_OUTPUT
+          echo "commit_msg=$COMMIT_MSG" >> $GITHUB_OUTPUT
+          echo "actor=$ACTOR" >> $GITHUB_OUTPUT
+          echo "duration=$((${{ github.event.workflow_run.updated_at }} - ${{ github.event.workflow_run.run_started_at }}))" >> $GITHUB_OUTPUT
 
       - name: Send notification
         uses: Ilshidur/action-discord@master
@@ -39,42 +54,109 @@ jobs:
           DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
         with:
           args: |
-            ${{ steps.emoji.outputs.status }} **${{ steps.workflow-details.outputs.workflow_name }}**
-            **Status:** \`${{ steps.workflow-details.outputs.workflow_status }}\`
-            **Triggered by:** \`${{ steps.workflow-details.outputs.actor }}\`
-            **Branch:** \`${{ github.ref_name }}\`
-            **Commit:** \`${{ github.sha }}\`
-            
-            [View Details](${{ steps.workflow-details.outputs.workflow_url }})
+            {
+              "embeds": [{
+                "title": "${{ steps.workflow.outputs.emoji }} ${{ steps.workflow.outputs.name }} Workflow",
+                "description": "**Status:** \`${{ steps.workflow.outputs.status }}\`\n**Duration:** \`${{ steps.workflow.outputs.duration }}s\`",
+                "color": ${{ steps.workflow.outputs.color }},
+                "fields": [
+                  {
+                    "name": "Triggered By",
+                    "value": "\`${{ steps.workflow.outputs.actor }}\`",
+                    "inline": true
+                  },
+                  {
+                    "name": "Branch",
+                    "value": "\`${{ steps.workflow.outputs.branch }}\`",
+                    "inline": true
+                  },
+                  {
+                    "name": "Commit",
+                    "value": "\`${{ steps.workflow.outputs.commit_sha }}\` - ${{ steps.workflow.outputs.commit_msg }}",
+                    "inline": false
+                  }
+                ],
+                "footer": {
+                  "text": "Pixel Canvas CI/CD"
+                },
+                "timestamp": "${{ github.event.workflow_run.updated_at }}"
+              }]
+            }
 
       - name: Send deployment notification
         if: |
-          (github.event.workflow_run.name == 'NFT Contract' || 
-           github.event.workflow_run.name == 'Coloring Contract') && 
+          github.event.workflow_run.name == 'Contracts' && 
+          contains(github.event.workflow_run.head_commit.message, 'deploy') &&
           github.event.workflow_run.conclusion == 'success'
         uses: Ilshidur/action-discord@master
         env:
           DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
         with:
           args: |
-            🚀 **New Contract Deployment**
-            **Contract:** \`${{ steps.workflow-details.outputs.workflow_name }}\`
-            **Environment:** \`${{ github.event.workflow_run.environment }}\`
-            **Deployed by:** \`${{ steps.workflow-details.outputs.actor }}\`
-            
-            [View Deployment](${{ steps.workflow-details.outputs.workflow_url }})
+            {
+              "embeds": [{
+                "title": "🚀 Contract Deployment",
+                "description": "New contract deployment completed successfully",
+                "color": 3447003,
+                "fields": [
+                  {
+                    "name": "Environment",
+                    "value": "\`${{ github.event.workflow_run.environment }}\`",
+                    "inline": true
+                  },
+                  {
+                    "name": "Deployed By",
+                    "value": "\`${{ steps.workflow.outputs.actor }}\`",
+                    "inline": true
+                  },
+                  {
+                    "name": "Commit",
+                    "value": "\`${{ steps.workflow.outputs.commit_sha }}\` - ${{ steps.workflow.outputs.commit_msg }}",
+                    "inline": false
+                  }
+                ],
+                "footer": {
+                  "text": "Pixel Canvas Deployments"
+                },
+                "timestamp": "${{ github.event.workflow_run.updated_at }}"
+              }]
+            }
 
       - name: Send test report
         if: |
-          github.event.workflow_run.name == 'End-to-End Tests' && 
-          github.event.workflow_run.conclusion == 'success'
+          github.event.workflow_run.conclusion == 'success' &&
+          (contains(github.event.workflow_run.head_commit.message, 'test') ||
+           contains(github.event.workflow_run.name, 'E2E'))
         uses: Ilshidur/action-discord@master
         env:
           DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
         with:
           args: |
-            📊 **E2E Test Results**
-            **Status:** \`${{ steps.workflow-details.outputs.workflow_status }}\`
-            **Run by:** \`${{ steps.workflow-details.outputs.actor }}\`
-            
-            [View Report](${{ steps.workflow-details.outputs.workflow_url }})
+            {
+              "embeds": [{
+                "title": "📊 Test Results",
+                "description": "Test suite completed successfully",
+                "color": 3066993,
+                "fields": [
+                  {
+                    "name": "Type",
+                    "value": "${{ github.event.workflow_run.name == 'Frontend' && 'Frontend E2E' || 'Contract E2E' }}",
+                    "inline": true
+                  },
+                  {
+                    "name": "Duration",
+                    "value": "\`${{ steps.workflow.outputs.duration }}s\`",
+                    "inline": true
+                  },
+                  {
+                    "name": "Run By",
+                    "value": "\`${{ steps.workflow.outputs.actor }}\`",
+                    "inline": true
+                  }
+                ],
+                "footer": {
+                  "text": "Pixel Canvas Tests"
+                },
+                "timestamp": "${{ github.event.workflow_run.updated_at }}"
+              }]
+            }
