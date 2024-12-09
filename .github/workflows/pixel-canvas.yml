@@ -13,8 +13,6 @@ jobs:
       pull-requests: read
     outputs:
       frontend: ${{ steps.filter.outputs.frontend }}
-      coloring: ${{ steps.filter.outputs.coloring }}
-      nft: ${{ steps.filter.outputs.nft }}
       mosaic_tile: ${{ steps.filter.outputs.mosaic_tile }}
       tile_coloring: ${{ steps.filter.outputs.tile_coloring }}
       mosaic_vending: ${{ steps.filter.outputs.mosaic_vending }}
@@ -26,12 +24,6 @@ jobs:
           filters: |
             frontend:
               - 'frontend/**'
-            coloring:
-              - 'contracts/pixel-nft/contracts/coloring/**'
-              - 'contracts/pixel-nft/Cargo.toml'
-            nft:
-              - 'contracts/pixel-nft/contracts/sg721-pixel/**'
-              - 'contracts/pixel-nft/Cargo.toml'
             mosaic_tile:
               - 'contracts/mosaic-tile-nft/**'
               - 'Cargo.toml'
@@ -67,7 +59,30 @@ jobs:
           command: install
           args: cargo-audit
 
-  # Original contract CI jobs...
+  frontend-ci:
+    needs: changes
+    if: needs.changes.outputs.frontend == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+      - name: Install dependencies
+        run: cd frontend && npm ci
+      - name: Run linting
+        run: cd frontend && npm run lint
+      - name: Run tests
+        run: cd frontend && npm test
+      - name: Generate badge
+        uses: schneegans/dynamic-badges-action@v1.6.0
+        with:
+          auth: ${{ secrets.GIST_SECRET }}
+          gistID: ${{ secrets.BADGE_GIST_ID }}
+          filename: frontend-ci.json
+          label: frontend
+          message: ${{ job.status }}
+          color: ${{ job.status == 'success' && 'success' || 'critical' }}
 
   mosaic-tile-ci:
     needs: [changes, rust-setup]
@@ -177,8 +192,6 @@ jobs:
           message: ${{ job.status }}
           color: ${{ job.status == 'success' && 'success' || 'critical' }}
 
-  # Original deploy jobs...
-
   deploy-mosaic-tile:
     needs: [changes, mosaic-tile-ci]
     if: needs.changes.outputs.mosaic_tile == 'true'
@@ -205,8 +218,6 @@ jobs:
       - uses: actions/checkout@v3
       - name: Deploy mosaic-vending contract
         run: echo "Deploying mosaic-vending contract..."
-
-  # Original e2e jobs...
 
   mosaic-tile-e2e:
     needs: [changes, deploy-mosaic-tile]
@@ -239,16 +250,12 @@ jobs:
     needs: [
       changes,
       frontend-ci,
-      coloring-e2e,
-      nft-e2e,
       mosaic-tile-e2e,
       tile-coloring-e2e,
       mosaic-vending-e2e
     ]
     if: |
       (needs.changes.outputs.frontend == 'true' ||
-       needs.changes.outputs.coloring == 'true' ||
-       needs.changes.outputs.nft == 'true' ||
        needs.changes.outputs.mosaic_tile == 'true' ||
        needs.changes.outputs.tile_coloring == 'true' ||
        needs.changes.outputs.mosaic_vending == 'true') &&
@@ -262,18 +269,12 @@ jobs:
   notify:
     needs: [
       frontend-ci,
-      coloring-ci,
-      nft-ci,
       mosaic-tile-ci,
       tile-coloring-ci,
       mosaic-vending-ci,
-      deploy-coloring,
-      deploy-nft,
       deploy-mosaic-tile,
       deploy-tile-coloring,
       deploy-mosaic-vending,
-      coloring-e2e,
-      nft-e2e,
       mosaic-tile-e2e,
       tile-coloring-e2e,
       mosaic-vending-e2e,
@@ -288,9 +289,9 @@ jobs:
           get_skip_reason() {
             local job_name=$1
             local component=$2
-            local is_main=${{ github.ref == 'refs/heads/main' }}
+            local is_main="${{ github.ref == 'refs/heads/main' }}"
             
-            if [[ "${{ needs.changes.outputs[component] }}" != "true" ]]; then
+            if [[ "${{ needs.changes.outputs }}" != *"$component=true"* ]]; then
               echo "No changes detected"
             elif [[ "$job_name" =~ ^deploy || "$job_name" =~ e2e$ ]] && [[ "$is_main" != "true" ]]; then
               echo "Not on main branch"
@@ -302,25 +303,17 @@ jobs:
           # Frontend
           echo "frontend_ci=$([ "${{ needs.frontend-ci.result }}" == "skipped" ] && get_skip_reason "frontend-ci" "frontend" || echo "")" >> $GITHUB_OUTPUT
           
-          # Original contracts
-          echo "coloring_ci=$([ "${{ needs.coloring-ci.result }}" == "skipped" ] && get_skip_reason "coloring-ci" "coloring" || echo "")" >> $GITHUB_OUTPUT
-          echo "nft_ci=$([ "${{ needs.nft-ci.result }}" == "skipped" ] && get_skip_reason "nft-ci" "nft" || echo "")" >> $GITHUB_OUTPUT
-          
-          # New contracts
+          # Contract CI
           echo "mosaic_tile_ci=$([ "${{ needs.mosaic-tile-ci.result }}" == "skipped" ] && get_skip_reason "mosaic-tile-ci" "mosaic_tile" || echo "")" >> $GITHUB_OUTPUT
           echo "tile_coloring_ci=$([ "${{ needs.tile-coloring-ci.result }}" == "skipped" ] && get_skip_reason "tile-coloring-ci" "tile_coloring" || echo "")" >> $GITHUB_OUTPUT
           echo "mosaic_vending_ci=$([ "${{ needs.mosaic-vending-ci.result }}" == "skipped" ] && get_skip_reason "mosaic-vending-ci" "mosaic_vending" || echo "")" >> $GITHUB_OUTPUT
           
           # Deployments
-          echo "deploy_coloring=$([ "${{ needs.deploy-coloring.result }}" == "skipped" ] && get_skip_reason "deploy-coloring" "coloring" || echo "")" >> $GITHUB_OUTPUT
-          echo "deploy_nft=$([ "${{ needs.deploy-nft.result }}" == "skipped" ] && get_skip_reason "deploy-nft" "nft" || echo "")" >> $GITHUB_OUTPUT
           echo "deploy_mosaic_tile=$([ "${{ needs.deploy-mosaic-tile.result }}" == "skipped" ] && get_skip_reason "deploy-mosaic-tile" "mosaic_tile" || echo "")" >> $GITHUB_OUTPUT
           echo "deploy_tile_coloring=$([ "${{ needs.deploy-tile-coloring.result }}" == "skipped" ] && get_skip_reason "deploy-tile-coloring" "tile_coloring" || echo "")" >> $GITHUB_OUTPUT
           echo "deploy_mosaic_vending=$([ "${{ needs.deploy-mosaic-vending.result }}" == "skipped" ] && get_skip_reason "deploy-mosaic-vending" "mosaic_vending" || echo "")" >> $GITHUB_OUTPUT
           
           # E2E tests
-          echo "coloring_e2e=$([ "${{ needs.coloring-e2e.result }}" == "skipped" ] && get_skip_reason "coloring-e2e" "coloring" || echo "")" >> $GITHUB_OUTPUT
-          echo "nft_e2e=$([ "${{ needs.nft-e2e.result }}" == "skipped" ] && get_skip_reason "nft-e2e" "nft" || echo "")" >> $GITHUB_OUTPUT
           echo "mosaic_tile_e2e=$([ "${{ needs.mosaic-tile-e2e.result }}" == "skipped" ] && get_skip_reason "mosaic-tile-e2e" "mosaic_tile" || echo "")" >> $GITHUB_OUTPUT
           echo "tile_coloring_e2e=$([ "${{ needs.tile-coloring-e2e.result }}" == "skipped" ] && get_skip_reason "tile-coloring-e2e" "tile_coloring" || echo "")" >> $GITHUB_OUTPUT
           echo "mosaic_vending_e2e=$([ "${{ needs.mosaic-vending-e2e.result }}" == "skipped" ] && get_skip_reason "mosaic-vending-e2e" "mosaic_vending" || echo "")" >> $GITHUB_OUTPUT
@@ -334,5 +327,5 @@ jobs:
           curl -H "Content-Type: application/json" -X POST -d '{
             "username": "GitHub Actions",
             "avatar_url": "https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png",
-            "content": "Workflow completed with status: **${{ job.status }}**\n\n**CI Jobs:**\n• Frontend: ${{ needs.frontend-ci.result || 'skipped' }} ${{ steps.skip-reasons.outputs.frontend_ci != '' && format('(Reason: {0})', steps.skip-reasons.outputs.frontend_ci) || '' }}\n• Coloring: ${{ needs.coloring-ci.result || 'skipped' }} ${{ steps.skip-reasons.outputs.coloring_ci != '' && format('(Reason: {0})', steps.skip-reasons.outputs.coloring_ci) || '' }}\n• NFT: ${{ needs.nft-ci.result || 'skipped' }} ${{ steps.skip-reasons.outputs.nft_ci != '' && format('(Reason: {0})', steps.skip-reasons.outputs.nft_ci) || '' }}\n• Mosaic Tile: ${{ needs.mosaic-tile-ci.result || 'skipped' }} ${{ steps.skip-reasons.outputs.mosaic_tile_ci != '' && format('(Reason: {0})', steps.skip-reasons.outputs.mosaic_tile_ci) || '' }}\n• Tile Coloring: ${{ needs.tile-coloring-ci.result || 'skipped' }} ${{ steps.skip-reasons.outputs.tile_coloring_ci != '' && format('(Reason: {0})', steps.skip-reasons.outputs.tile_coloring_ci) || '' }}\n• Mosaic Vending: ${{ needs.mosaic-vending-ci.result || 'skipped' }} ${{ steps.skip-reasons.outputs.mosaic_vending_ci != '' && format('(Reason: {0})', steps.skip-reasons.outputs.mosaic_vending_ci) || '' }}\n\n**Deployments:**\n• Coloring: ${{ needs.deploy-coloring.result || 'skipped' }} ${{ steps.skip-reasons.outputs.deploy_coloring != '' && format('(Reason: {0})', steps.skip-reasons.outputs.deploy_coloring) || '' }}\n• NFT: ${{ needs.deploy-nft.result || 'skipped' }} ${{ steps.skip-reasons.outputs.deploy_nft != '' && format('(Reason: {0})', steps.skip-reasons.outputs.deploy_nft) || '' }}\n• Mosaic Tile: ${{ needs.deploy-mosaic-tile.result || 'skipped' }} ${{ steps.skip-reasons.outputs.deploy_mosaic_tile != '' && format('(Reason: {0})', steps.skip-reasons.outputs.deploy_mosaic_tile) || '' }}\n• Tile Coloring: ${{ needs.deploy-tile-coloring.result || 'skipped' }} ${{ steps.skip-reasons.outputs.deploy_tile_coloring != '' && format('(Reason: {0})', steps.skip-reasons.outputs.deploy_tile_coloring) || '' }}\n• Mosaic Vending: ${{ needs.deploy-mosaic-vending.result || 'skipped' }} ${{ steps.skip-reasons.outputs.deploy_mosaic_vending != '' && format('(Reason: {0})', steps.skip-reasons.outputs.deploy_mosaic_vending) || '' }}\n\n**E2E Tests:**\n• Coloring: ${{ needs.coloring-e2e.result || 'skipped' }} ${{ steps.skip-reasons.outputs.coloring_e2e != '' && format('(Reason: {0})', steps.skip-reasons.outputs.coloring_e2e) || '' }}\n• NFT: ${{ needs.nft-e2e.result || 'skipped' }} ${{ steps.skip-reasons.outputs.nft_e2e != '' && format('(Reason: {0})', steps.skip-reasons.outputs.nft_e2e) || '' }}\n• Mosaic Tile: ${{ needs.mosaic-tile-e2e.result || 'skipped' }} ${{ steps.skip-reasons.outputs.mosaic_tile_e2e != '' && format('(Reason: {0})', steps.skip-reasons.outputs.mosaic_tile_e2e) || '' }}\n• Tile Coloring: ${{ needs.tile-coloring-e2e.result || 'skipped' }} ${{ steps.skip-reasons.outputs.tile_coloring_e2e != '' && format('(Reason: {0})', steps.skip-reasons.outputs.tile_coloring_e2e) || '' }}\n• Mosaic Vending: ${{ needs.mosaic-vending-e2e.result || 'skipped' }} ${{ steps.skip-reasons.outputs.mosaic_vending_e2e != '' && format('(Reason: {0})', steps.skip-reasons.outputs.mosaic_vending_e2e) || '' }}\n• Full: ${{ needs.full-e2e.result || 'skipped' }} ${{ steps.skip-reasons.outputs.full_e2e != '' && format('(Reason: {0})', steps.skip-reasons.outputs.full_e2e) || '' }}\n\n**Status Badges:**\n- Frontend: ![Frontend](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/${{ github.repository_owner }}/${{ secrets.BADGE_GIST_ID }}/raw/frontend-ci.json)\n- Coloring: ![Coloring](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/${{ github.repository_owner }}/${{ secrets.BADGE_GIST_ID }}/raw/coloring-ci.json)\n- NFT: ![NFT](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/${{ github.repository_owner }}/${{ secrets.BADGE_GIST_ID }}/raw/nft-ci.json)\n- Mosaic Tile: ![Mosaic Tile](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/${{ github.repository_owner }}/${{ secrets.BADGE_GIST_ID }}/raw/mosaic-tile-ci.json)\n- Tile Coloring: ![Tile Coloring](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/${{ github.repository_owner }}/${{ secrets.BADGE_GIST_ID }}/raw/tile-coloring-ci.json)\n- Mosaic Vending: ![Mosaic Vending](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/${{ github.repository_owner }}/${{ secrets.BADGE_GIST_ID }}/raw/mosaic-vending-ci.json)\n\n**Logs:** Check the artifacts in the workflow run for any failed jobs."
+            "content": "Workflow completed with status: **${{ job.status }}**\n\n**CI Jobs:**\n• Frontend: ${{ needs.frontend-ci.result || 'skipped' }} ${{ steps.skip-reasons.outputs.frontend_ci != '' && format('(Reason: {0})', steps.skip-reasons.outputs.frontend_ci) || '' }}\n• Mosaic Tile: ${{ needs.mosaic-tile-ci.result || 'skipped' }} ${{ steps.skip-reasons.outputs.mosaic_tile_ci != '' && format('(Reason: {0})', steps.skip-reasons.outputs.mosaic_tile_ci) || '' }}\n• Tile Coloring: ${{ needs.tile-coloring-ci.result || 'skipped' }} ${{ steps.skip-reasons.outputs.tile_coloring_ci != '' && format('(Reason: {0})', steps.skip-reasons.outputs.tile_coloring_ci) || '' }}\n• Mosaic Vending: ${{ needs.mosaic-vending-ci.result || 'skipped' }} ${{ steps.skip-reasons.outputs.mosaic_vending_ci != '' && format('(Reason: {0})', steps.skip-reasons.outputs.mosaic_vending_ci) || '' }}\n\n**Deployments:**\n• Mosaic Tile: ${{ needs.deploy-mosaic-tile.result || 'skipped' }} ${{ steps.skip-reasons.outputs.deploy_mosaic_tile != '' && format('(Reason: {0})', steps.skip-reasons.outputs.deploy_mosaic_tile) || '' }}\n• Tile Coloring: ${{ needs.deploy-tile-coloring.result || 'skipped' }} ${{ steps.skip-reasons.outputs.deploy_tile_coloring != '' && format('(Reason: {0})', steps.skip-reasons.outputs.deploy_tile_coloring) || '' }}\n• Mosaic Vending: ${{ needs.deploy-mosaic-vending.result || 'skipped' }} ${{ steps.skip-reasons.outputs.deploy_mosaic_vending != '' && format('(Reason: {0})', steps.skip-reasons.outputs.deploy_mosaic_vending) || '' }}\n\n**E2E Tests:**\n• Mosaic Tile: ${{ needs.mosaic-tile-e2e.result || 'skipped' }} ${{ steps.skip-reasons.outputs.mosaic_tile_e2e != '' && format('(Reason: {0})', steps.skip-reasons.outputs.mosaic_tile_e2e) || '' }}\n• Tile Coloring: ${{ needs.tile-coloring-e2e.result || 'skipped' }} ${{ steps.skip-reasons.outputs.tile_coloring_e2e != '' && format('(Reason: {0})', steps.skip-reasons.outputs.tile_coloring_e2e) || '' }}\n• Mosaic Vending: ${{ needs.mosaic-vending-e2e.result || 'skipped' }} ${{ steps.skip-reasons.outputs.mosaic_vending_e2e != '' && format('(Reason: {0})', steps.skip-reasons.outputs.mosaic_vending_e2e) || '' }}\n• Full: ${{ needs.full-e2e.result || 'skipped' }} ${{ steps.skip-reasons.outputs.full_e2e != '' && format('(Reason: {0})', steps.skip-reasons.outputs.full_e2e) || '' }}\n\n**Status Badges:**\n- Frontend: ![Frontend](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/${{ github.repository_owner }}/${{ secrets.BADGE_GIST_ID }}/raw/frontend-ci.json)\n- Mosaic Tile: ![Mosaic Tile](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/${{ github.repository_owner }}/${{ secrets.BADGE_GIST_ID }}/raw/mosaic-tile-ci.json)\n- Tile Coloring: ![Tile Coloring](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/${{ github.repository_owner }}/${{ secrets.BADGE_GIST_ID }}/raw/tile-coloring-ci.json)\n- Mosaic Vending: ![Mosaic Vending](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/${{ github.repository_owner }}/${{ secrets.BADGE_GIST_ID }}/raw/mosaic-vending-ci.json)\n\n**Logs:** Check the artifacts in the workflow run for any failed jobs."
           }' $DISCORD_WEBHOOK
