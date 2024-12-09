@@ -2,43 +2,43 @@
 
 ## 🚨 Immediate Architecture Priority
 1. Contract Reorganization
-   - [ ] Code Cleanup:
-     - [ ] Move coloring functionality from pixel-canvas to pixel-nft/contracts/coloring/
-     - [ ] Remove redundant code from pixel-nft/src/
-     - [ ] Clean up duplicate functionality
-   - [ ] Contract Structure:
-     - [ ] Finalize sg721-pixel contract
-     - [ ] Set up new coloring contract
-     - [ ] Update contract dependencies
-   - [ ] Integration:
-     - [ ] Update contract imports
-     - [ ] Set up cross-contract communication
-     - [ ] Update tests to reflect new structure
+   - [x] Code Cleanup:
+     - [x] Move coloring functionality from pixel-canvas to pixel-nft/contracts/coloring/
+     - [x] Remove redundant code from pixel-nft/src/
+     - [x] Clean up duplicate functionality
+   - [x] Contract Structure:
+     - [x] Finalize sg721-pixel contract
+     - [x] Set up new coloring contract
+     - [x] Update contract dependencies
+   - [x] Integration:
+     - [x] Update contract imports
+     - [x] Set up cross-contract communication
+     - [x] Update tests to reflect new structure
 
 ## Immediate Priority (MVP & Testing)
 1. Testing & Automation
-   - [ ] Contract Testing
-     - [ ] Unit tests for all contract functions
-     - [ ] Integration tests with mock chain
-     - [ ] Property-based testing
-     - [ ] Coverage reports
+   - [x] Contract Testing
+     - [x] Unit tests for all contract functions
+     - [x] Integration tests with mock chain
+     - [x] Property-based testing
+     - [x] Coverage reports
    - [ ] Frontend Testing
      - [ ] Component unit tests
      - [ ] Integration tests
      - [ ] E2E tests with Cypress
-   - [ ] CI/CD Pipeline
-     - [ ] GitHub Actions setup
-     - [ ] Automated testing
-     - [ ] Automated deployment
-     - [ ] Code quality checks
-     - [ ] Coverage reports
+   - [x] CI/CD Pipeline
+     - [x] GitHub Actions setup
+     - [x] Automated testing
+     - [x] Automated deployment
+     - [x] Code quality checks
+     - [x] Coverage reports
 
 2. MVP Preparation
    - [ ] Core Contract Features
-     - [ ] Complete pixel buying functionality
-     - [ ] Complete pixel color setting
-     - [ ] Basic ownership validation
-     - [ ] Error handling improvements
+     - [x] Complete pixel buying functionality
+     - [x] Complete pixel color setting
+     - [x] Basic ownership validation
+     - [x] Error handling improvements
    - [ ] Frontend Stability
      - [ ] Error boundary implementation
      - [ ] Loading states
@@ -229,7 +229,7 @@
   - [x] Get canvas state
   - [x] Get listed pixels
 
-### 🧪 Testing Suite (In Progress)
+###  Testing Suite (In Progress)
 - [x] Basic Tests:
   - [x] Mock environment setup
   - [x] Instantiation tests
