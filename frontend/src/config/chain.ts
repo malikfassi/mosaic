@@ -1,10 +1,10 @@
-export const STARGAZE_CHAIN_ID = 'stargaze-1';
+export const STARGAZE_CHAIN_ID = process.env.NEXT_PUBLIC_STARGAZE_CHAIN_ID || 'elgafar-1';
 
 export const getStargazeChainInfo = () => ({
   chainId: STARGAZE_CHAIN_ID,
-  chainName: 'Stargaze',
-  rpc: 'https://stargaze-rpc.polkachu.com',
-  rest: 'https://stargaze-api.polkachu.com',
+  chainName: STARGAZE_CHAIN_ID === 'elgafar-1' ? 'Stargaze Testnet' : 'Stargaze',
+  rpc: process.env.NEXT_PUBLIC_STARGAZE_RPC || 'https://rpc.elgafar-1.stargaze-apis.com',
+  rest: process.env.NEXT_PUBLIC_STARGAZE_REST || 'https://rest.elgafar-1.stargaze-apis.com',
   bip44: {
     coinType: 118,
   },
@@ -43,5 +43,5 @@ export const getStargazeChainInfo = () => ({
     coinDecimals: 6,
     coinGeckoId: 'stargaze',
   },
-  features: ['stargate', 'ibc-transfer', 'no-legacy-stdTx', 'ibc-go'],
+  features: ['ibc-transfer', 'ibc-go'],
 }); 
