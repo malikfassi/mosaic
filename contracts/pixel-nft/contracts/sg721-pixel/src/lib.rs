@@ -7,12 +7,8 @@ use cosmwasm_std::{
 };
 use sg721_base::{
     entry::{execute as base_execute, instantiate as base_instantiate, query as base_query},
-    msg::{ExecuteMsg as Sg721BaseExecuteMsg, QueryMsg as Sg721BaseQueryMsg},
+    msg::{ExecuteMsg as Sg721ExecuteMsg, QueryMsg as Sg721QueryMsg, CollectionInfoResponse},
     ContractError,
-};
-use sg721::{
-    msg::{ExecuteMsg as Sg721ExecuteMsg, QueryMsg as Sg721QueryMsg},
-    InstantiateMsg as Sg721InstantiateMsg,
 };
 use sg_metadata::Metadata;
 
@@ -66,7 +62,7 @@ pub fn execute(
             }
 
             // Save token
-            let update_msg = Sg721BaseExecuteMsg::Extension {
+            let update_msg = Sg721ExecuteMsg::Extension {
                 msg: Empty {},
             };
             let res = base_execute(deps, env, info, update_msg)?;
@@ -89,7 +85,6 @@ mod tests {
     use super::*;
     use cosmwasm_std::testing::{mock_dependencies, mock_env, mock_info};
     use cosmwasm_std::from_json;
-    use sg721::msg::CollectionInfoResponse;
 
     #[test]
     fn proper_initialization() {

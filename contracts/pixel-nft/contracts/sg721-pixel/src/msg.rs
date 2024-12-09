@@ -1,7 +1,6 @@
 use cosmwasm_schema::cw_serde;
 use cosmwasm_std::Empty;
-use sg721_base::msg::{ExecuteMsg as Sg721BaseExecuteMsg, QueryMsg as Sg721BaseQueryMsg};
-use sg721::{
+use sg721_base::{
     msg::{ExecuteMsg as Sg721ExecuteMsg, QueryMsg as Sg721QueryMsg},
     InstantiateMsg as Sg721InstantiateMsg,
 };
@@ -11,7 +10,7 @@ pub type InstantiateMsg = Sg721InstantiateMsg;
 
 #[cw_serde]
 pub enum ExecuteMsg {
-    Base(Sg721BaseExecuteMsg<Metadata, Empty>),
+    Base(Sg721ExecuteMsg<Metadata, Empty>),
     UpdateMetadata {
         token_id: String,
         token_uri: Option<String>,
@@ -19,4 +18,4 @@ pub enum ExecuteMsg {
     },
 }
 
-pub type QueryMsg = Sg721BaseQueryMsg; 
+pub type QueryMsg = Sg721QueryMsg; 
