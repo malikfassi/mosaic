@@ -1,247 +1,308 @@
 # Project TODO List
 
-## 🚨 Immediate Architecture Priority
-1. Contract Reorganization
-   - [x] Code Cleanup:
-     - [x] Move coloring functionality from pixel-canvas to pixel-nft/contracts/coloring/
-     - [x] Remove redundant code from pixel-nft/src/
-     - [x] Clean up duplicate functionality
-   - [x] Contract Structure:
-     - [x] Finalize sg721-pixel contract
-     - [x] Set up new coloring contract
-     - [x] Update contract dependencies
-   - [x] Integration:
-     - [x] Update contract imports
-     - [x] Set up cross-contract communication
-     - [x] Update tests to reflect new structure
+## 🚨 Phase 1: Core Functionality (Q1 2024)
 
-## Immediate Priority (MVP & Testing)
-1. Testing & Automation
-   - [x] Contract Testing
-     - [x] Unit tests for all contract functions
-     - [x] Integration tests with mock chain
-     - [x] Property-based testing
-     - [x] Coverage reports
-   - [ ] Frontend Testing
-     - [ ] Component unit tests
-     - [ ] Integration tests
-     - [ ] E2E tests with Cypress
-   - [x] CI/CD Pipeline
-     - [x] GitHub Actions setup
-     - [x] Automated testing
-     - [x] Automated deployment
-     - [x] Code quality checks
-     - [x] Coverage reports
+### Contract Architecture
+- [x] Base Structure
+  - [x] Contract file structure setup
+  - [x] Base dependencies configuration
+  - [x] State management structures
+  - [x] Message types definition
+  - [x] Error handling
+  - [x] Metadata structure
 
-2. MVP Preparation
-   - [ ] Core Contract Features
-     - [x] Complete pixel buying functionality
-     - [x] Complete pixel color setting
-     - [x] Basic ownership validation
-     - [x] Error handling improvements
-   - [ ] Frontend Stability
-     - [ ] Error boundary implementation
-     - [ ] Loading states
-     - [ ] Transaction feedback
-     - [ ] Connection stability
-   - [ ] Transaction Handling
-     - [ ] Batch transaction support
-     - [ ] Transaction preview
-     - [ ] Gas estimation
-     - [ ] Transaction history
-     - [ ] Retry mechanism
-   - [ ] UI/UX Improvements
-     - [ ] Canvas zoom and pan
-     - [ ] Color palette presets
-     - [ ] Pixel ownership hover
-     - [ ] Undo/Redo functionality
-     - [ ] Mobile responsiveness
-   - [ ] Loading States & Animations
-     - [ ] Pixel placement animation
-     - [ ] Transaction progress indicator
-     - [ ] Loading skeletons
-     - [ ] Success/Error animations
-     - [ ] Network status indicator
-   - [ ] Documentation
-     - [ ] Setup instructions
-     - [ ] Testing guide
-     - [ ] API documentation
+### NFT Contract (sg721-area)
+- [ ] Core Implementation
+  - [ ] Area-based NFT structure (10x10)
+  - [ ] Area metadata schema
+  - [ ] Ownership validation
+  - [ ] Transfer restrictions
+  - [ ] Stargaze marketplace integration
+  - [ ] Area merging/splitting logic
+  - [ ] Non-minted Area Flow:
+    - [ ] Redirect to Stargaze marketplace
+    - [ ] Clear status indicators
+    - [ ] Price information display
+    - [ ] Ownership vs. Coloring explanation
 
-3. Manual Testing Phase
-   - [ ] Contract Testing Scenarios
-     - [ ] Pixel purchase flow
-     - [ ] Color setting flow
-     - [ ] Error cases
-     - [ ] Edge cases
-   - [ ] Frontend Testing Scenarios
-     - [ ] Wallet connection
-     - [ ] Transaction flow
-     - [ ] UI responsiveness
-     - [ ] Error handling
+### Coloring Contract
+- [ ] Core Implementation
+  - [ ] Chunked state management (100x100)
+  - [ ] Sparse color storage
+  - [ ] Color rental system
+  - [ ] Time-based permissions
+  - [ ] Fee collection system
+  - [ ] Cross-contract communication
+  - [ ] Non-minted Interaction:
+    - [ ] Preview-only mode
+    - [ ] Clear ownership requirements
+    - [ ] Marketplace redirection
+    - [ ] Action comparison info
 
-## Contract Architecture Updates
-1. NFT Contract (sg721-base)
-   - [ ] Setup base contract
-     - [ ] Initialize sg721-base template
-     - [ ] Configure metadata schema
-     - [ ] Add pixel-specific attributes
-   - [ ] Implement extensions
-     - [ ] Add marketplace functionality
-     - [ ] Add ownership validation
-     - [ ] Add transfer restrictions
-   - [ ] Testing
-     - [ ] Unit tests
-     - [ ] Integration tests
-     - [ ] Property-based tests
+### Frontend MVP
+- [ ] WebGL Canvas
+  - [ ] Chunk manager implementation
+  - [ ] WebGL renderer setup
+  - [ ] Texture management
+  - [ ] Level of Detail system
+  - [ ] Progressive loading
+  - [ ] Cache management
 
-2. Coloring Contract
-   - [ ] Setup contract
-     - [ ] State management
-     - [ ] Message types
-     - [ ] Error handling
-   - [ ] Core functionality
-     - [ ] Color change permission system
-     - [ ] Fee collection
-     - [ ] Time-based restrictions
-   - [ ] Testing
-     - [ ] Unit tests
-     - [ ] Integration tests
-     - [ ] Property-based tests
+- [ ] Non-minted Area UX
+  - [ ] "Buy on Stargaze" flow
+  - [ ] Visual distinction for non-minted areas
+  - [ ] Interactive tooltips explaining:
+    - [ ] Ownership vs. coloring rights
+    - [ ] Minting process
+    - [ ] Price information
+    - [ ] Expected capabilities
+  - [ ] Seamless marketplace redirection
+  - [ ] Status indicators
 
-3. Contract Integration
-   - [ ] Cross-contract communication
-     - [ ] NFT ownership validation
-     - [ ] Color change permissions
-     - [ ] Fee distribution
-   - [ ] Testing
-     - [ ] End-to-end tests
-     - [ ] Multi-user scenarios
-     - [ ] Error cases
+- [ ] User Interface
+  - [ ] Area selection tools
+  - [ ] Color picker with history
+  - [ ] Chunk loading indicators
+  - [ ] Transaction status display
+  - [ ] Mobile-responsive design
 
-## Future Enhancements (Post-MVP)
-1. Stargaze Integration
-   - [ ] Name Resolution
-     - [ ] Add name lookup support
-     - [ ] Reverse lookup (address to name)
-     - [ ] Cache name resolutions
-     - [ ] Update UI to show names
-   - [ ] Contract Features
-     - [ ] Implement rental system
-     - [ ] Time-based ownership
-     - [ ] Rental marketplace
-     - [ ] Revenue sharing
+- [ ] Performance Optimization
+  - [ ] Chunk preloading
+  - [ ] WebGL state optimization
+  - [ ] Memory management
+  - [ ] Background worker setup
+  - [ ] Cache invalidation
 
-2. Real-time Updates
-   - [ ] WebSocket Integration
-     - [ ] Set up WebSocket server
-     - [ ] Implement connection handling
-     - [ ] Add authentication
-     - [ ] Add rate limiting
-   - [ ] Canvas Sync
-     - [ ] Real-time pixel updates
-     - [ ] User presence indicators
-     - [ ] Live transaction status
-     - [ ] Connection status indicator
-   - [ ] Performance Optimization
-     - [ ] Message batching
-     - [ ] Reconnection strategy
-     - [ ] State reconciliation
-     - [ ] Conflict resolution
+### User Education
+- [ ] Documentation
+  - [ ] Clear ownership model
+  - [ ] Minting vs. coloring explanation
+  - [ ] Stargaze integration guide
+  - [ ] Price structure
+  - [ ] Feature comparison table
 
-3. Analytics & Dashboard
-   - [ ] User Dashboard
-     - [ ] Owned pixels overview
-     - [ ] Rental management
-     - [ ] Transaction history
-     - [ ] Revenue tracking
-   - [ ] Analytics
-     - [ ] Pixel activity heatmap
-     - [ ] Price history
-     - [ ] User engagement metrics
-     - [ ] Revenue analytics
+### Testing & Quality
+- [ ] Contract Testing
+  - [ ] Area NFT unit tests
+  - [ ] Chunk management tests
+  - [ ] Color rental tests
+  - [ ] Integration tests
+  - [ ] Performance benchmarks
+  - [ ] Non-minted Tests:
+    - [ ] Marketplace redirection
+    - [ ] Status checks
+    - [ ] Permission validation
+    - [ ] Integration tests
 
-## Build Environment
-- [x] Fix dependency issues
-  - [x] Update to Stargaze recommended versions
-  - [x] Remove nightly requirements
-  - [x] Fix build errors
-- [ ] Development setup
-  - [ ] Local testnet configuration
-  - [ ] Deployment scripts
-  - [ ] Test environment
+- [ ] Frontend Testing
+  - [ ] WebGL renderer tests
+  - [ ] Chunk manager tests
+  - [ ] Component tests
+  - [ ] Integration tests
+  - [ ] Performance profiling
 
-## Infrastructure & Setup Requirements
-1. Environment Variables Setup
-   - [ ] Create root `.env`:
-     - [ ] STARGAZE_TESTNET_RPC
-     - [ ] STARGAZE_TESTNET_CHAIN_ID
-     - [ ] DEPLOYMENT_WALLET_MNEMONIC
-     - [ ] DEPLOYMENT_WALLET_ADDRESS
-   - [ ] Create frontend `.env`:
-     - [ ] NEXT_PUBLIC_BASE_URL
-     - [ ] NEXT_PUBLIC_STARGAZE_RPC
-     - [ ] NEXT_PUBLIC_STARGAZE_REST
-     - [ ] NEXT_PUBLIC_STARGAZE_CHAIN_ID
-     - [ ] NEXT_PUBLIC_CONTRACT_ADDRESS
-   - [ ] Create `.env.example` templates
+- [ ] CI/CD Pipeline
+  - [ ] WebGL test automation
+  - [ ] Performance benchmark tracking
+  - [ ] Memory leak detection
+  - [ ] Bundle size monitoring
 
-2. GitHub Repository Configuration
-   - [ ] Enable GitHub Actions
-   - [ ] Set up repository secrets:
-     - [ ] DEPLOYMENT_WALLET_MNEMONIC
-     - [ ] DEPLOYMENT_WALLET_ADDRESS
-     - [ ] CODECOV_TOKEN
-   - [ ] Configure branch protection rules:
-     - [ ] Require pull request reviews
-     - [ ] Require status checks
-     - [ ] Enforce linear history
+## 🚀 Phase 2: Enhanced Features (Q2 2024)
 
-3. Stargaze Network Setup
-   - [ ] Create and fund testnet wallet
-   - [ ] Obtain testnet STARS (~100 minimum)
-   - [ ] Set up mainnet wallet
-   - [ ] Verify contract deployment permissions
+### Image Upload System
+- [ ] Core Implementation
+  - [ ] Chunked image processing
+  - [ ] Area-based preview
+  - [ ] Color optimization
+  - [ ] Cost estimation
+  - [ ] Batch transaction planning
 
-## Contract Implementation Progress
+### Rental System
+- [ ] Features
+  - [ ] Area-based rental logic
+  - [ ] Time-based pricing
+  - [ ] Chunk-aware operations
+  - [ ] Renewal system
+  - [ ] Conflict resolution
 
-### ✅ Base Structure (Completed)
-- [x] Contract file structure setup
-- [x] Base dependencies configuration
-- [x] State management structures
-- [x] Message types definition
-- [x] Error handling
-- [x] Metadata structure
-- [x] Entry points setup
+### User Dashboard
+- [ ] Implementation
+  - [ ] Area ownership overview
+  - [ ] Chunk-based color history
+  - [ ] Transaction history
+  - [ ] Rental management
 
-### 🚧 Core Implementation (In Progress)
-- [ ] Execute Functions:
-  - [x] Mint pixel NFT
-  - [x] Transfer pixel
-  - [x] List pixel for sale
-  - [x] Buy listed pixel
-  - [x] Set pixel color
-  - [x] Update configuration
-  - [ ] Unlist pixel
-- [ ] Query Functions:
-  - [x] Get pixel by token ID
-  - [x] Get pixel by coordinates
-  - [x] Get pixels by owner
-  - [x] Get canvas state
-  - [x] Get listed pixels
+## 🎯 Phase 3: Advanced Features (Q3 2024)
 
-###  Testing Suite (In Progress)
-- [x] Basic Tests:
-  - [x] Mock environment setup
-  - [x] Instantiation tests
-  - [x] Basic pixel operations
-- [x] Execute Function Tests:
-  - [x] Mint pixel tests
-  - [x] Transfer tests
-  - [x] Marketplace tests
-  - [x] Color change tests
-  - [x] Admin tests
-- [x] Query Function Tests:
-  - [x] Single Pixel Queries
-  - [x] Collection Queries
-  - [x] Canvas State
-  - [x] Error Cases
+### Brand Integration
+- [ ] Features
+  - [ ] Multi-area reservation
+  - [ ] Chunk-aware waiting list
+  - [ ] Priority system
+  - [ ] Bulk operations
+
+### Price Discovery
+- [ ] Implementation
+  - [ ] Area-based pricing
+  - [ ] Location value calculation
+  - [ ] Demand tracking
+  - [ ] Dynamic adjustments
+
+### Analytics
+- [ ] Features
+  - [ ] Chunk activity tracking
+  - [ ] Area value analytics
+  - [ ] Usage patterns
+  - [ ] Performance metrics
+
+## 🛠 Infrastructure Requirements
+
+### Environment Setup
+- [ ] Development
+  - [ ] Local testnet with chunking
+  - [ ] WebGL development tools
+  - [ ] Performance monitoring
+  - [ ] Memory profiling
+
+### Network Setup
+- [ ] Testnet
+  - [ ] Area contract deployment
+  - [ ] Chunk contract deployment
+  - [ ] Integration testing
+  - [ ] Performance testing
+
+### Security
+- [ ] Implementation
+  - [ ] Area access control
+  - [ ] Chunk validation
+  - [ ] Rate limiting
+  - [ ] Emergency procedures
+
+## Immediate Next Steps
+1. [ ] Implement chunk manager
+   - [ ] Create ChunkManager class
+   - [ ] Add LRU cache
+   - [ ] Implement loading queue
+   - [ ] Add background preloading
+
+2. [ ] Set up WebGL renderer
+   - [ ] Create shader programs
+   - [ ] Implement texture management
+   - [ ] Add chunk rendering
+   - [ ] Optimize state changes
+
+3. [ ] Update area contract
+   - [ ] Add area-based storage
+   - [ ] Implement merging logic
+   - [ ] Add ownership validation
+   - [ ] Update tests
+   - [ ] Non-minted handling:
+     - [ ] Marketplace integration
+     - [ ] Status tracking
+     - [ ] Permission checks
+     - [ ] Redirection logic
+
+4. [ ] Update coloring contract
+   - [ ] Add chunk-based storage
+   - [ ] Implement sparse arrays
+   - [ ] Add rental logic
+   - [ ] Update tests
+   - [ ] Non-minted handling:
+     - [ ] Preview mode
+     - [ ] Permission checks
+     - [ ] Status indicators
+     - [ ] Marketplace hooks
+
+5. [ ] User Experience Flow
+   - [ ] Design marketplace redirection
+   - [ ] Create educational tooltips
+   - [ ] Implement status indicators
+   - [ ] Add feature comparison
+   - [ ] Create onboarding guide
+
+## Key Differences Documentation
+
+### Minted vs. Non-minted Areas
+- [ ] Implementation
+  - [ ] Clear ownership model
+  - [ ] Permission structure
+  - [ ] Available actions
+  - [ ] Cost implications
+  - [ ] Time considerations
+
+### Action Comparison Table
+- [ ] Features
+  - [ ] Color changes
+  - [ ] Rental options
+  - [ ] Transfer rights
+  - [ ] Income potential
+  - [ ] Future capabilities
+
+### User Flow Documentation
+- [ ] Core Paths
+  - [ ] Direct coloring (minted)
+  - [ ] Marketplace purchase flow
+  - [ ] Permission acquisition
+  - [ ] Status transitions
+  - [ ] Action restrictions
+
+## 🧹 Immediate Cleanup (Priority)
+- [ ] GitHub Actions Cleanup
+  - [ ] Remove duplicate workflow files:
+    - [ ] `deploy.yml` (replaced by contract-specific deployments)
+    - [ ] `test.yml` (replaced by e2e-tests)
+    - [ ] `deployment.yml` (obsolete)
+    - [ ] `frontend-test.yml` (replaced by frontend.yml)
+    - [ ] `contract-test.yml` (replaced by contract-specific tests)
+    - [ ] `basic-ci.yml` (redundant)
+  - [ ] Verify new workflows are working:
+    - [ ] frontend.yml
+    - [ ] nft-contract.yml
+    - [ ] coloring-contract.yml
+    - [ ] e2e-tests.yml
+
+## 🤖 Discord Integration
+- [ ] GitHub Actions Notifications
+  - [ ] Setup Discord webhook
+  - [ ] Create notification workflow
+  - [ ] Add notifications for:
+    - [ ] Workflow starts
+    - [ ] Build status
+    - [ ] Test results
+    - [ ] Deployment status
+    - [ ] E2E test reports
+- [ ] Contract Event Monitor
+  - [ ] Setup Discord bot
+  - [ ] Implement event listeners for:
+    - [ ] NFT mints
+    - [ ] Color changes
+    - [ ] Area transfers
+    - [ ] Price updates
+  - [ ] Add command interface for:
+    - [ ] Contract statistics
+    - [ ] Recent activities
+    - [ ] Price checks
+
+## 🔧 Environment Setup
+- [ ] Documentation
+  - [ ] Create comprehensive setup guide
+  - [ ] Document all required environment variables
+  - [ ] Add troubleshooting section
+- [ ] Environment Files
+  - [ ] Update .env.example files
+  - [ ] Add validation scripts
+  - [ ] Document external dependencies
+- [ ] Required External Setup
+  - [ ] List of required accounts:
+    - [ ] Stargaze testnet/mainnet
+    - [ ] Discord bot
+    - [ ] GitHub secrets
+  - [ ] Required tools and versions:
+    - [ ] Node.js
+    - [ ] Rust
+    - [ ] Docker
+    - [ ] CosmJS
+  - [ ] Network access requirements:
+    - [ ] RPC endpoints
+    - [ ] API access
+    - [ ] Webhook URLs
