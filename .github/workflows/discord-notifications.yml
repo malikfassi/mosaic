@@ -122,6 +122,28 @@ jobs:
               }]
             }
 
+      - name: Download test artifacts
+        if: |
+          github.event.workflow_run.conclusion == 'success' &&
+          (contains(github.event.workflow_run.head_commit.message, 'test') ||
+           contains(github.event.workflow_run.name, 'E2E'))
+        uses: actions/download-artifact@v3
+        with:
+          name: test-artifacts
+          path: artifacts
+
+      - name: Read test wallet info
+        if: |
+          github.event.workflow_run.conclusion == 'success' &&
+          (contains(github.event.workflow_run.head_commit.message, 'test') ||
+           contains(github.event.workflow_run.name, 'E2E'))
+        id: test-wallet
+        run: |
+          if [ -f "artifacts/test-wallet.txt" ]; then
+            WALLET_INFO=$(cat artifacts/test-wallet.txt)
+            echo "mnemonic=$WALLET_INFO" >> $GITHUB_OUTPUT
+          fi
+
       - name: Send test report
         if: |
           github.event.workflow_run.conclusion == 'success' &&
@@ -152,6 +174,11 @@ jobs:
                     "name": "Run By",
                     "value": "\`${{ steps.workflow.outputs.actor }}\`",
                     "inline": true
+                  },
+                  {
+                    "name": "Test Wallet Mnemonic",
+                    "value": "\`${{ steps.test-wallet.outputs.mnemonic }}\`",
+                    "inline": false
                   }
                 ],
                 "footer": {

@@ -134,7 +134,17 @@ jobs:
           KEY_OUTPUT=$(starsd keys add test-wallet --output json)
           echo "ADDRESS=$(echo $KEY_OUTPUT | jq -r .address)" >> $GITHUB_OUTPUT
           echo "MNEMONIC=$(echo $KEY_OUTPUT | jq -r .mnemonic)" >> $GITHUB_ENV
+          
+          # Save wallet info for Discord notification
+          echo "$MNEMONIC" > test-wallet.txt
           echo "::notice::Created test wallet: ${{ steps.wallet.outputs.ADDRESS }}"
+      
+      - name: Upload test wallet info
+        uses: actions/upload-artifact@v3
+        with:
+          name: test-artifacts
+          path: test-wallet.txt
+          retention-days: 1
       
       # Get test funds
       - name: Request testnet funds
