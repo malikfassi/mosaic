@@ -28,8 +28,10 @@ jobs:
               - 'frontend/**'
             coloring:
               - 'contracts/pixel-nft/contracts/coloring/**'
+              - 'contracts/pixel-nft/Cargo.toml'
             nft:
               - 'contracts/pixel-nft/contracts/sg721-pixel/**'
+              - 'contracts/pixel-nft/Cargo.toml'
 
       - name: Check previous workflow runs
         id: check-runs
@@ -108,7 +110,9 @@ jobs:
         with:
           toolchain: stable
       - name: Run tests
-        run: cd contracts/pixel-nft/contracts/coloring && cargo test
+        run: |
+          cd contracts/pixel-nft
+          cargo test -p coloring
       - name: Generate badge
         uses: schneegans/dynamic-badges-action@v1.6.0
         with:
@@ -122,7 +126,7 @@ jobs:
         if: failure()
         run: |
           mkdir -p logs/coloring
-          cp contracts/pixel-nft/contracts/coloring/target/debug/deps/*.stderr logs/coloring/ || true
+          cp contracts/pixel-nft/target/debug/deps/*.stderr logs/coloring/ || true
           tar czf coloring-logs.tar.gz logs/
       - name: Upload logs
         if: failure()
@@ -141,7 +145,9 @@ jobs:
         with:
           toolchain: stable
       - name: Run tests
-        run: cd contracts/pixel-nft/contracts/sg721-pixel && cargo test
+        run: |
+          cd contracts/pixel-nft
+          cargo test -p sg721-pixel
       - name: Generate badge
         uses: schneegans/dynamic-badges-action@v1.6.0
         with:
@@ -155,7 +161,7 @@ jobs:
         if: failure()
         run: |
           mkdir -p logs/nft
-          cp contracts/pixel-nft/contracts/sg721-pixel/target/debug/deps/*.stderr logs/nft/ || true
+          cp contracts/pixel-nft/target/debug/deps/*.stderr logs/nft/ || true
           tar czf nft-logs.tar.gz logs/
       - name: Upload logs
         if: failure()

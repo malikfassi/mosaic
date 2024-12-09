@@ -3,13 +3,6 @@
 import { FC, Component, ReactNode } from 'react';
 import { KeplrConnection } from './KeplrConnection';
 
-// Add LoadingSpinner component
-const LoadingSpinner: FC = () => (
-  <div className="flex justify-center items-center">
-    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
-  </div>
-);
-
 interface ErrorBoundaryState {
   hasError: boolean;
   error?: Error;
