@@ -1,6 +1,6 @@
 'use client';
 
-import { FC, Component, ReactNode } from 'react';
+import { Component, ReactNode } from 'react';
 import { KeplrConnection } from './KeplrConnection';
 
 interface ErrorBoundaryState {

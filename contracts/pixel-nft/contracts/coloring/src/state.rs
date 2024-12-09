@@ -1,21 +1,21 @@
-use cosmwasm_std::{Addr, Uint128};
+use cosmwasm_schema::cw_serde;
+use cosmwasm_std::Uint128;
 use cw_storage_plus::{Item, Map};
-use schemars::JsonSchema;
-use serde::{Deserialize, Serialize};
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+#[cw_serde]
 pub struct Config {
-    pub owner: Addr,
-    pub nft_contract: Addr,
     pub price_per_color_change: Uint128,
+    pub nft_contract: String,
     pub color_change_cooldown: u64,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+#[cw_serde]
 pub struct ColorChange {
-    pub last_change: u64,
+    pub x: u32,
+    pub y: u32,
     pub color: String,
+    pub last_change: u64,
 }
 
 pub const CONFIG: Item<Config> = Item::new("config");
-pub const COLOR_CHANGES: Map<(u32, u32), ColorChange> = Map::new("color_changes"); 
+pub const PIXEL_COLORS: Map<(u32, u32), ColorChange> = Map::new("pixel_colors"); 

@@ -9,18 +9,18 @@ pub enum ContractError {
     #[error("Unauthorized")]
     Unauthorized {},
 
-    #[error("Invalid color format")]
-    InvalidColorFormat {},
-
     #[error("Insufficient funds")]
     InsufficientFunds {},
 
-    #[error("Color change cooldown in effect")]
+    #[error("Color change is in cooldown period")]
     ColorChangeCooldown {},
 
-    #[error("Not the pixel owner")]
-    NotPixelOwner {},
+    #[error("Invalid color format")]
+    InvalidColorFormat {},
 
     #[error("Pixel not found")]
     PixelNotFound {},
+
+    #[error("Not the pixel owner")]
+    NotPixelOwner {},
 } 

@@ -1,5 +1,8 @@
 [workspace]
-members = ["contracts/*"]
+members = [
+    "contracts/sg721-pixel",
+    "contracts/coloring"
+]
 resolver = "2"
 
 [package]
