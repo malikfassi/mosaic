@@ -1,40 +1,29 @@
 'use client';
 
-import { useRef, useEffect, useState, useCallback } from 'react';
-import { toast } from 'react-hot-toast';
+import { useEffect, useRef, useState } from 'react';
 import { useContract } from '@/hooks/useContract';
-import { debounce } from 'lodash';
+import { useToast } from '@/components/ui/use-toast';
+import { Button } from '@/components/ui/button';
+import { ColorPicker } from '@/components/ColorPicker';
 
-interface PixelCanvasProps {
-  width: number;
-  height: number;
-  pixelSize: number;
-}
-
-interface PendingPixel {
+interface Pixel {
   x: number;
   y: number;
   color: string;
 }
 
-export default function PixelCanvas({ width, height, pixelSize }: PixelCanvasProps) {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const [isDrawing, setIsDrawing] = useState(false);
-  const [currentColor, setCurrentColor] = useState('#000000');
-  const [pendingPixels, setPendingPixels] = useState<PendingPixel[]>([]);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isLoadingPixels, setIsLoadingPixels] = useState(false);
-  const { 
-    isConnected, 
-    isInitialized,
-    setPixelColor,
-    getPixelColor,
-    getCanvas,
-    estimateGas,
-    transactionStatus 
-  } = useContract();
+const CANVAS_SIZE = 1000;
+const CHUNK_SIZE = 100;
+const PIXEL_SIZE = 10;
 
-  // Initialize canvas
+export function PixelCanvas() {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [selectedColor, setSelectedColor] = useState('#000000');
+  const [selectedPixel, setSelectedPixel] = useState<Pixel | null>(null);
+  const [isDrawing, setIsDrawing] = useState(false);
+  const { isConnected, client } = useContract();
+  const { toast } = useToast();
+
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -43,217 +32,133 @@ export default function PixelCanvas({ width, height, pixelSize }: PixelCanvasPro
     if (!ctx) return;
 
     // Set canvas size
-    canvas.width = width * pixelSize;
-    canvas.height = height * pixelSize;
+    canvas.width = CANVAS_SIZE;
+    canvas.height = CANVAS_SIZE;
 
     // Draw grid
-    ctx.strokeStyle = '#ddd';
-    for (let x = 0; x <= width; x++) {
+    ctx.strokeStyle = '#e5e7eb';
+    ctx.lineWidth = 1;
+
+    for (let x = 0; x <= CANVAS_SIZE; x += PIXEL_SIZE) {
       ctx.beginPath();
-      ctx.moveTo(x * pixelSize, 0);
-      ctx.lineTo(x * pixelSize, height * pixelSize);
+      ctx.moveTo(x, 0);
+      ctx.lineTo(x, CANVAS_SIZE);
       ctx.stroke();
     }
-    for (let y = 0; y <= height; y++) {
+
+    for (let y = 0; y <= CANVAS_SIZE; y += PIXEL_SIZE) {
       ctx.beginPath();
-      ctx.moveTo(0, y * pixelSize);
-      ctx.lineTo(width * pixelSize, y * pixelSize);
+      ctx.moveTo(0, y);
+      ctx.lineTo(CANVAS_SIZE, y);
       ctx.stroke();
     }
-  }, [width, height, pixelSize]);
 
-  // Load existing pixels when client is initialized
-  useEffect(() => {
-    if (isInitialized) {
-      loadExistingPixels();
+    // Draw chunk borders
+    ctx.strokeStyle = '#9ca3af';
+    ctx.lineWidth = 2;
+
+    for (let x = 0; x <= CANVAS_SIZE; x += CHUNK_SIZE * PIXEL_SIZE) {
+      ctx.beginPath();
+      ctx.moveTo(x, 0);
+      ctx.lineTo(x, CANVAS_SIZE);
+      ctx.stroke();
     }
-  }, [isInitialized]);
 
-  // Load and draw existing pixels from the contract
-  const loadExistingPixels = async () => {
-    if (isLoadingPixels) return;
-    setIsLoadingPixels(true);
+    for (let y = 0; y <= CANVAS_SIZE; y += CHUNK_SIZE * PIXEL_SIZE) {
+      ctx.beginPath();
+      ctx.moveTo(0, y);
+      ctx.lineTo(CANVAS_SIZE, y);
+      ctx.stroke();
+    }
+  }, []);
 
-    try {
-      const pixels = await getCanvas();
-      const canvas = canvasRef.current;
-      if (!canvas) return;
-
-      const ctx = canvas.getContext('2d');
-      if (!ctx) return;
-
-      // Clear existing pixels before redrawing
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-      // Redraw grid
-      ctx.strokeStyle = '#ddd';
-      for (let x = 0; x <= width; x++) {
-        ctx.beginPath();
-        ctx.moveTo(x * pixelSize, 0);
-        ctx.lineTo(x * pixelSize, height * pixelSize);
-        ctx.stroke();
-      }
-      for (let y = 0; y <= height; y++) {
-        ctx.beginPath();
-        ctx.moveTo(0, y * pixelSize);
-        ctx.lineTo(width * pixelSize, y * pixelSize);
-        ctx.stroke();
-      }
-
-      // Draw pixels
-      pixels.forEach((pixel) => {
-        ctx.fillStyle = pixel.color;
-        ctx.fillRect(pixel.x * pixelSize, pixel.y * pixelSize, pixelSize, pixelSize);
+  const handleCanvasClick = (event: React.MouseEvent<HTMLCanvasElement>) => {
+    if (!isConnected || !client) {
+      toast({
+        title: 'Not Connected',
+        description: 'Please connect your wallet to draw pixels.',
+        variant: 'destructive',
       });
-    } catch (error) {
-      console.error('Failed to load pixels:', error);
-      toast.error('Failed to load existing pixels');
-    } finally {
-      setIsLoadingPixels(false);
-    }
-  };
-
-  // Handle mouse events for drawing
-  const startDrawing = (e: React.MouseEvent<HTMLCanvasElement>) => {
-    if (!isConnected) {
-      toast.error('Please connect your wallet first');
       return;
     }
-    setIsDrawing(true);
-    const { x, y } = getPixelCoordinates(e);
-    addPendingPixel(x, y);
-  };
-
-  const draw = (e: React.MouseEvent<HTMLCanvasElement>) => {
-    if (!isDrawing || !isConnected) return;
-    const { x, y } = getPixelCoordinates(e);
-    addPendingPixel(x, y);
-  };
-
-  const stopDrawing = () => {
-    setIsDrawing(false);
-  };
-
-  // Get pixel coordinates from mouse event
-  const getPixelCoordinates = (e: React.MouseEvent<HTMLCanvasElement>) => {
-    const canvas = canvasRef.current;
-    if (!canvas) return { x: 0, y: 0 };
-
-    const rect = canvas.getBoundingClientRect();
-    const x = Math.floor((e.clientX - rect.left) / pixelSize);
-    const y = Math.floor((e.clientY - rect.top) / pixelSize);
-    return { x, y };
-  };
-
-  // Add pixel to pending list and draw preview
-  const addPendingPixel = (x: number, y: number) => {
-    if (x < 0 || x >= width || y < 0 || y >= height) return;
 
     const canvas = canvasRef.current;
     if (!canvas) return;
 
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
+    const rect = canvas.getBoundingClientRect();
+    const x = Math.floor((event.clientX - rect.left) / PIXEL_SIZE);
+    const y = Math.floor((event.clientY - rect.top) / PIXEL_SIZE);
 
-    // Draw preview
-    ctx.fillStyle = currentColor;
-    ctx.fillRect(x * pixelSize, y * pixelSize, pixelSize, pixelSize);
+    if (x < 0 || x >= CANVAS_SIZE / PIXEL_SIZE || y < 0 || y >= CANVAS_SIZE / PIXEL_SIZE) {
+      return;
+    }
 
-    // Add to pending list if not already present
-    setPendingPixels(prev => {
-      const exists = prev.some(p => p.x === x && p.y === y);
-      if (exists) return prev;
-      return [...prev, { x, y, color: currentColor }];
-    });
+    setSelectedPixel({ x, y, color: selectedColor });
+    setIsDrawing(true);
   };
 
-  // Submit pending pixels to the contract
-  const submitPixels = async () => {
-    if (!isConnected || pendingPixels.length === 0 || isSubmitting) return;
+  const handleMouseMove = (event: React.MouseEvent<HTMLCanvasElement>) => {
+    if (!isDrawing || !isConnected || !client) return;
 
-    const toastId = toast.loading('Preparing transaction...');
-    setIsSubmitting(true);
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const rect = canvas.getBoundingClientRect();
+    const x = Math.floor((event.clientX - rect.left) / PIXEL_SIZE);
+    const y = Math.floor((event.clientY - rect.top) / PIXEL_SIZE);
+
+    if (x < 0 || x >= CANVAS_SIZE / PIXEL_SIZE || y < 0 || y >= CANVAS_SIZE / PIXEL_SIZE) {
+      return;
+    }
+
+    setSelectedPixel({ x, y, color: selectedColor });
+  };
+
+  const handleMouseUp = () => {
+    setIsDrawing(false);
+  };
+
+  const handleColorChange = (color: string) => {
+    setSelectedColor(color);
+  };
+
+  const drawPixel = async () => {
+    if (!selectedPixel || !isConnected || !client) return;
 
     try {
-      // Process pixels one by one
-      for (const pixel of pendingPixels) {
-        const gasEstimate = await estimateGas('color', { 
-          x: pixel.x, 
-          y: pixel.y, 
-          color: pixel.color 
-        });
-        toast.loading(`Estimated gas: ${gasEstimate}`, { id: toastId });
-        
-        await setPixelColor(pixel.x, pixel.y, pixel.color);
-      }
-
-      toast.success('Successfully updated pixels!', { id: toastId });
-      setPendingPixels([]);
+      // TODO: Implement contract interaction
+      toast({
+        title: 'Pixel Drawn',
+        description: `Drew pixel at (${selectedPixel.x}, ${selectedPixel.y}) with color ${selectedPixel.color}`,
+      });
     } catch (error) {
-      console.error('Failed to submit pixels:', error);
-      toast.error('Failed to update pixels', { id: toastId });
-      
-      // Reload canvas to show actual state
-      await loadExistingPixels();
-    } finally {
-      setIsSubmitting(false);
+      toast({
+        title: 'Error',
+        description: error instanceof Error ? error.message : 'Failed to draw pixel',
+        variant: 'destructive',
+      });
     }
   };
 
-  // Debounced submit function
-  const debouncedSubmit = useCallback(
-    debounce(() => {
-      if (pendingPixels.length > 0) {
-        submitPixels();
-      }
-    }, 2000),
-    [pendingPixels]
-  );
-
-  // Auto-submit pending pixels after delay
-  useEffect(() => {
-    if (pendingPixels.length > 0 && !isSubmitting) {
-      debouncedSubmit();
-    }
-    return () => {
-      debouncedSubmit.cancel();
-    };
-  }, [pendingPixels, isSubmitting, debouncedSubmit]);
-
-  // Show transaction status
-  useEffect(() => {
-    if (transactionStatus.color.error) {
-      toast.error(`Color update failed: ${transactionStatus.color.error.message}`);
-    }
-  }, [transactionStatus]);
-
   return (
-    <div className="relative">
+    <div className="flex flex-col items-center gap-4">
+      <div className="flex items-center gap-4">
+        <ColorPicker value={selectedColor} onChange={handleColorChange} />
+        <Button
+          onClick={drawPixel}
+          disabled={!selectedPixel || !isConnected}
+        >
+          Draw Pixel
+        </Button>
+      </div>
       <canvas
         ref={canvasRef}
-        onMouseDown={startDrawing}
-        onMouseMove={draw}
-        onMouseUp={stopDrawing}
-        onMouseLeave={stopDrawing}
         className="border border-gray-300 cursor-crosshair"
+        onClick={handleCanvasClick}
+        onMouseMove={handleMouseMove}
+        onMouseUp={handleMouseUp}
+        onMouseLeave={handleMouseUp}
       />
-      <div className="absolute top-4 right-4 flex gap-2">
-        <input
-          type="color"
-          value={currentColor}
-          onChange={(e) => setCurrentColor(e.target.value)}
-          className="w-8 h-8 cursor-pointer"
-        />
-        {pendingPixels.length > 0 && (
-          <button
-            onClick={() => submitPixels()}
-            disabled={isSubmitting}
-            className="px-4 py-2 bg-blue-500 text-white rounded disabled:opacity-50"
-          >
-            {isSubmitting ? 'Submitting...' : `Submit ${pendingPixels.length} Pixels`}
-          </button>
-        )}
-      </div>
     </div>
   );
 } 

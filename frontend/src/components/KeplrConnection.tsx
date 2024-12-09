@@ -1,107 +1,61 @@
 'use client';
 
 import { useContract } from '@/hooks/useContract';
-import { toast } from 'react-hot-toast';
+import { Button } from '@/components/ui/button';
+import { useToast } from '@/components/ui/use-toast';
 
-export default function KeplrConnection() {
-  const { 
-    isConnected, 
-    isInitialized,
-    connect, 
-    disconnect, 
-    address,
-    error,
-    transactionStatus 
-  } = useContract();
+export function KeplrConnection() {
+  const { isConnected, address, connect, disconnect, error } = useContract();
+  const { toast } = useToast();
 
-  const connectWallet = async () => {
-    const toastId = toast.loading('Connecting to Keplr...');
+  const handleConnect = async () => {
     try {
       await connect();
-      toast.success('Connected to Keplr!', { id: toastId });
-    } catch (err: any) {
-      let errorMessage = 'Failed to connect to Keplr';
-      
-      // Handle specific error cases
-      if (err.message?.includes('not found')) {
-        errorMessage = 'Keplr wallet not found. Please install Keplr extension.';
-      } else if (err.message?.includes('suggest chain')) {
-        errorMessage = 'Failed to configure chain in Keplr. Please try again.';
-      } else if (err.message?.includes('enable')) {
-        errorMessage = 'Please approve the connection in Keplr.';
-      } else if (err.message?.includes('No accounts')) {
-        errorMessage = 'No accounts found. Please add an account to Keplr.';
-      } else if (err.details) {
-        errorMessage = `${err.message}: ${err.details}`;
-      }
-
-      console.error('Error connecting wallet:', {
-        message: err.message,
-        type: err.type,
-        details: err.details,
-        cause: err.cause
+      toast({
+        title: 'Connected to Keplr',
+        description: 'Successfully connected to your Keplr wallet.',
       });
-      
-      toast.error(errorMessage, { id: toastId });
+    } catch (err) {
+      toast({
+        title: 'Connection Failed',
+        description: err instanceof Error ? err.message : 'Failed to connect to Keplr',
+        variant: 'destructive',
+      });
     }
   };
 
-  const disconnectWallet = () => {
+  const handleDisconnect = () => {
     disconnect();
-    toast.success('Disconnected from Keplr');
+    toast({
+      title: 'Disconnected',
+      description: 'Successfully disconnected from Keplr wallet.',
+    });
   };
 
-  // Show connection status
-  const getConnectionStatus = () => {
-    if (transactionStatus.connect.isLoading) {
-      return 'Connecting...';
-    }
-    if (isConnected && !isInitialized) {
-      return 'Initializing...';
-    }
-    if (isConnected && isInitialized) {
-      return 'Connected';
-    }
-    return 'Connect Wallet';
-  };
+  if (error) {
+    return (
+      <Button variant="destructive" onClick={handleConnect}>
+        Retry Connection
+      </Button>
+    );
+  }
 
-  // Format address for display
-  const formatAddress = (addr: string) => {
-    if (!addr) return '';
-    return `${addr.slice(0, 8)}...${addr.slice(-4)}`;
-  };
+  if (isConnected && address) {
+    return (
+      <div className="flex items-center gap-2">
+        <span className="text-sm text-muted-foreground">
+          {`${address.slice(0, 6)}...${address.slice(-4)}`}
+        </span>
+        <Button variant="outline" onClick={handleDisconnect}>
+          Disconnect
+        </Button>
+      </div>
+    );
+  }
 
   return (
-    <div className="flex items-center gap-4">
-      {isConnected ? (
-        <>
-          <span className="text-sm text-gray-600">
-            {formatAddress(address)}
-          </span>
-          <button
-            onClick={disconnectWallet}
-            className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600 
-              transition-colors duration-200 disabled:opacity-50"
-            disabled={transactionStatus.connect.isLoading}
-          >
-            Disconnect
-          </button>
-        </>
-      ) : (
-        <button
-          onClick={connectWallet}
-          className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 
-            transition-colors duration-200 disabled:opacity-50"
-          disabled={transactionStatus.connect.isLoading}
-        >
-          {getConnectionStatus()}
-        </button>
-      )}
-      {error && (
-        <span className="text-sm text-red-500">
-          {error.message}
-        </span>
-      )}
-    </div>
+    <Button onClick={handleConnect}>
+      Connect Keplr
+    </Button>
   );
 } 

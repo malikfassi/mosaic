@@ -1,7 +1,7 @@
 'use client';
 
 import { FC, Component, ReactNode } from 'react';
-import KeplrConnection from './KeplrConnection';
+import { KeplrConnection } from './KeplrConnection';
 
 // Add LoadingSpinner component
 const LoadingSpinner: FC = () => (
@@ -9,11 +9,6 @@ const LoadingSpinner: FC = () => (
     <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
   </div>
 );
-
-interface WalletConnectProps {
-  onConnected: (address: string) => void;
-  connecting?: boolean;
-}
 
 interface ErrorBoundaryState {
   hasError: boolean;
@@ -59,15 +54,12 @@ class WalletErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySta
   }
 }
 
-const WalletConnect: FC<WalletConnectProps> = ({ onConnected, connecting = false }) => {
+export function WalletConnect() {
   return (
     <WalletErrorBoundary>
-      {connecting && <LoadingSpinner />}
-      <div>
-        <KeplrConnection onConnected={onConnected} connecting={connecting} />
+      <div className="fixed top-4 right-4 z-50">
+        <KeplrConnection />
       </div>
     </WalletErrorBoundary>
   );
-};
-
-export default WalletConnect; 
+} 

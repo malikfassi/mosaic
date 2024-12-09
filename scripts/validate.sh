@@ -28,6 +28,11 @@ handle_error() {
     return 1
 }
 
+# Function to handle warnings
+handle_warning() {
+    echo -e "\n${YELLOW}Warning in $1: $2${NC}"
+}
+
 # Function to calculate hash of directory
 calculate_dir_hash() {
     if [ -d "$1" ]; then
@@ -111,15 +116,26 @@ run_frontend_validation() {
     fi
 
     echo -e "\n${YELLOW}Running static validation...${NC}"
-    if ! npm run lint; then
+    
+    # Run ESLint with warnings as errors
+    if ! npm run lint -- --max-warnings 0 > lint_output.txt 2>&1; then
+        echo -e "\n${RED}ESLint Errors:${NC}"
+        cat lint_output.txt
+        rm lint_output.txt
         handle_error "Frontend" "Linting failed"
         return 1
     fi
+    rm -f lint_output.txt
 
-    if ! npm run typecheck; then
+    # Run TypeScript type checking
+    if ! npm run typecheck > typecheck_output.txt 2>&1; then
+        echo -e "\n${RED}TypeScript Errors:${NC}"
+        cat typecheck_output.txt
+        rm typecheck_output.txt
         handle_error "Frontend" "Type checking failed"
         return 1
     fi
+    rm -f typecheck_output.txt
 
     echo -e "\n${YELLOW}Running tests...${NC}"
     if ! npm test; then
@@ -143,7 +159,7 @@ run_nft_validation() {
         return 1
     fi
 
-    if ! cargo clippy --all-targets --all-features; then
+    if ! cargo clippy --all-targets --all-features -- -D warnings; then
         handle_error "NFT Contract" "Clippy check failed"
         return 1
     fi
@@ -170,7 +186,7 @@ run_coloring_validation() {
         return 1
     fi
 
-    if ! cargo clippy --all-targets --all-features; then
+    if ! cargo clippy --all-targets --all-features -- -D warnings; then
         handle_error "Coloring Contract" "Clippy check failed"
         return 1
     fi
