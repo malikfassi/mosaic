@@ -1,5 +1,20 @@
 # Project TODO List
 
+## 🚨 Immediate Architecture Priority
+1. Contract Reorganization
+   - [ ] Code Cleanup:
+     - [ ] Move coloring functionality from pixel-canvas to pixel-nft/contracts/coloring/
+     - [ ] Remove redundant code from pixel-nft/src/
+     - [ ] Clean up duplicate functionality
+   - [ ] Contract Structure:
+     - [ ] Finalize sg721-pixel contract
+     - [ ] Set up new coloring contract
+     - [ ] Update contract dependencies
+   - [ ] Integration:
+     - [ ] Update contract imports
+     - [ ] Set up cross-contract communication
+     - [ ] Update tests to reflect new structure
+
 ## Immediate Priority (MVP & Testing)
 1. Testing & Automation
    - [ ] Contract Testing
@@ -29,8 +44,6 @@
      - [ ] Loading states
      - [ ] Transaction feedback
      - [ ] Connection stability
-<<<<<<< HEAD
-=======
    - [ ] Transaction Handling
      - [ ] Batch transaction support
      - [ ] Transaction preview
@@ -49,7 +62,6 @@
      - [ ] Loading skeletons
      - [ ] Success/Error animations
      - [ ] Network status indicator
->>>>>>> 5a17691 (feat: implement contract interactions and remove websocket - Add contract methods, remove WS for MVP, update env config, add batch transactions)
    - [ ] Documentation
      - [ ] Setup instructions
      - [ ] Testing guide
@@ -67,6 +79,45 @@
      - [ ] UI responsiveness
      - [ ] Error handling
 
+## Contract Architecture Updates
+1. NFT Contract (sg721-base)
+   - [ ] Setup base contract
+     - [ ] Initialize sg721-base template
+     - [ ] Configure metadata schema
+     - [ ] Add pixel-specific attributes
+   - [ ] Implement extensions
+     - [ ] Add marketplace functionality
+     - [ ] Add ownership validation
+     - [ ] Add transfer restrictions
+   - [ ] Testing
+     - [ ] Unit tests
+     - [ ] Integration tests
+     - [ ] Property-based tests
+
+2. Coloring Contract
+   - [ ] Setup contract
+     - [ ] State management
+     - [ ] Message types
+     - [ ] Error handling
+   - [ ] Core functionality
+     - [ ] Color change permission system
+     - [ ] Fee collection
+     - [ ] Time-based restrictions
+   - [ ] Testing
+     - [ ] Unit tests
+     - [ ] Integration tests
+     - [ ] Property-based tests
+
+3. Contract Integration
+   - [ ] Cross-contract communication
+     - [ ] NFT ownership validation
+     - [ ] Color change permissions
+     - [ ] Fee distribution
+   - [ ] Testing
+     - [ ] End-to-end tests
+     - [ ] Multi-user scenarios
+     - [ ] Error cases
+
 ## Future Enhancements (Post-MVP)
 1. Stargaze Integration
    - [ ] Name Resolution
@@ -80,9 +131,6 @@
      - [ ] Rental marketplace
      - [ ] Revenue sharing
 
-<<<<<<< HEAD
-2. Analytics & Dashboard
-=======
 2. Real-time Updates
    - [ ] WebSocket Integration
      - [ ] Set up WebSocket server
@@ -101,7 +149,6 @@
      - [ ] Conflict resolution
 
 3. Analytics & Dashboard
->>>>>>> 5a17691 (feat: implement contract interactions and remove websocket - Add contract methods, remove WS for MVP, update env config, add batch transactions)
    - [ ] User Dashboard
      - [ ] Owned pixels overview
      - [ ] Rental management
@@ -113,157 +160,16 @@
      - [ ] User engagement metrics
      - [ ] Revenue analytics
 
-## Existing Tasks (Maintained)
-### Smart Contract Development
-- [x] Initial contract setup
-  - [x] Basic contract structure
-  - [x] State management
-  - [x] Error handling
-  - [x] Basic tests
-- [ ] Contract Features
-  - [ ] Implement time-based ownership system
-  - [ ] Add rental functionality
-  - [ ] Implement fee collection system
-  - [ ] Add batch operations for pixels
-  - [ ] Add pixel metadata storage
-- [ ] Testing
-  - [ ] Add comprehensive unit tests
-  - [ ] Add integration tests
-  - [ ] Test edge cases
-  - [ ] Test fee calculations
-- [ ] Deployment
-  - [ ] Deploy to Stargaze testnet
-  - [ ] Verify contract
-  - [ ] Test on testnet
-  - [ ] Deploy to mainnet
+## Build Environment
+- [x] Fix dependency issues
+  - [x] Update to Stargaze recommended versions
+  - [x] Remove nightly requirements
+  - [x] Fix build errors
+- [ ] Development setup
+  - [ ] Local testnet configuration
+  - [ ] Deployment scripts
+  - [ ] Test environment
 
-### Frontend Development
-- [x] Initial setup
-  - [x] Next.js with TypeScript
-  - [x] Tailwind CSS configuration
-  - [x] Basic project structure
-- [x] Development Environment
-  - [x] Fix package.json dependencies
-  - [x] Add PostCSS configuration
-  - [x] Install dependencies
-  - [x] Update to Next.js 14
-  - [x] Update CosmJS packages
-  - [x] Fix TypeScript linting errors
-  - [ ] Configure environment variables
-- [x] Stargaze Integration
-  - [x] Add chain configuration
-  - [x] Update Keplr wallet integration
-  - [x] Configure RPC endpoints
-- [x] Real-time Updates
-  - [x] Implement WebSocket hook
-  - [x] Add real-time pixel updates
-  - [x] Add connection status indicator
-  - [ ] Add reconnection logic
-- [ ] Core Features
-  - [x] Basic pixel canvas implementation
-  - [x] Keplr wallet integration
-  - [x] Contract interaction implementation
-  - [x] Real-time updates
-  - [x] Color picker functionality
-  - [ ] Pixel history viewer
-  - [ ] Transaction history
-
-### Backend Development
-- [ ] WebSocket Server
-  - [ ] Set up WebSocket server
-  - [ ] Implement connection handling
-  - [ ] Add authentication
-  - [ ] Add rate limiting
-  - [ ] Add event broadcasting
-
-### Documentation
-- [x] Basic README
-- [ ] Technical Documentation
-  - [ ] Contract documentation
-  - [ ] Frontend documentation
-  - [ ] API documentation
-  - [ ] WebSocket protocol documentation
-- [ ] User Documentation
-  - [ ] Installation guide
-  - [ ] Usage guide
-  - [ ] Troubleshooting guide
-
-### DevOps
-- [ ] CI/CD Pipeline
-  - [ ] GitHub Actions setup
-  - [ ] Automated testing
-  - [ ] Automated deployment
-- [ ] Monitoring
-  - [ ] Error tracking
-  - [ ] Performance monitoring
-  - [ ] Usage analytics
-  - [ ] WebSocket metrics
-
-## Recently Completed
-- Basic contract structure
-- Frontend boilerplate
-- Basic pixel canvas implementation
-- Keplr wallet integration
-- Frontend dependency setup
-- PostCSS configuration
-- Stargaze chain configuration
-- Updated Keplr integration
-- Package updates to latest versions
-- Next.js 14 upgrade
-- WebSocket client implementation
-- Real-time updates
-- Initial test setup for WalletConnect
-- Initial test setup for useContract hook
-- Validation script implementation
-- Pre-commit hook setup
-- Development workflow documentation
-- GitHub Actions for contract testing
-- GitHub Actions for frontend testing
-- Testnet deployment workflow
-- Integration tests setup
-- E2E tests with Playwright
-
-## Current Focus
-1. Contract Testing
-   - Fix failing contract tests
-   - Add property-based testing
-   - Implement testnet integration tests
-   - Set up contract coverage reporting
-
-2. Frontend Testing
-   - Complete E2E test scenarios
-   - Add more integration tests
-   - Improve test coverage for hooks
-   - Add WebSocket testing
-
-3. CI/CD Pipeline
-   - Set up automated testnet deployment
-   - Configure test coverage thresholds
-   - Add performance testing
-   - Set up monitoring
-   - simple github actions workflow
-
-## Next Steps
-1. Contract Improvements
-   - Implement rental system
-   - Add batch operations
-   - Improve error handling
-   - Add event emissions
-
-2. Frontend Updates
-   - Plan Next.js 15.0.4 upgrade
-   - Plan React 19.0.0 upgrade
-   - Update @cosmjs packages
-   - Improve error handling
-
-3. Documentation
-   - Add testnet deployment guide
-   - Update testing documentation
-   - Add troubleshooting guide
-   - Document CI/CD process
-
-<<<<<<< HEAD
-=======
 ## Infrastructure & Setup Requirements
 1. Environment Variables Setup
    - [ ] Create root `.env`:
@@ -296,4 +202,46 @@
    - [ ] Set up mainnet wallet
    - [ ] Verify contract deployment permissions
 
->>>>>>> 5a17691 (feat: implement contract interactions and remove websocket - Add contract methods, remove WS for MVP, update env config, add batch transactions)
+## Contract Implementation Progress
+
+### ✅ Base Structure (Completed)
+- [x] Contract file structure setup
+- [x] Base dependencies configuration
+- [x] State management structures
+- [x] Message types definition
+- [x] Error handling
+- [x] Metadata structure
+- [x] Entry points setup
+
+### 🚧 Core Implementation (In Progress)
+- [ ] Execute Functions:
+  - [x] Mint pixel NFT
+  - [x] Transfer pixel
+  - [x] List pixel for sale
+  - [x] Buy listed pixel
+  - [x] Set pixel color
+  - [x] Update configuration
+  - [ ] Unlist pixel
+- [ ] Query Functions:
+  - [x] Get pixel by token ID
+  - [x] Get pixel by coordinates
+  - [x] Get pixels by owner
+  - [x] Get canvas state
+  - [x] Get listed pixels
+
+### 🧪 Testing Suite (In Progress)
+- [x] Basic Tests:
+  - [x] Mock environment setup
+  - [x] Instantiation tests
+  - [x] Basic pixel operations
+- [x] Execute Function Tests:
+  - [x] Mint pixel tests
+  - [x] Transfer tests
+  - [x] Marketplace tests
+  - [x] Color change tests
+  - [x] Admin tests
+- [x] Query Function Tests:
+  - [x] Single Pixel Queries
+  - [x] Collection Queries
+  - [x] Canvas State
+  - [x] Error Cases
