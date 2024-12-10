@@ -1,18 +1,24 @@
 use cosmwasm_std::{
-    entry_point, to_json_binary, Binary, Deps, DepsMut, Env, MessageInfo, Response, StdResult, Empty,
+    entry_point, to_json_binary, Binary, Deps, DepsMut, Empty, Env, MessageInfo, Response,
+    StdResult,
 };
 use cw721_base::{
-    InstantiateMsg as Cw721InstantiateMsg,
-    msg::{QueryMsg as Cw721QueryMsg, ExecuteMsg as Cw721ExecuteMsg},
+    msg::{ExecuteMsg as Cw721ExecuteMsg, QueryMsg as Cw721QueryMsg},
     state::TokenInfo,
+    InstantiateMsg as Cw721InstantiateMsg,
 };
 
 use crate::{
     error::ContractError,
     execute::{execute_batch_set_pixels, execute_mint_tile, execute_set_pixel_color},
     msg::{ExecuteMsg, InstantiateMsg, QueryMsg},
-    query::{query_tile_state, query_tiles_state, query_pixel_state, query_pixels_state, query_mosaic_state, query_tile_pixels, query_batch_tile_pixels},
-    state::{Cw721StorageType, DEVELOPER, DEVELOPER_FEE, MINTER, OWNER_FEE, TOKEN_COUNT, TileMetadata},
+    query::{
+        query_batch_tile_pixels, query_mosaic_state, query_pixel_state, query_pixels_state,
+        query_tile_pixels, query_tile_state, query_tiles_state,
+    },
+    state::{
+        Cw721StorageType, TileMetadata, DEVELOPER, DEVELOPER_FEE, MINTER, OWNER_FEE, TOKEN_COUNT,
+    },
 };
 
 #[cfg_attr(not(feature = "library"), entry_point)]
@@ -78,37 +84,73 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
         QueryMsg::Cw721(msg) => {
             let contract = Cw721StorageType::default();
             let msg: Cw721QueryMsg<Empty> = match *msg {
-                Cw721QueryMsg::OwnerOf { token_id, include_expired } => {
-                    Cw721QueryMsg::OwnerOf { token_id, include_expired }
-                }
-                Cw721QueryMsg::Approval { token_id, spender, include_expired } => {
-                    Cw721QueryMsg::Approval { token_id, spender, include_expired }
-                }
-                Cw721QueryMsg::Approvals { token_id, include_expired } => {
-                    Cw721QueryMsg::Approvals { token_id, include_expired }
-                }
-                Cw721QueryMsg::AllOperators { owner, include_expired, start_after, limit } => {
-                    Cw721QueryMsg::AllOperators { owner, include_expired, start_after, limit }
-                }
+                Cw721QueryMsg::OwnerOf {
+                    token_id,
+                    include_expired,
+                } => Cw721QueryMsg::OwnerOf {
+                    token_id,
+                    include_expired,
+                },
+                Cw721QueryMsg::Approval {
+                    token_id,
+                    spender,
+                    include_expired,
+                } => Cw721QueryMsg::Approval {
+                    token_id,
+                    spender,
+                    include_expired,
+                },
+                Cw721QueryMsg::Approvals {
+                    token_id,
+                    include_expired,
+                } => Cw721QueryMsg::Approvals {
+                    token_id,
+                    include_expired,
+                },
+                Cw721QueryMsg::AllOperators {
+                    owner,
+                    include_expired,
+                    start_after,
+                    limit,
+                } => Cw721QueryMsg::AllOperators {
+                    owner,
+                    include_expired,
+                    start_after,
+                    limit,
+                },
                 Cw721QueryMsg::NumTokens {} => Cw721QueryMsg::NumTokens {},
                 Cw721QueryMsg::ContractInfo {} => Cw721QueryMsg::ContractInfo {},
                 Cw721QueryMsg::NftInfo { token_id } => Cw721QueryMsg::NftInfo { token_id },
-                Cw721QueryMsg::AllNftInfo { token_id, include_expired } => {
-                    Cw721QueryMsg::AllNftInfo { token_id, include_expired }
-                }
-                Cw721QueryMsg::Tokens { owner, start_after, limit } => {
-                    Cw721QueryMsg::Tokens { owner, start_after, limit }
-                }
+                Cw721QueryMsg::AllNftInfo {
+                    token_id,
+                    include_expired,
+                } => Cw721QueryMsg::AllNftInfo {
+                    token_id,
+                    include_expired,
+                },
+                Cw721QueryMsg::Tokens {
+                    owner,
+                    start_after,
+                    limit,
+                } => Cw721QueryMsg::Tokens {
+                    owner,
+                    start_after,
+                    limit,
+                },
                 Cw721QueryMsg::AllTokens { start_after, limit } => {
                     Cw721QueryMsg::AllTokens { start_after, limit }
                 }
                 Cw721QueryMsg::Minter {} => Cw721QueryMsg::Minter {},
-                Cw721QueryMsg::Operator { owner, operator, include_expired } => {
-                    Cw721QueryMsg::Operator { owner, operator, include_expired }
-                }
-                Cw721QueryMsg::Extension { msg: _ } => {
-                    Cw721QueryMsg::Extension { msg: Empty {} }
-                }
+                Cw721QueryMsg::Operator {
+                    owner,
+                    operator,
+                    include_expired,
+                } => Cw721QueryMsg::Operator {
+                    owner,
+                    operator,
+                    include_expired,
+                },
+                Cw721QueryMsg::Extension { msg: _ } => Cw721QueryMsg::Extension { msg: Empty {} },
                 Cw721QueryMsg::Ownership {} => Cw721QueryMsg::Ownership {},
             };
             contract.query(deps, env, msg)
@@ -116,11 +158,15 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
         QueryMsg::TileState { tile_id } => to_json_binary(&query_tile_state(deps, tile_id)?),
         QueryMsg::TilesState { tile_ids } => to_json_binary(&query_tiles_state(deps, tile_ids)?),
         QueryMsg::PixelState { pixel_id } => to_json_binary(&query_pixel_state(deps, pixel_id)?),
-        QueryMsg::PixelsState { pixel_ids, start_after, limit } => {
-            to_json_binary(&query_pixels_state(deps, pixel_ids, start_after, limit)?)
-        }
+        QueryMsg::PixelsState {
+            pixel_ids,
+            start_after,
+            limit,
+        } => to_json_binary(&query_pixels_state(deps, pixel_ids, start_after, limit)?),
         QueryMsg::MosaicState {} => to_json_binary(&query_mosaic_state(deps)?),
         QueryMsg::TilePixels { tile_id } => to_json_binary(&query_tile_pixels(deps, tile_id)?),
-        QueryMsg::BatchTilePixels { tile_ids } => to_json_binary(&query_batch_tile_pixels(deps, tile_ids)?),
+        QueryMsg::BatchTilePixels { tile_ids } => {
+            to_json_binary(&query_batch_tile_pixels(deps, tile_ids)?)
+        }
     }
 }

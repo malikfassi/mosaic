@@ -1,8 +1,8 @@
-use cosmwasm_std::DepsMut;
 use crate::{
     error::ContractError,
-    state::{Position, POSITIONS, TOTAL_TILES, PIXELS_PER_TILE},
+    state::{Position, PIXELS_PER_TILE, POSITIONS, TOTAL_TILES},
 };
+use cosmwasm_std::DepsMut;
 
 pub fn validate_tile_id(token_num: u32) -> bool {
     token_num < TOTAL_TILES
@@ -38,4 +38,4 @@ pub fn validate_position(deps: &DepsMut, position: &Position) -> Result<(), Cont
     }
 
     Ok(())
-} 
+}

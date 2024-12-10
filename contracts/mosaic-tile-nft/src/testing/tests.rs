@@ -1,12 +1,16 @@
-use cosmwasm_std::{
-    testing::{mock_dependencies, mock_env, mock_info},
-    coins, Coin, Response, OwnedDeps, Uint128, from_json,
-};
 use cosmwasm_std::testing::{MockApi, MockQuerier, MockStorage};
+use cosmwasm_std::{
+    coins, from_json,
+    testing::{mock_dependencies, mock_env, mock_info},
+    Coin, OwnedDeps, Response, Uint128,
+};
 
 use crate::{
     contract::{execute, instantiate, query},
-    msg::{ExecuteMsg, InstantiateMsg, QueryMsg, TileStateResponse, PixelStateResponse, TilePixelsResponse, PixelUpdate},
+    msg::{
+        ExecuteMsg, InstantiateMsg, PixelStateResponse, PixelUpdate, QueryMsg, TilePixelsResponse,
+        TileStateResponse,
+    },
     state::{Color, Position, PIXELS_PER_TILE, TOKEN_COUNT},
 };
 
@@ -23,10 +27,7 @@ const MINTER: &str = "minter";
 const DEVELOPER: &str = "developer";
 const OWNER: &str = "owner";
 
-fn setup_contract() -> (
-    OwnedDeps<MockStorage, MockApi, MockQuerier>,
-    Response,
-) {
+fn setup_contract() -> (OwnedDeps<MockStorage, MockApi, MockQuerier>, Response) {
     let mut deps = mock_dependencies();
     let env = mock_env();
     let info = mock_info(MINTER, &[]);
@@ -200,7 +201,8 @@ fn test_query_pagination() {
         start_after: None,
         limit: Some(5),
     };
-    let res: Vec<PixelStateResponse> = from_json(&query(deps.as_ref(), env.clone(), msg).unwrap()).unwrap();
+    let res: Vec<PixelStateResponse> =
+        from_json(&query(deps.as_ref(), env.clone(), msg).unwrap()).unwrap();
     assert_eq!(5, res.len());
 
     let msg = QueryMsg::PixelsState {
@@ -228,8 +230,12 @@ fn test_batch_tile_queries() {
     }
 
     // Query multiple tiles
-    let msg = QueryMsg::BatchTilePixels { tile_ids: vec![0, 1, 2] };
+    let msg = QueryMsg::BatchTilePixels {
+        tile_ids: vec![0, 1, 2],
+    };
     let res: Vec<TilePixelsResponse> = from_json(&query(deps.as_ref(), env, msg).unwrap()).unwrap();
     assert_eq!(3, res.len());
-    assert!(res.iter().all(|t| t.pixels.len() == PIXELS_PER_TILE as usize));
+    assert!(res
+        .iter()
+        .all(|t| t.pixels.len() == PIXELS_PER_TILE as usize));
 }

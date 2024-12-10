@@ -33,23 +33,15 @@ pub struct PixelUpdate {
 pub enum ExecuteMsg {
     /// CW721 execute messages
     Cw721(Box<Cw721ExecuteMsg<TileMetadata, Empty>>),
-    
+
     /// Mint a new tile NFT
-    MintTile {
-        tile_id: u32,
-        owner: String,
-    },
-    
+    MintTile { tile_id: u32, owner: String },
+
     /// Set a pixel's color
-    SetPixelColor {
-        pixel_id: u32,
-        color: Color,
-    },
-    
+    SetPixelColor { pixel_id: u32, color: Color },
+
     /// Batch update multiple pixels
-    BatchSetPixels {
-        updates: Vec<PixelUpdate>,
-    },
+    BatchSetPixels { updates: Vec<PixelUpdate> },
 }
 
 #[cw_serde]
@@ -58,15 +50,15 @@ pub enum QueryMsg {
     /// CW721 query messages
     #[returns(cw721_base::msg::QueryMsg<TileMetadata>)]
     Cw721(Box<Cw721QueryMsg<TileMetadata>>),
-    
+
     /// Query tile state by ID
     #[returns(TileStateResponse)]
     TileState { tile_id: u32 },
-    
+
     /// Query multiple tiles at once
     #[returns(TilesStateResponse)]
     TilesState { tile_ids: Vec<u32> },
-    
+
     /// Query mosaic state
     #[returns(MosaicStateResponse)]
     MosaicState {},
@@ -77,7 +69,7 @@ pub enum QueryMsg {
 
     /// Query multiple pixels with pagination
     #[returns(Vec<PixelStateResponse>)]
-    PixelsState { 
+    PixelsState {
         pixel_ids: Vec<u32>,
         start_after: Option<u32>,
         limit: Option<u32>,

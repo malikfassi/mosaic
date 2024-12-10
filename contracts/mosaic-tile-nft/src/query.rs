@@ -1,11 +1,14 @@
 use cosmwasm_std::{Deps, StdResult};
 
 use crate::{
-    msg::{TileStateResponse, TilesStateResponse, PixelStateResponse, MosaicStateResponse, TilePixelsResponse},
+    msg::{
+        MosaicStateResponse, PixelStateResponse, TilePixelsResponse, TileStateResponse,
+        TilesStateResponse,
+    },
     state::{
-        Cw721StorageType, DEVELOPER_FEE, OWNER_FEE, PIXEL_COLORS, TOKEN_COUNT,
-        validate_tile_id, validate_pixel_id, get_tile_id_from_pixel, get_pixel_position_in_tile,
-        Color, PIXELS_PER_TILE,
+        get_pixel_position_in_tile, get_tile_id_from_pixel, validate_pixel_id, validate_tile_id,
+        Color, Cw721StorageType, DEVELOPER_FEE, OWNER_FEE, PIXELS_PER_TILE, PIXEL_COLORS,
+        TOKEN_COUNT,
     },
 };
 
@@ -127,10 +130,13 @@ pub fn query_tile_pixels(deps: Deps, tile_id: u32) -> StdResult<TilePixelsRespon
     })
 }
 
-pub fn query_batch_tile_pixels(deps: Deps, tile_ids: Vec<u32>) -> StdResult<Vec<TilePixelsResponse>> {
+pub fn query_batch_tile_pixels(
+    deps: Deps,
+    tile_ids: Vec<u32>,
+) -> StdResult<Vec<TilePixelsResponse>> {
     let mut responses = Vec::with_capacity(tile_ids.len());
     for tile_id in tile_ids {
         responses.push(query_tile_pixels(deps, tile_id)?);
     }
     Ok(responses)
-} 
+}

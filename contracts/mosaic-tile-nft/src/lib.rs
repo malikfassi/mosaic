@@ -1,10 +1,10 @@
 pub mod contract;
 pub mod error;
-pub mod msg;
-pub mod state;
 pub mod execute;
-pub mod query;
 pub mod helpers;
+pub mod msg;
+pub mod query;
+pub mod state;
 
 #[cfg(test)]
 mod testing;

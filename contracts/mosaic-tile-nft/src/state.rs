@@ -1,14 +1,14 @@
 use cosmwasm_schema::cw_serde;
-use cosmwasm_std::{Coin, Empty, CustomMsg};
+use cosmwasm_std::{Coin, CustomMsg, Empty};
 use cw_storage_plus::{Item, Map};
 use schemars::JsonSchema;
 use std::fmt;
 
 // Constants
-pub const PIXELS_PER_TILE: u32 = 100;     // 10x10 pixels per tile
-pub const TOTAL_TILES: u32 = 10000;       // Total number of tiles
-pub const TOTAL_PIXELS: u32 = PIXELS_PER_TILE * TOTAL_TILES;  // 1M pixels
-pub const PIXELS_PER_PACKED: u32 = 1;     // Store one color per u32 (24 bits)
+pub const PIXELS_PER_TILE: u32 = 100; // 10x10 pixels per tile
+pub const TOTAL_TILES: u32 = 10000; // Total number of tiles
+pub const TOTAL_PIXELS: u32 = PIXELS_PER_TILE * TOTAL_TILES; // 1M pixels
+pub const PIXELS_PER_PACKED: u32 = 1; // Store one color per u32 (24 bits)
 pub const CHUNKS_PER_TILE: u32 = PIXELS_PER_TILE / PIXELS_PER_PACKED;
 
 #[cw_serde]
@@ -51,7 +51,8 @@ pub struct Position {
 }
 
 // CW721 base contract storage
-pub type Cw721StorageType<'a> = cw721_base::Cw721Contract<'a, TileMetadata, TileMetadata, Empty, Empty>;
+pub type Cw721StorageType<'a> =
+    cw721_base::Cw721Contract<'a, TileMetadata, TileMetadata, Empty, Empty>;
 pub const TOKEN_COUNT: Item<u64> = Item::new("token_count");
 
 // Mosaic-specific storage

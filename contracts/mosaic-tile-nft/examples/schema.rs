@@ -1,16 +1,18 @@
 use std::env::current_dir;
 use std::fs::create_dir_all;
 
-use cosmwasm_schema::{export_schema, export_schema_with_title, remove_schemas, schema_for, write_api};
+use cosmwasm_schema::{
+    export_schema, export_schema_with_title, remove_schemas, schema_for, write_api,
+};
 
 use cosmwasm_std::Empty;
 pub use cw721::{
     AllNftInfoResponse, ApprovalResponse, ApprovalsResponse, ContractInfoResponse, NftInfoResponse,
     NumTokensResponse, OperatorsResponse, OwnerOfResponse, TokensResponse,
 };
+use cw721_base::msg::InstantiateMsg;
 pub use cw721_base::MinterResponse;
 use mosaic_tile_nft::msg::{ExecuteMsg, QueryMsg};
-use cw721_base::msg::InstantiateMsg;
 pub use sg721_base::msg::CollectionInfoResponse;
 
 fn main() {

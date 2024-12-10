@@ -1,16 +1,15 @@
-use cosmwasm_std::{DepsMut, Env, MessageInfo, Response, BankMsg, Coin, Uint128, SubMsg, WasmMsg, to_json_binary, Empty};
-use cw721_base::{
-    msg::ExecuteMsg as Cw721ExecuteMsg,
-    state::TokenInfo,
+use cosmwasm_std::{
+    to_json_binary, BankMsg, Coin, DepsMut, Empty, Env, MessageInfo, Response, SubMsg, Uint128,
+    WasmMsg,
 };
+use cw721_base::{msg::ExecuteMsg as Cw721ExecuteMsg, state::TokenInfo};
 
 use crate::{
     error::ContractError,
     msg::PixelUpdate,
     state::{
-        Cw721StorageType, DEVELOPER_FEE, OWNER_FEE, MINTER, DEVELOPER, PIXEL_COLORS,
-        validate_tile_id, validate_pixel_id, get_tile_id_from_pixel, Color, TileMetadata,
-        TOKEN_COUNT,
+        get_tile_id_from_pixel, validate_pixel_id, validate_tile_id, Color, Cw721StorageType,
+        TileMetadata, DEVELOPER, DEVELOPER_FEE, MINTER, OWNER_FEE, PIXEL_COLORS, TOKEN_COUNT,
     },
 };
 
@@ -140,7 +139,9 @@ pub fn execute_batch_set_pixels(
 ) -> Result<Response, ContractError> {
     // Validate batch size
     if updates.len() > MAX_BATCH_SIZE as usize {
-        return Err(ContractError::BatchTooLarge { max: MAX_BATCH_SIZE });
+        return Err(ContractError::BatchTooLarge {
+            max: MAX_BATCH_SIZE,
+        });
     }
 
     // Calculate total fees
@@ -155,18 +156,24 @@ pub fn execute_batch_set_pixels(
     }
 
     // Group updates by tile for efficient storage and fee distribution
-    let mut updates_by_tile: std::collections::HashMap<u32, Vec<(u32, Color)>> = std::collections::HashMap::new();
+    let mut updates_by_tile: std::collections::HashMap<u32, Vec<(u32, Color)>> =
+        std::collections::HashMap::new();
     let mut tile_owners: std::collections::HashMap<u32, String> = std::collections::HashMap::new();
 
     // First pass: validate all pixels and group them
     let updates_clone = updates.clone();
     for update in updates {
         if !validate_pixel_id(update.pixel_id) {
-            return Err(ContractError::InvalidPixelId { pixel_id: update.pixel_id });
+            return Err(ContractError::InvalidPixelId {
+                pixel_id: update.pixel_id,
+            });
         }
 
-        let tile_id = get_tile_id_from_pixel(update.pixel_id)
-            .ok_or_else(|| ContractError::InvalidPixelId { pixel_id: update.pixel_id })?;
+        let tile_id = get_tile_id_from_pixel(update.pixel_id).ok_or_else(|| {
+            ContractError::InvalidPixelId {
+                pixel_id: update.pixel_id,
+            }
+        })?;
         let pixel_in_tile = update.pixel_id % 100;
 
         // Get tile owner if we haven't yet
@@ -192,7 +199,7 @@ pub fn execute_batch_set_pixels(
     // Send fees
     let developer = DEVELOPER.load(deps.storage)?;
     let mut messages = vec![];
-    
+
     if !total_developer_fee.amount.is_zero() {
         messages.push(BankMsg::Send {
             to_address: developer,
@@ -202,10 +209,11 @@ pub fn execute_batch_set_pixels(
 
     // Send fees to each tile owner proportionally
     for (tile_id, owner) in tile_owners {
-        let tile_updates = updates_clone.iter()
+        let tile_updates = updates_clone
+            .iter()
             .filter(|u| get_tile_id_from_pixel(u.pixel_id) == Some(tile_id))
             .count() as u128;
-        
+
         let owner_fee_amount = multiply_coin(&owner_fee, tile_updates);
         if !owner_fee_amount.amount.is_zero() {
             messages.push(BankMsg::Send {
