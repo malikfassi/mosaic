@@ -15,6 +15,7 @@ RUN_MOSAIC_TILE=0
 RUN_VENDING_MINTER=0
 RUN_ADDITIONAL=0
 RUN_ALL=0
+AUTO_FIX=0
 
 # Parse command line arguments
 print_usage() {
@@ -25,6 +26,7 @@ print_usage() {
     echo "  -m, --mosaic-tile     Run mosaic tile contract tests"
     echo "  -v, --vending-minter  Run vending minter contract tests"
     echo "  -x, --extra           Run additional checks (coverage, wasm build)"
+    echo "      --fix             Auto-fix linting and formatting issues"
     echo "  -h, --help            Show this help message"
 }
 
@@ -48,6 +50,10 @@ while [[ $# -gt 0 ]]; do
             ;;
         -x|--extra)
             RUN_ADDITIONAL=1
+            shift
+            ;;
+        --fix)
+            AUTO_FIX=1
             shift
             ;;
         -h|--help)
@@ -138,15 +144,24 @@ fi
 if [[ $RUN_FRONTEND -eq 1 ]]; then
     echo -e "\n${YELLOW}Running Frontend Tests${NC}"
     run_step "Frontend install" "frontend" "npm ci" || exit 1
-    run_step "Frontend lint" "frontend" "npm run lint" || exit 1
+    if [[ $AUTO_FIX -eq 1 ]]; then
+        run_step "Frontend lint" "frontend" "npm run lint -- --fix" || exit 1
+    else
+        run_step "Frontend lint" "frontend" "npm run lint" || exit 1
+    fi
     run_step "Frontend tests" "frontend" "npm test" || exit 1
 fi
 
 # Mosaic Tile NFT Contract Tests
 if [[ $RUN_MOSAIC_TILE -eq 1 ]]; then
     echo -e "\n${YELLOW}Running Mosaic Tile Tests${NC}"
-    run_step "Mosaic Tile format" "contracts/mosaic-tile-nft" "cargo fmt -- --check" || exit 1
-    run_step "Mosaic Tile clippy" "contracts/mosaic-tile-nft" "cargo clippy -- -D warnings" || exit 1
+    if [[ $AUTO_FIX -eq 1 ]]; then
+        run_step "Mosaic Tile format" "contracts/mosaic-tile-nft" "cargo fmt" || exit 1
+        run_step "Mosaic Tile clippy" "contracts/mosaic-tile-nft" "cargo clippy --fix -- -D warnings" || exit 1
+    else
+        run_step "Mosaic Tile format" "contracts/mosaic-tile-nft" "cargo fmt -- --check" || exit 1
+        run_step "Mosaic Tile clippy" "contracts/mosaic-tile-nft" "cargo clippy -- -D warnings" || exit 1
+    fi
     run_step "Mosaic Tile tests" "contracts/mosaic-tile-nft" "cargo test" || exit 1
     run_step "Mosaic Tile audit" "contracts/mosaic-tile-nft" "cargo audit" || exit 1
     run_step "Mosaic Tile schema" "contracts/mosaic-tile-nft" "cargo schema" || exit 1
@@ -155,8 +170,13 @@ fi
 # Mosaic Vending Minter Contract Tests
 if [[ $RUN_VENDING_MINTER -eq 1 ]]; then
     echo -e "\n${YELLOW}Running Vending Minter Tests${NC}"
-    run_step "Vending Minter format" "contracts/mosaic-vending-minter" "cargo fmt -- --check" || exit 1
-    run_step "Vending Minter clippy" "contracts/mosaic-vending-minter" "cargo clippy -- -D warnings" || exit 1
+    if [[ $AUTO_FIX -eq 1 ]]; then
+        run_step "Vending Minter format" "contracts/mosaic-vending-minter" "cargo fmt" || exit 1
+        run_step "Vending Minter clippy" "contracts/mosaic-vending-minter" "cargo clippy --fix -- -D warnings" || exit 1
+    else
+        run_step "Vending Minter format" "contracts/mosaic-vending-minter" "cargo fmt -- --check" || exit 1
+        run_step "Vending Minter clippy" "contracts/mosaic-vending-minter" "cargo clippy -- -D warnings" || exit 1
+    fi
     run_step "Vending Minter tests" "contracts/mosaic-vending-minter" "cargo test" || exit 1
     run_step "Vending Minter audit" "contracts/mosaic-vending-minter" "cargo audit" || exit 1
     run_step "Vending Minter schema" "contracts/mosaic-vending-minter" "cargo schema" || exit 1

@@ -1,6 +1,7 @@
 import { renderHook, act } from '@testing-library/react'
 import { useContract } from '@/hooks/useContract'
-import { simulateFailedConnection, simulateSuccessfulConnection } from './setup'
+import { setupHookTest, simulateSuccessfulConnection, simulateFailedConnection } from './setup'
+import { Keplr } from '@keplr-wallet/types'
 
 // Helper function to wait for state updates
 const waitForStateUpdate = async () => {
@@ -10,12 +11,23 @@ const waitForStateUpdate = async () => {
 }
 
 describe('useContract Disconnection', () => {
+  const { wrapper } = setupHookTest()
+
   beforeEach(() => {
     jest.clearAllMocks()
+    // Ensure Keplr is available for each test with all required functions
+    if (!window.keplr) {
+      window.keplr = {
+        enable: jest.fn().mockResolvedValue(undefined),
+        getKey: jest.fn(),
+        getOfflineSigner: jest.fn(),
+        experimentalSuggestChain: jest.fn().mockResolvedValue(undefined),
+      } as Partial<Keplr> as Keplr;
+    }
   })
 
   it('disconnects wallet', async () => {
-    const { result } = renderHook(() => useContract())
+    const { result } = renderHook(() => useContract(), { wrapper })
     
     // First connect
     simulateSuccessfulConnection()
@@ -35,11 +47,11 @@ describe('useContract Disconnection', () => {
     
     expect(result.current.isConnected).toBe(false)
     expect(result.current.address).toBe('')
-    expect(result.current.error).toBe(null)
+    expect(result.current.error).toBeNull()
   })
 
   it('clears error state on disconnect', async () => {
-    const { result } = renderHook(() => useContract())
+    const { result } = renderHook(() => useContract(), { wrapper })
     
     // Simulate failed connection
     const expectedError = simulateFailedConnection()
@@ -68,6 +80,6 @@ describe('useContract Disconnection', () => {
     await waitForStateUpdate()
     
     // Verify error state is cleared
-    expect(result.current.error).toBe(null)
+    expect(result.current.error).toBeNull()
   })
 }) 
