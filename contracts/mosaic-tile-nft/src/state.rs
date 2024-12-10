@@ -1,8 +1,6 @@
 use cosmwasm_schema::cw_serde;
 use cosmwasm_std::{Coin, CustomMsg, Empty};
 use cw_storage_plus::{Item, Map};
-use schemars::JsonSchema;
-use std::fmt;
 
 // Constants
 pub const PIXELS_PER_TILE: u32 = 100; // 10x10 pixels per tile

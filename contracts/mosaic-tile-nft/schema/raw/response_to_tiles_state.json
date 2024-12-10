@@ -1,0 +1,70 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "TilesStateResponse",
+  "type": "object",
+  "required": [
+    "tiles"
+  ],
+  "properties": {
+    "tiles": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/TileStateResponse"
+      }
+    }
+  },
+  "additionalProperties": false,
+  "definitions": {
+    "Color": {
+      "type": "object",
+      "required": [
+        "b",
+        "g",
+        "r"
+      ],
+      "properties": {
+        "b": {
+          "type": "integer",
+          "format": "uint8",
+          "minimum": 0.0
+        },
+        "g": {
+          "type": "integer",
+          "format": "uint8",
+          "minimum": 0.0
+        },
+        "r": {
+          "type": "integer",
+          "format": "uint8",
+          "minimum": 0.0
+        }
+      },
+      "additionalProperties": false
+    },
+    "TileStateResponse": {
+      "type": "object",
+      "required": [
+        "owner",
+        "pixel_colors",
+        "tile_id"
+      ],
+      "properties": {
+        "owner": {
+          "type": "string"
+        },
+        "pixel_colors": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Color"
+          }
+        },
+        "tile_id": {
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0.0
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

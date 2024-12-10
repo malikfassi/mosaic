@@ -1,6 +1,5 @@
 use cosmwasm_std::{
-    to_json_binary, BankMsg, Coin, DepsMut, Empty, Env, MessageInfo, Response, SubMsg, Uint128,
-    WasmMsg,
+    to_json_binary, BankMsg, Coin, DepsMut, Empty, Env, MessageInfo, Response, Uint128, WasmMsg,
 };
 use cw721_base::{msg::ExecuteMsg as Cw721ExecuteMsg, state::TokenInfo};
 
@@ -17,7 +16,7 @@ use crate::{
 const MAX_BATCH_SIZE: u32 = 100;
 
 pub fn execute_mint_tile(
-    mut deps: DepsMut,
+    deps: DepsMut,
     env: Env,
     info: MessageInfo,
     tile_id: u32,
@@ -89,8 +88,8 @@ pub fn execute_set_pixel_color(
     }
 
     // Get tile ID and pixel info
-    let tile_id = get_tile_id_from_pixel(pixel_id)
-        .ok_or_else(|| ContractError::InvalidPixelId { pixel_id })?;
+    let tile_id =
+        get_tile_id_from_pixel(pixel_id).ok_or(ContractError::InvalidPixelId { pixel_id })?;
     let pixel_in_tile = pixel_id % 100;
 
     // Validate fees
@@ -169,7 +168,7 @@ pub fn execute_batch_set_pixels(
             });
         }
 
-        let tile_id = get_tile_id_from_pixel(update.pixel_id).ok_or_else(|| {
+        let tile_id = get_tile_id_from_pixel(update.pixel_id).ok_or({
             ContractError::InvalidPixelId {
                 pixel_id: update.pixel_id,
             }
@@ -177,10 +176,10 @@ pub fn execute_batch_set_pixels(
         let pixel_in_tile = update.pixel_id % 100;
 
         // Get tile owner if we haven't yet
-        if !tile_owners.contains_key(&tile_id) {
+        if let std::collections::hash_map::Entry::Vacant(e) = tile_owners.entry(tile_id) {
             let contract = Cw721StorageType::default();
             let token = contract.tokens.load(deps.storage, &tile_id.to_string())?;
-            tile_owners.insert(tile_id, token.owner.to_string());
+            e.insert(token.owner.to_string());
         }
 
         updates_by_tile

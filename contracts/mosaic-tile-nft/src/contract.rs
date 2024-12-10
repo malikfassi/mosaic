@@ -2,11 +2,7 @@ use cosmwasm_std::{
     entry_point, to_json_binary, Binary, Deps, DepsMut, Empty, Env, MessageInfo, Response,
     StdResult,
 };
-use cw721_base::{
-    msg::{ExecuteMsg as Cw721ExecuteMsg, QueryMsg as Cw721QueryMsg},
-    state::TokenInfo,
-    InstantiateMsg as Cw721InstantiateMsg,
-};
+use cw721_base::{msg::QueryMsg as Cw721QueryMsg, InstantiateMsg as Cw721InstantiateMsg};
 
 use crate::{
     error::ContractError,
@@ -16,9 +12,7 @@ use crate::{
         query_batch_tile_pixels, query_mosaic_state, query_pixel_state, query_pixels_state,
         query_tile_pixels, query_tile_state, query_tiles_state,
     },
-    state::{
-        Cw721StorageType, TileMetadata, DEVELOPER, DEVELOPER_FEE, MINTER, OWNER_FEE, TOKEN_COUNT,
-    },
+    state::{Cw721StorageType, DEVELOPER, DEVELOPER_FEE, MINTER, OWNER_FEE, TOKEN_COUNT},
 };
 
 #[cfg_attr(not(feature = "library"), entry_point)]

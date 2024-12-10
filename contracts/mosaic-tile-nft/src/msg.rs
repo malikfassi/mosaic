@@ -2,7 +2,6 @@ use crate::state::{Color, Position, TileMetadata};
 use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::{Coin, Empty};
 use cw721_base::msg::{ExecuteMsg as Cw721ExecuteMsg, QueryMsg as Cw721QueryMsg};
-use cw_utils::Expiration;
 use sg721::CollectionInfo;
 
 #[cw_serde]

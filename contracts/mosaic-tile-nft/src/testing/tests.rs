@@ -98,7 +98,7 @@ fn test_mint_tile() {
 
     // Query tile state
     let msg = QueryMsg::TileState { tile_id };
-    let res: TileStateResponse = from_json(&query(deps.as_ref(), env, msg).unwrap()).unwrap();
+    let res: TileStateResponse = from_json(query(deps.as_ref(), env, msg).unwrap()).unwrap();
     println!("Tile state response: {:?}", res);
     assert_eq!(OWNER, res.owner);
     assert_eq!(tile_id, res.tile_id);
@@ -133,7 +133,7 @@ fn test_set_pixel_color() {
 
     // Query pixel state
     let msg = QueryMsg::PixelState { pixel_id };
-    let res: PixelStateResponse = from_json(&query(deps.as_ref(), env, msg).unwrap()).unwrap();
+    let res: PixelStateResponse = from_json(query(deps.as_ref(), env, msg).unwrap()).unwrap();
     assert_eq!(OWNER, res.owner);
     assert_eq!(tile_id, res.tile_id);
     assert_eq!(color, res.color);
@@ -172,7 +172,7 @@ fn test_batch_set_pixels() {
 
     // Query tile pixels
     let msg = QueryMsg::TilePixels { tile_id };
-    let res: TilePixelsResponse = from_json(&query(deps.as_ref(), env, msg).unwrap()).unwrap();
+    let res: TilePixelsResponse = from_json(query(deps.as_ref(), env, msg).unwrap()).unwrap();
     assert_eq!(OWNER, res.owner);
     assert_eq!(tile_id, res.tile_id);
     assert_eq!(PIXELS_PER_TILE as usize, res.pixels.len());
@@ -202,7 +202,7 @@ fn test_query_pagination() {
         limit: Some(5),
     };
     let res: Vec<PixelStateResponse> =
-        from_json(&query(deps.as_ref(), env.clone(), msg).unwrap()).unwrap();
+        from_json(query(deps.as_ref(), env.clone(), msg).unwrap()).unwrap();
     assert_eq!(5, res.len());
 
     let msg = QueryMsg::PixelsState {
@@ -210,7 +210,7 @@ fn test_query_pagination() {
         start_after: Some(4),
         limit: Some(5),
     };
-    let res: Vec<PixelStateResponse> = from_json(&query(deps.as_ref(), env, msg).unwrap()).unwrap();
+    let res: Vec<PixelStateResponse> = from_json(query(deps.as_ref(), env, msg).unwrap()).unwrap();
     assert_eq!(5, res.len());
 }
 
@@ -233,7 +233,7 @@ fn test_batch_tile_queries() {
     let msg = QueryMsg::BatchTilePixels {
         tile_ids: vec![0, 1, 2],
     };
-    let res: Vec<TilePixelsResponse> = from_json(&query(deps.as_ref(), env, msg).unwrap()).unwrap();
+    let res: Vec<TilePixelsResponse> = from_json(query(deps.as_ref(), env, msg).unwrap()).unwrap();
     assert_eq!(3, res.len());
     assert!(res
         .iter()
