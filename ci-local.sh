@@ -195,3 +195,10 @@ if [[ $RUN_ADDITIONAL -eq 1 ]]; then
 fi
 
 echo -e "\n${GREEN}All requested CI checks completed successfully!${NC}"
+
+# Current CI seems basic
+# Should enhance with:
+# 1. Multiple rust toolchain testing
+# 2. Contract optimization checks
+# 3. Gas estimation tests
+# 4. Security scanning

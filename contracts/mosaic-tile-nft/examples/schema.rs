@@ -1,19 +1,17 @@
 use std::env::current_dir;
 use std::fs::create_dir_all;
 
-use cosmwasm_schema::{export_schema, export_schema_with_title, remove_schemas, schema_for};
+use cosmwasm_schema::{export_schema, export_schema_with_title, remove_schemas, schema_for, write_api};
 
 use cosmwasm_std::Empty;
 pub use cw721::{
     AllNftInfoResponse, ApprovalResponse, ApprovalsResponse, ContractInfoResponse, NftInfoResponse,
     NumTokensResponse, OperatorsResponse, OwnerOfResponse, TokensResponse,
 };
-use cw721_base::Extension;
 pub use cw721_base::MinterResponse;
-use sg721::InstantiateMsg;
+use mosaic_tile_nft::msg::{ExecuteMsg, QueryMsg};
+use cw721_base::msg::InstantiateMsg;
 pub use sg721_base::msg::CollectionInfoResponse;
-use sg721_base::msg::QueryMsg;
-use sg721_updatable::msg::ExecuteMsg;
 
 fn main() {
     let mut out_dir = current_dir().unwrap();
@@ -21,8 +19,14 @@ fn main() {
     create_dir_all(&out_dir).unwrap();
     remove_schemas(&out_dir).unwrap();
 
+    write_api! {
+        instantiate: InstantiateMsg,
+        execute: ExecuteMsg,
+        query: QueryMsg,
+    }
+
     export_schema(&schema_for!(InstantiateMsg), &out_dir);
-    export_schema(&schema_for!(ExecuteMsg<Extension, Empty>), &out_dir);
+    export_schema(&schema_for!(ExecuteMsg), &out_dir);
     export_schema(&schema_for!(QueryMsg), &out_dir);
     export_schema(&schema_for!(CollectionInfoResponse), &out_dir);
     export_schema_with_title(

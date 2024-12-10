@@ -1,0 +1,245 @@
+use cosmwasm_std::{DepsMut, Env, MessageInfo, Response, BankMsg, Coin, Uint128, SubMsg, WasmMsg, to_json_binary, Empty};
+use cw721_base::{
+    msg::ExecuteMsg as Cw721ExecuteMsg,
+    state::TokenInfo,
+};
+
+use crate::{
+    error::ContractError,
+    msg::PixelUpdate,
+    state::{
+        Cw721StorageType, DEVELOPER_FEE, OWNER_FEE, MINTER, DEVELOPER, PIXEL_COLORS,
+        validate_tile_id, validate_pixel_id, get_tile_id_from_pixel, Color, TileMetadata,
+        TOKEN_COUNT,
+    },
+};
+
+// Constants
+const MAX_BATCH_SIZE: u32 = 100;
+
+pub fn execute_mint_tile(
+    mut deps: DepsMut,
+    env: Env,
+    info: MessageInfo,
+    tile_id: u32,
+    owner: String,
+) -> Result<Response, ContractError> {
+    // Validate minter
+    let minter = MINTER.load(deps.storage)?;
+    if info.sender != minter {
+        return Err(ContractError::Unauthorized {});
+    }
+
+    // Validate tile ID
+    if !validate_tile_id(tile_id) {
+        return Err(ContractError::InvalidTileId { tile_id });
+    }
+
+    // Convert tile_id to token_id
+    let token_id = tile_id.to_string();
+
+    // Create token info
+    let token = TokenInfo {
+        owner: deps.api.addr_validate(&owner)?,
+        approvals: vec![],
+        token_uri: None,
+        extension: TileMetadata::default(),
+    };
+
+    // Save token info
+    let contract = Cw721StorageType::default();
+    contract.tokens.save(deps.storage, &token_id, &token)?;
+
+    // Increment token count
+    let mut count = TOKEN_COUNT.load(deps.storage)?;
+    count += 1;
+    TOKEN_COUNT.save(deps.storage, &count)?;
+
+    // Create mint message
+    let mint_msg: Cw721ExecuteMsg<TileMetadata, Empty> = Cw721ExecuteMsg::Mint {
+        token_id: token_id.clone(),
+        owner: owner.clone(),
+        token_uri: None,
+        extension: TileMetadata::default(),
+    };
+
+    let msg = WasmMsg::Execute {
+        contract_addr: env.contract.address.to_string(),
+        msg: to_json_binary(&mint_msg)?,
+        funds: vec![],
+    };
+
+    Ok(Response::new()
+        .add_message(msg)
+        .add_attribute("action", "mint_tile")
+        .add_attribute("tile_id", tile_id.to_string())
+        .add_attribute("owner", owner)
+        .add_attribute("token_count", count.to_string()))
+}
+
+pub fn execute_set_pixel_color(
+    deps: DepsMut,
+    _env: Env,
+    info: MessageInfo,
+    pixel_id: u32,
+    color: Color,
+) -> Result<Response, ContractError> {
+    // Validate pixel ID
+    if !validate_pixel_id(pixel_id) {
+        return Err(ContractError::InvalidPixelId { pixel_id });
+    }
+
+    // Get tile ID and pixel info
+    let tile_id = get_tile_id_from_pixel(pixel_id)
+        .ok_or_else(|| ContractError::InvalidPixelId { pixel_id })?;
+    let pixel_in_tile = pixel_id % 100;
+
+    // Validate fees
+    let developer_fee = DEVELOPER_FEE.load(deps.storage)?;
+    let owner_fee = OWNER_FEE.load(deps.storage)?;
+    let required_funds = vec![developer_fee.clone(), owner_fee.clone()];
+
+    if !has_sufficient_funds(&info.funds, &required_funds) {
+        return Err(ContractError::InsufficientFunds {});
+    }
+
+    // Get token owner and developer
+    let contract = Cw721StorageType::default();
+    let token = contract.tokens.load(deps.storage, &tile_id.to_string())?;
+    let developer = DEVELOPER.load(deps.storage)?;
+
+    // Update the color in storage
+    PIXEL_COLORS.save(deps.storage, (tile_id, pixel_in_tile), &color.pack())?;
+
+    // Send fees
+    let mut messages = vec![];
+    if !developer_fee.amount.is_zero() {
+        messages.push(BankMsg::Send {
+            to_address: developer,
+            amount: vec![developer_fee],
+        });
+    }
+    if !owner_fee.amount.is_zero() {
+        messages.push(BankMsg::Send {
+            to_address: token.owner.to_string(),
+            amount: vec![owner_fee],
+        });
+    }
+
+    Ok(Response::new()
+        .add_messages(messages)
+        .add_attribute("action", "set_pixel_color")
+        .add_attribute("pixel_id", pixel_id.to_string()))
+}
+
+pub fn execute_batch_set_pixels(
+    deps: DepsMut,
+    _env: Env,
+    info: MessageInfo,
+    updates: Vec<PixelUpdate>,
+) -> Result<Response, ContractError> {
+    // Validate batch size
+    if updates.len() > MAX_BATCH_SIZE as usize {
+        return Err(ContractError::BatchTooLarge { max: MAX_BATCH_SIZE });
+    }
+
+    // Calculate total fees
+    let developer_fee = DEVELOPER_FEE.load(deps.storage)?;
+    let owner_fee = OWNER_FEE.load(deps.storage)?;
+    let total_developer_fee = multiply_coin(&developer_fee, updates.len() as u128);
+    let total_owner_fee = multiply_coin(&owner_fee, updates.len() as u128);
+    let required_funds = vec![total_developer_fee.clone(), total_owner_fee.clone()];
+
+    if !has_sufficient_funds(&info.funds, &required_funds) {
+        return Err(ContractError::InsufficientFunds {});
+    }
+
+    // Group updates by tile for efficient storage and fee distribution
+    let mut updates_by_tile: std::collections::HashMap<u32, Vec<(u32, Color)>> = std::collections::HashMap::new();
+    let mut tile_owners: std::collections::HashMap<u32, String> = std::collections::HashMap::new();
+
+    // First pass: validate all pixels and group them
+    let updates_clone = updates.clone();
+    for update in updates {
+        if !validate_pixel_id(update.pixel_id) {
+            return Err(ContractError::InvalidPixelId { pixel_id: update.pixel_id });
+        }
+
+        let tile_id = get_tile_id_from_pixel(update.pixel_id)
+            .ok_or_else(|| ContractError::InvalidPixelId { pixel_id: update.pixel_id })?;
+        let pixel_in_tile = update.pixel_id % 100;
+
+        // Get tile owner if we haven't yet
+        if !tile_owners.contains_key(&tile_id) {
+            let contract = Cw721StorageType::default();
+            let token = contract.tokens.load(deps.storage, &tile_id.to_string())?;
+            tile_owners.insert(tile_id, token.owner.to_string());
+        }
+
+        updates_by_tile
+            .entry(tile_id)
+            .or_default()
+            .push((pixel_in_tile, update.color));
+    }
+
+    // Apply all updates
+    for (tile_id, pixel_updates) in updates_by_tile {
+        for (pixel_in_tile, color) in pixel_updates {
+            PIXEL_COLORS.save(deps.storage, (tile_id, pixel_in_tile), &color.pack())?;
+        }
+    }
+
+    // Send fees
+    let developer = DEVELOPER.load(deps.storage)?;
+    let mut messages = vec![];
+    
+    if !total_developer_fee.amount.is_zero() {
+        messages.push(BankMsg::Send {
+            to_address: developer,
+            amount: vec![total_developer_fee],
+        });
+    }
+
+    // Send fees to each tile owner proportionally
+    for (tile_id, owner) in tile_owners {
+        let tile_updates = updates_clone.iter()
+            .filter(|u| get_tile_id_from_pixel(u.pixel_id) == Some(tile_id))
+            .count() as u128;
+        
+        let owner_fee_amount = multiply_coin(&owner_fee, tile_updates);
+        if !owner_fee_amount.amount.is_zero() {
+            messages.push(BankMsg::Send {
+                to_address: owner,
+                amount: vec![owner_fee_amount],
+            });
+        }
+    }
+
+    Ok(Response::new()
+        .add_messages(messages)
+        .add_attribute("action", "batch_set_pixels")
+        .add_attribute("update_count", updates_clone.len().to_string()))
+}
+
+// Helper function to check if provided funds are sufficient
+fn has_sufficient_funds(provided: &[Coin], required: &[Coin]) -> bool {
+    for req in required {
+        let provided_amount = provided
+            .iter()
+            .find(|c| c.denom == req.denom)
+            .map(|c| c.amount)
+            .unwrap_or_default();
+        if provided_amount < req.amount {
+            return false;
+        }
+    }
+    true
+}
+
+// Helper function to multiply a coin amount
+fn multiply_coin(coin: &Coin, multiplier: u128) -> Coin {
+    Coin {
+        denom: coin.denom.clone(),
+        amount: coin.amount * Uint128::from(multiplier),
+    }
+}
