@@ -11,16 +11,12 @@ use crate::{
         ExecuteMsg, InstantiateMsg, PixelStateResponse, PixelUpdate, QueryMsg, TilePixelsResponse,
         TileStateResponse,
     },
-    state::{Color, Position, PIXELS_PER_TILE, TOKEN_COUNT},
+    state::{Color, PIXELS_PER_TILE, TOKEN_COUNT},
 };
 
 // Helper functions
 fn create_color(r: u8, g: u8, b: u8) -> Color {
     Color { r, g, b }
-}
-
-fn create_position(x: u32, y: u32) -> Position {
-    Position { x, y }
 }
 
 const MINTER: &str = "minter";

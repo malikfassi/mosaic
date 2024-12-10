@@ -136,7 +136,6 @@ echo -e "\n${YELLOW}Starting CI checks...${NC}\n"
 # Shared Rust Setup (always run if any Rust tests are needed)
 if [[ $RUN_MOSAIC_TILE -eq 1 || $RUN_VENDING_MINTER -eq 1 ]]; then
     run_step "Install Rust components" "." "rustup component add rustfmt clippy" || exit 1
-    run_step "Install cargo-audit" "." "cargo install cargo-audit" || exit 1
     [[ $RUN_ADDITIONAL -eq 1 ]] && run_step "Install cargo-tarpaulin" "." "cargo install cargo-tarpaulin" || true
 fi
 
@@ -163,7 +162,6 @@ if [[ $RUN_MOSAIC_TILE -eq 1 ]]; then
         run_step "Mosaic Tile clippy" "contracts/mosaic-tile-nft" "cargo clippy -- -D warnings" || exit 1
     fi
     run_step "Mosaic Tile tests" "contracts/mosaic-tile-nft" "cargo test" || exit 1
-    run_step "Mosaic Tile audit" "contracts/mosaic-tile-nft" "cargo audit" || exit 1
     run_step "Mosaic Tile schema" "contracts/mosaic-tile-nft" "cargo schema" || exit 1
 fi
 
@@ -178,7 +176,6 @@ if [[ $RUN_VENDING_MINTER -eq 1 ]]; then
         run_step "Vending Minter clippy" "contracts/mosaic-vending-minter" "cargo clippy -- -D warnings" || exit 1
     fi
     run_step "Vending Minter tests" "contracts/mosaic-vending-minter" "cargo test" || exit 1
-    run_step "Vending Minter audit" "contracts/mosaic-vending-minter" "cargo audit" || exit 1
     run_step "Vending Minter schema" "contracts/mosaic-vending-minter" "cargo schema" || exit 1
 fi
 

@@ -1,8 +1,8 @@
 # Pixel Canvas
 
-[![Frontend](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/${{ github.repository_owner }}/${{ secrets.BADGE_GIST_ID }}/raw/frontend-ci.json)](https://github.com/${{ github.repository }}/actions/workflows/pixel-canvas.yml)
-[![Coloring Contract](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/${{ github.repository_owner }}/${{ secrets.BADGE_GIST_ID }}/raw/coloring-ci.json)](https://github.com/${{ github.repository }}/actions/workflows/pixel-canvas.yml)
-[![NFT Contract](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/${{ github.repository_owner }}/${{ secrets.BADGE_GIST_ID }}/raw/nft-ci.json)](https://github.com/${{ github.repository }}/actions/workflows/pixel-canvas.yml)
+[![Frontend](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/malikfassi/1ff46a4915f58fa0fce5cab7577f94f1/raw/frontend-ci.json)](https://github.com/malikfassi/mosaic/actions/workflows/pixel-canvas.yml)
+[![Coloring Contract](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/malikfassi/1ff46a4915f58fa0fce5cab7577f94f1/raw/coloring-ci.json)](https://github.com/malikfassi/mosaic/actions/workflows/pixel-canvas.yml)
+[![NFT Contract](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/malikfassi/1ff46a4915f58fa0fce5cab7577f94f1/raw/nft-ci.json)](https://github.com/malikfassi/mosaic/actions/workflows/pixel-canvas.yml)
 
 A decentralized pixel art canvas powered by Stargaze NFTs.
 

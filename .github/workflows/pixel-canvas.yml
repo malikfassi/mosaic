@@ -191,7 +191,10 @@ jobs:
           color: ${{ job.status == 'success' && 'success' || 'critical' }}
 
   mosaic-tile-ci:
-    needs: changes
+    needs: [
+      rust-setup,
+      changes
+    ]
     if: needs.changes.outputs.mosaic_tile_needs_run == 'true'
     runs-on: ubuntu-latest
     steps:
@@ -211,7 +214,7 @@ jobs:
       - name: Run cargo audit
         run: |
           cd contracts/mosaic-tile-nft
-          cargo audit
+          cargo audit 
       - name: Check schema generation
         run: |
           cd contracts/mosaic-tile-nft
@@ -227,7 +230,10 @@ jobs:
           color: ${{ job.status == 'success' && 'success' || 'critical' }}
 
   mosaic-vending-ci:
-    needs: changes
+    needs: [
+      rust-setup,
+      changes
+    ]
     if: needs.changes.outputs.mosaic_vending_needs_run == 'true'
     runs-on: ubuntu-latest
     steps:
