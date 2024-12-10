@@ -47,6 +47,17 @@ const initialState: ContractState = {
   },
 };
 
+const disconnectedState = (error: Error | null = null): ContractState => ({
+  ...initialState,
+  isInitialized: true,
+  error,
+  transactionStatus: {
+    connect: { isLoading: false, error },
+    mint: { isLoading: false, error: null },
+    colorChange: { isLoading: false, error: null }
+  }
+});
+
 export function useContract() {
   const [state, setState] = useState<ContractState>(initialState);
 
@@ -66,16 +77,7 @@ export function useContract() {
       // Check if Keplr is installed
       if (!window.keplr) {
         const error = new Error('Please install Keplr extension');
-        setState(prev => ({
-          ...prev,
-          isInitialized: true,
-          isConnected: false,
-          error,
-          transactionStatus: {
-            ...prev.transactionStatus,
-            connect: { isLoading: false, error }
-          }
-        }));
+        setState(disconnectedState(error));
         throw error;
       }
 
@@ -93,28 +95,44 @@ export function useContract() {
       const accounts = await offlineSigner.getAccounts();
       const address = accounts[0].address;
 
-      // Create the signing client
-      const client = await SigningCosmWasmClient.connectWithSigner(
-        STARGAZE_RPC,
-        offlineSigner,
-        {
-          gasPrice: GasPrice.fromString('0.025ustars'),
-        }
-      );
+      try {
+        // Create the signing client
+        const client = await SigningCosmWasmClient.connectWithSigner(
+          STARGAZE_RPC,
+          offlineSigner,
+          {
+            gasPrice: GasPrice.fromString('0.025ustars'),
+          }
+        );
 
-      // Update state with successful connection
-      setState(prev => ({
-        ...prev,
-        client,
-        address,
-        isConnected: true,
-        isInitialized: true,
-        error: null,
-        transactionStatus: {
-          ...prev.transactionStatus,
-          connect: { isLoading: false, error: null }
-        }
-      }));
+        // Update state with successful connection
+        setState(prev => ({
+          ...prev,
+          client,
+          address,
+          isConnected: true,
+          isInitialized: true,
+          error: null,
+          transactionStatus: {
+            ...prev.transactionStatus,
+            connect: { isLoading: false, error: null }
+          }
+        }));
+      } catch (error) {
+        // Handle client connection error
+        const keplrError = error as KeplrError;
+        setState(prev => ({
+          ...initialState,
+          isInitialized: true,
+          isConnected: false,
+          error: keplrError,
+          transactionStatus: {
+            ...prev.transactionStatus,
+            connect: { isLoading: false, error: keplrError }
+          }
+        }));
+        throw keplrError;
+      }
     } catch (error) {
       const keplrError = error as KeplrError;
       console.error('Connection error:', {
@@ -123,37 +141,32 @@ export function useContract() {
         details: keplrError.details,
       });
 
-      // Update state with error
-      setState(prev => ({
-        ...prev,
-        client: null,
-        address: '',
-        isConnected: false,
-        isInitialized: true,
-        error: keplrError,
-        transactionStatus: {
-          ...prev.transactionStatus,
-          connect: { isLoading: false, error: keplrError }
-        }
-      }));
-
+      // Use the fixed disconnectedState function
+      setState(disconnectedState(keplrError));
       throw keplrError;
     }
   }, []);
 
   const disconnect = useCallback(() => {
-    setState({
-      ...initialState,
-      isInitialized: true,
-      error: null,
-    });
+    setState(disconnectedState(null));
   }, []);
 
   // Auto-connect if Keplr is available
   useEffect(() => {
+    let mounted = true;
+
     if (window.keplr && !state.isConnected && !state.error) {
-      connect().catch(console.error);
+      connect().catch(error => {
+        if (mounted) {
+          console.error(error);
+          setState(disconnectedState(error));
+        }
+      });
     }
+
+    return () => {
+      mounted = false;
+    };
   }, [connect, state.isConnected, state.error]);
 
   // Reconnect on chain change
@@ -162,7 +175,10 @@ export function useContract() {
 
     const handleChainChanged = () => {
       if (state.isConnected) {
-        connect().catch(console.error);
+        connect().catch(error => {
+          console.error(error);
+          setState(disconnectedState(error));
+        });
       }
     };
 

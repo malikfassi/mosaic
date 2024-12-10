@@ -42,3 +42,5 @@ coverage/
 # Build cache
 *.tsbuildinfo
 .validate-cache/
+
+**/.git/
