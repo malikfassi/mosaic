@@ -46,62 +46,35 @@ on:
         required: true
 
 jobs:
-  notify:
+  # Job 1: Check CI statuses (can run in parallel)
+  check-ci-status:
     runs-on: ubuntu-latest
     permissions:
-      actions: read  # Required to read workflow runs
+      actions: read
+    outputs:
+      frontend_status: ${{ steps.check.outputs.frontend_status }}
+      mosaic_tile_status: ${{ steps.check.outputs.mosaic_tile_status }}
+      mosaic_vending_status: ${{ steps.check.outputs.mosaic_vending_status }}
     steps:
-      - uses: actions/checkout@v3
-        with:
-          fetch-depth: 0  # Needed to get all history
-
-      - name: Send Discord notification
+      - name: Check CI job statuses
+        id: check
         env:
-          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
           GH_TOKEN: ${{ github.token }}
           FRONTEND_HASH: ${{ inputs.frontend_hash }}
           MOSAIC_TILE_HASH: ${{ inputs.mosaic_tile_hash }}
           MOSAIC_VENDING_HASH: ${{ inputs.mosaic_vending_hash }}
         run: |
-          # Function to get status emoji
-          get_status_emoji() {
-            case "$1" in
-              "success") echo "✅";;
-              "failure") echo "❌";;
-              "cancelled") echo "⚠️";;
-              "skipped") echo "⏭️";;
-              *) echo "❓";;
-            esac
-          }
-
-          # Function to get run status message
-          get_run_status() {
+          get_job_status() {
             local job_name=$1
             local result=$2
-            local depends_on=$3  # Optional: job that this job depends on
-            local component_hash=$4  # Optional: component hash for checking previous runs
+            local component_hash=$3
             
-            # For actually run jobs, show direct status
             if [[ "$result" != "skipped" ]]; then
-              echo "$(get_status_emoji "$result") \`$result\`"
+              echo "$result"
               return
             fi
             
-            # For skipped jobs, determine why
-            
-            # Case 1: Dependency failure
-            if [[ -n "$depends_on" && "${{ inputs[depends_on] }}" == "failure" ]]; then
-              echo "⏭️ \`not run\` (previous step failed)"
-              return
-            fi
-            
-            # Case 2: Check if we have a hash to compare
-            if [[ -z "$component_hash" ]]; then
-              echo "❌ \`error\` (missing hash)"
-              return
-            fi
-            
-            # Case 3: Look for successful run with this exact hash
+            # Look for successful run with this exact hash
             local last_successful_run_with_hash=$(gh run list --workflow pixel-canvas.yml \
               --json conclusion,jobs,databaseId \
               --jq ".[] | select(.jobs[].name == \"$job_name\" and .conclusion == \"success\")" \
@@ -116,40 +89,113 @@ jobs:
                 fi
               done)
             
-            # If we found a successful run with this hash, it's valid to skip
             if [[ -n "$last_successful_run_with_hash" ]]; then
-              echo "✅ \`not run\` (previously successful)"
+              echo "previously_successful"
             else
-              echo "❌ \`error\` (should run - no success with current hash)"
+              echo "should_run"
             fi
           }
+          
+          echo "frontend_status=$(get_job_status "frontend-ci" "${{ inputs.frontend_ci_result }}" "FRONTEND_HASH")" >> $GITHUB_OUTPUT
+          echo "mosaic_tile_status=$(get_job_status "mosaic-tile-ci" "${{ inputs.mosaic_tile_ci_result }}" "MOSAIC_TILE_HASH")" >> $GITHUB_OUTPUT
+          echo "mosaic_vending_status=$(get_job_status "mosaic-vending-ci" "${{ inputs.mosaic_vending_ci_result }}" "MOSAIC_VENDING_HASH")" >> $GITHUB_OUTPUT
 
-          # Overall status
-          overall_status="success"
-          for result in "${{ inputs.frontend_ci_result }}" "${{ inputs.mosaic_tile_ci_result }}" "${{ inputs.mosaic_vending_ci_result }}" "${{ inputs.mosaic_tile_deploy_result }}" "${{ inputs.mosaic_vending_deploy_result }}" "${{ inputs.mosaic_tile_e2e_result }}" "${{ inputs.mosaic_vending_e2e_result }}" "${{ inputs.full_e2e_result }}"; do
-            if [[ "$result" == "failure" ]]; then
-              overall_status="failure"
-              break
+  # Job 2: Check deployment statuses (can run in parallel)
+  check-deploy-status:
+    runs-on: ubuntu-latest
+    outputs:
+      mosaic_tile_deploy: ${{ steps.check.outputs.mosaic_tile_deploy }}
+      mosaic_vending_deploy: ${{ steps.check.outputs.mosaic_vending_deploy }}
+    steps:
+      - name: Check deployment statuses
+        id: check
+        run: |
+          # Check if deployment should be skipped due to CI failure
+          check_deploy_status() {
+            local deploy_result=$1
+            local ci_result=$2
+            
+            if [[ "$deploy_result" != "skipped" ]]; then
+              echo "$deploy_result"
+            elif [[ "$ci_result" == "failure" ]]; then
+              echo "ci_failed"
+            else
+              echo "should_run"
             fi
-          done
+          }
+          
+          echo "mosaic_tile_deploy=$(check_deploy_status "${{ inputs.mosaic_tile_deploy_result }}" "${{ inputs.mosaic_tile_ci_result }}")" >> $GITHUB_OUTPUT
+          echo "mosaic_vending_deploy=$(check_deploy_status "${{ inputs.mosaic_vending_deploy_result }}" "${{ inputs.mosaic_vending_ci_result }}")" >> $GITHUB_OUTPUT
+
+  # Job 3: Check E2E statuses (can run in parallel)
+  check-e2e-status:
+    runs-on: ubuntu-latest
+    outputs:
+      mosaic_tile_e2e: ${{ steps.check.outputs.mosaic_tile_e2e }}
+      mosaic_vending_e2e: ${{ steps.check.outputs.mosaic_vending_e2e }}
+      full_e2e: ${{ steps.check.outputs.full_e2e }}
+    steps:
+      - name: Check E2E statuses
+        id: check
+        run: |
+          check_e2e_status() {
+            local e2e_result=$1
+            local deploy_result=$2
+            
+            if [[ "$e2e_result" != "skipped" ]]; then
+              echo "$e2e_result"
+            elif [[ "$deploy_result" == "failure" ]]; then
+              echo "deploy_failed"
+            else
+              echo "should_run"
+            fi
+          }
+          
+          echo "mosaic_tile_e2e=$(check_e2e_status "${{ inputs.mosaic_tile_e2e_result }}" "${{ inputs.mosaic_tile_deploy_result }}")" >> $GITHUB_OUTPUT
+          echo "mosaic_vending_e2e=$(check_e2e_status "${{ inputs.mosaic_vending_e2e_result }}" "${{ inputs.mosaic_vending_deploy_result }}")" >> $GITHUB_OUTPUT
+          echo "full_e2e=${{ inputs.full_e2e_result }}" >> $GITHUB_OUTPUT
+
+  # Job 4: Send notification (depends on all status checks)
+  send-notification:
+    needs: [check-ci-status, check-deploy-status, check-e2e-status]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send Discord notification
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
+        run: |
+          # Function to get status emoji and message
+          get_status_message() {
+            local status=$1
+            case "$status" in
+              "success") echo "✅ \`success\`";;
+              "failure") echo "❌ \`failure\`";;
+              "cancelled") echo "⚠️ \`cancelled\`";;
+              "previously_successful") echo "✅ \`not run\` (previously successful)";;
+              "should_run") echo "❌ \`error\` (should run - no success with current hash)";;
+              "ci_failed") echo "⏭️ \`not run\` (CI failed)";;
+              "deploy_failed") echo "⏭️ \`not run\` (deployment failed)";;
+              *) echo "❓ \`unknown\`";;
+            esac
+          }
 
           # Build notification message
           message=$(cat << EOF
-          **🚀 Workflow Run: $([ "$overall_status" == "success" ] && echo "✅ Success" || echo "❌ Failed")**
+          **🚀 Workflow Run Status**
 
           **🔨 Build & Test**
-          • Frontend CI: $(get_run_status "frontend-ci" "${{ inputs.frontend_ci_result }}" "" "FRONTEND_HASH")
-          • Mosaic Tile CI: $(get_run_status "mosaic-tile-ci" "${{ inputs.mosaic_tile_ci_result }}" "" "MOSAIC_TILE_HASH")
-          • Mosaic Vending CI: $(get_run_status "mosaic-vending-ci" "${{ inputs.mosaic_vending_ci_result }}" "" "MOSAIC_VENDING_HASH")
+          • Frontend CI: $(get_status_message "${{ needs.check-ci-status.outputs.frontend_status }}")
+          • Mosaic Tile CI: $(get_status_message "${{ needs.check-ci-status.outputs.mosaic_tile_status }}")
+          • Mosaic Vending CI: $(get_status_message "${{ needs.check-ci-status.outputs.mosaic_vending_status }}")
 
           **🧪 Deployment**
-          • Mosaic Tile: $(get_run_status "deploy-mosaic-tile" "${{ inputs.mosaic_tile_deploy_result }}" "mosaic_tile_ci_result" "MOSAIC_TILE_HASH")
-          • Mosaic Vending: $(get_run_status "deploy-mosaic-vending" "${{ inputs.mosaic_vending_deploy_result }}" "mosaic_vending_ci_result" "MOSAIC_VENDING_HASH")
+          • Mosaic Tile: $(get_status_message "${{ needs.check-deploy-status.outputs.mosaic_tile_deploy }}")
+          • Mosaic Vending: $(get_status_message "${{ needs.check-deploy-status.outputs.mosaic_vending_deploy }}")
 
           **🧪 E2E Tests**
-          • Mosaic Tile: $(get_run_status "mosaic-tile-e2e" "${{ inputs.mosaic_tile_e2e_result }}" "mosaic_tile_deploy_result" "MOSAIC_TILE_HASH")
-          • Mosaic Vending: $(get_run_status "mosaic-vending-e2e" "${{ inputs.mosaic_vending_e2e_result }}" "mosaic_vending_deploy_result" "MOSAIC_VENDING_HASH")
-          • Full E2E: $(get_run_status "full-e2e" "${{ inputs.full_e2e_result }}" "mosaic_vending_e2e_result")
+          • Mosaic Tile: $(get_status_message "${{ needs.check-e2e-status.outputs.mosaic_tile_e2e }}")
+          • Mosaic Vending: $(get_status_message "${{ needs.check-e2e-status.outputs.mosaic_vending_e2e }}")
+          • Full E2E: $(get_status_message "${{ needs.check-e2e-status.outputs.full_e2e }}")
 
           **🔗 Links**
           • [View Run Details](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
@@ -160,6 +206,22 @@ jobs:
           # Escape the message for JSON
           message_escaped=$(echo "$message" | jq -R -s '.')
 
+          # Determine overall status color
+          status_color="5025616"  # Green
+          for status in "${{ needs.check-ci-status.outputs.frontend_status }}" \
+                       "${{ needs.check-ci-status.outputs.mosaic_tile_status }}" \
+                       "${{ needs.check-ci-status.outputs.mosaic_vending_status }}" \
+                       "${{ needs.check-deploy-status.outputs.mosaic_tile_deploy }}" \
+                       "${{ needs.check-deploy-status.outputs.mosaic_vending_deploy }}" \
+                       "${{ needs.check-e2e-status.outputs.mosaic_tile_e2e }}" \
+                       "${{ needs.check-e2e-status.outputs.mosaic_vending_e2e }}" \
+                       "${{ needs.check-e2e-status.outputs.full_e2e }}"; do
+            if [[ "$status" == "failure" || "$status" == "should_run" ]]; then
+              status_color="15158332"  # Red
+              break
+            fi
+          done
+
           # Send to Discord
           json_data=$(cat << EOF
           {
@@ -168,10 +230,10 @@ jobs:
             "embeds": [{
               "title": "🚀 Workflow Run",
               "description": ${message_escaped},
-              "color": $([ "$overall_status" == "success" ] && echo "5025616" || echo "15158332")
+              "color": ${status_color}
             }]
           }
           EOF
           )
 
-          curl -H "Content-Type: application/json" -X POST -d "$json_data" $DISCORD_WEBHOOK 
+          curl -H "Content-Type: application/json" -X POST -d "$json_data" $DISCORD_WEBHOOK
