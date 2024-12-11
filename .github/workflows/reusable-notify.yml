@@ -21,15 +21,6 @@ on:
       full_e2e_result:
         required: true
         type: string
-      frontend_needs_run:
-        required: true
-        type: string
-      mosaic_tile_needs_run:
-        required: true
-        type: string
-      mosaic_vending_needs_run:
-        required: true
-        type: string
     secrets:
       DISCORD_WEBHOOK:
         required: true
@@ -40,42 +31,14 @@ jobs:
   notify:
     runs-on: ubuntu-latest
     steps:
-      - name: Generate badges
-        uses: schneegans/dynamic-badges-action@v1.6.0
-        continue-on-error: true
+      - uses: actions/checkout@v3
         with:
-          auth: ${{ secrets.GIST_TOKEN }}
-          gistID: 1ff46a4915f58fa0fce5cab7577f94f1
-          filename: frontend-ci.json
-          label: Frontend CI
-          message: ${{ inputs.frontend_ci_result }}
-          color: ${{ inputs.frontend_ci_result == 'success' && 'success' || 'critical' }}
-
-      - name: Generate Mosaic Tile CI badge
-        uses: schneegans/dynamic-badges-action@v1.6.0
-        continue-on-error: true
-        with:
-          auth: ${{ secrets.GIST_TOKEN }}
-          gistID: 1ff46a4915f58fa0fce5cab7577f94f1
-          filename: mosaic-tile-ci.json
-          label: Mosaic Tile CI
-          message: ${{ inputs.mosaic_tile_ci_result }}
-          color: ${{ inputs.mosaic_tile_ci_result == 'success' && 'success' || 'critical' }}
-
-      - name: Generate Mosaic Vending CI badge
-        uses: schneegans/dynamic-badges-action@v1.6.0
-        continue-on-error: true
-        with:
-          auth: ${{ secrets.GIST_TOKEN }}
-          gistID: 1ff46a4915f58fa0fce5cab7577f94f1
-          filename: mosaic-vending-ci.json
-          label: Mosaic Vending CI
-          message: ${{ inputs.mosaic_vending_ci_result }}
-          color: ${{ inputs.mosaic_vending_ci_result == 'success' && 'success' || 'critical' }}
+          fetch-depth: 0  # Needed to get all history
 
       - name: Send Discord notification
         env:
           DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
+          GH_TOKEN: ${{ github.token }}
         run: |
           # Function to get status emoji
           get_status_emoji() {
@@ -90,14 +53,22 @@ jobs:
 
           # Function to get run status message
           get_run_status() {
-            local result=$1
-            local needs_run=$2
+            local job_name=$1
+            local result=$2
+            local component=$3
             
             if [[ "$result" == "skipped" ]]; then
-              if [[ "$needs_run" == "false" ]]; then
-                echo "⏭️ \`skipped\` (no changes)"
+              # Find last successful run
+              local last_success_run=$(gh run list --workflow pixel-canvas.yml \
+                --json conclusion,jobs,databaseId,url \
+                --jq ".[] | select(.conclusion == \"success\" and .jobs[].name == \"$job_name\") | {id: .databaseId, url: .url}" \
+                --limit 100 | head -n 1)
+              
+              if [[ -n "$last_success_run" ]]; then
+                local run_url=$(echo "$last_success_run" | jq -r '.url')
+                echo "⏭️ \`skipped\` ([previous run]($run_url))"
               else
-                echo "✅ \`skipped\` (previous run successful)"
+                echo "⏭️ \`skipped\`"
               fi
             else
               echo "$(get_status_emoji "$result") \`$result\`"
@@ -118,14 +89,14 @@ jobs:
           **🚀 Workflow Run: $([ "$overall_status" == "success" ] && echo "✅ Success" || echo "❌ Failed")**
 
           **🔨 Build & Test**
-          • Frontend CI: $(get_run_status "${{ inputs.frontend_ci_result }}" "${{ inputs.frontend_needs_run }}")
-          • Mosaic Tile CI: $(get_run_status "${{ inputs.mosaic_tile_ci_result }}" "${{ inputs.mosaic_tile_needs_run }}")
-          • Mosaic Vending CI: $(get_run_status "${{ inputs.mosaic_vending_ci_result }}" "${{ inputs.mosaic_vending_needs_run }}")
+          • Frontend CI: $(get_run_status "frontend-ci" "${{ inputs.frontend_ci_result }}" "frontend")
+          • Mosaic Tile CI: $(get_run_status "mosaic-tile-ci" "${{ inputs.mosaic_tile_ci_result }}" "mosaic_tile")
+          • Mosaic Vending CI: $(get_run_status "mosaic-vending-ci" "${{ inputs.mosaic_vending_ci_result }}" "mosaic_vending")
 
           **🧪 E2E Tests**
-          • Mosaic Tile: $(get_run_status "${{ inputs.mosaic_tile_e2e_result }}" "${{ inputs.mosaic_tile_needs_run }}")
-          • Mosaic Vending: $(get_run_status "${{ inputs.mosaic_vending_e2e_result }}" "${{ inputs.mosaic_vending_needs_run }}")
-          • Full E2E: $(get_run_status "${{ inputs.full_e2e_result }}" "true")
+          • Mosaic Tile: $(get_run_status "mosaic-tile-e2e" "${{ inputs.mosaic_tile_e2e_result }}" "mosaic_tile")
+          • Mosaic Vending: $(get_run_status "mosaic-vending-e2e" "${{ inputs.mosaic_vending_e2e_result }}" "mosaic_vending")
+          • Full E2E: $(get_run_status "full-e2e" "${{ inputs.full_e2e_result }}" "full")
 
           **🔗 Links**
           • [View Run Details](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
