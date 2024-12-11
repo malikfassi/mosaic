@@ -21,8 +21,8 @@ cw721-base = { version = "0.18.0", features = ["library"] }
 schemars = "0.8.15"
 serde = { version = "1.0.188", features = ["derive"] }
 thiserror = "1.0.48"
+anyhow = "1.0.75"
 
 # Dev dependencies shared across all contracts
 [workspace.dev-dependencies]
-cw-multi-test = "0.16.5"
-anyhow = "1.0.75" 
+cw-multi-test = "0.16.5" 
