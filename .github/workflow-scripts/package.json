@@ -11,8 +11,8 @@
   "name": "mosaic-workflow-scripts",
   "scripts": {
     "execution-plan": "node src/execution-plan.js",
-    "notify": "node src/notify.js",
-    "status": "node src/status.js"
+    "get-status": "node src/get-status.js",
+    "notify": "node src/notify.js"
   },
   "type": "module",
   "version": "1.0.0"
