@@ -5,6 +5,11 @@ import { globSync } from 'glob';
 import { readFileSync, existsSync } from 'fs';
 import ignore from 'ignore';
 import { getAllJobs, COMPONENTS, getAllFileNames } from './workflow-config.js';
+import { dirname, join } from 'path';
+
+// Change to workspace root (two levels up from script location)
+const scriptDir = dirname(new URL(import.meta.url).pathname);
+process.chdir(join(scriptDir, '..', '..', '..'));
 
 // Calculate hash for a component's files
 function calculateComponentHash(component) {
@@ -23,7 +28,7 @@ function calculateComponentHash(component) {
     const matches = globSync(pattern, { 
       dot: true, 
       nodir: true,
-      cwd: process.env.GITHUB_WORKSPACE,
+      cwd: process.cwd(),
       absolute: false
     });
     console.log(`Found ${matches.length} files for pattern ${pattern}`);
@@ -69,8 +74,9 @@ async function getGistFiles(gistId, token) {
 async function generateExecutionPlan() {
   const gistId = process.env.GIST_ID;
   const token = process.env.GIST_SECRET;
+  const commitSha = process.env.GITHUB_SHA;
 
-  if (!gistId || !token) {
+  if (!gistId || !token || !commitSha) {
     throw new Error('Missing required environment variables');
   }
 
@@ -85,7 +91,7 @@ async function generateExecutionPlan() {
   });
 
   // Get all possible filenames with hashes
-  const allFileNames = getAllFileNames(componentHashes, process.env.GITHUB_SHA);
+  const allFileNames = getAllFileNames(componentHashes, commitSha);
   console.log('Looking for gist files:', allFileNames);
 
   // Get all gist files
@@ -98,7 +104,7 @@ async function generateExecutionPlan() {
     jobs: {},
     metadata: {
       created_at: new Date().toISOString(),
-      commit_sha: process.env.GITHUB_SHA,
+      commit_sha: commitSha,
       run_id: process.env.GITHUB_RUN_ID,
       run_number: process.env.GITHUB_RUN_NUMBER,
       repository: process.env.GITHUB_REPOSITORY
@@ -137,7 +143,8 @@ async function generateExecutionPlan() {
   });
 
   // Save plan (pretty print for file, compact for output)
-  await writeFile('execution-plan.json', JSON.stringify(plan, null, 2));
+  const planFile = join('.github', 'workflow-scripts', 'execution-plan.json');
+  await writeFile(planFile, JSON.stringify(plan, null, 2));
   console.log('Generated execution plan:', JSON.stringify(plan));
 
   return plan;

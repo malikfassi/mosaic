@@ -54,6 +54,6 @@ jobs:
         run: |
           npm run execution-plan
           # Escape the JSON for GitHub Actions output
-          echo "plan<<$EOF" >> "$GITHUB_OUTPUT"
-          cat execution-plan.json >> "$GITHUB_OUTPUT"
-          echo "$EOF" >> "$GITHUB_OUTPUT"
+          echo "plan<<PLAN_EOF" >> $GITHUB_OUTPUT
+          cat execution-plan.json >> $GITHUB_OUTPUT
+          echo "PLAN_EOF" >> $GITHUB_OUTPUT
