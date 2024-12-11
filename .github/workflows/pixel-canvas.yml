@@ -473,25 +473,38 @@ jobs:
           done
 
           # Build notification message
-          message="# 🚀 Workflow Run: $([ "$overall_status" == "success" ] && echo "✅ Success" || echo "❌ Failed")
+          message="**🚀 Workflow Run: $([ "$overall_status" == "success" ] && echo "✅ Success" || echo "❌ Failed")**
 
-          ## 🔨 Build & Test
-          • Frontend CI: $(get_status_emoji "${{ needs.frontend-ci.result }}") ${{ needs.frontend-ci.result }} $(get_run_reason "frontend-ci" "${{ needs.frontend-ci.result }}" "${{ steps.skip-reasons.outputs.frontend_ci }}" "frontend")
-          • Mosaic Tile CI: $(get_status_emoji "${{ needs.mosaic-tile-ci.result }}") ${{ needs.mosaic-tile-ci.result }} $(get_run_reason "mosaic-tile-ci" "${{ needs.mosaic-tile-ci.result }}" "${{ steps.skip-reasons.outputs.mosaic_tile_ci }}" "mosaic_tile")
-          • Mosaic Vending CI: $(get_status_emoji "${{ needs.mosaic-vending-ci.result }}") ${{ needs.mosaic-vending-ci.result }} $(get_run_reason "mosaic-vending-ci" "${{ needs.mosaic-vending-ci.result }}" "${{ steps.skip-reasons.outputs.mosaic_vending_ci }}" "mosaic_vending")
+          **🔨 Build & Test**
+          • Frontend CI: $(get_status_emoji "${{ needs.frontend-ci.result }}") \`${{ needs.frontend-ci.result }}\` $(get_run_reason "frontend-ci" "${{ needs.frontend-ci.result }}" "${{ steps.skip-reasons.outputs.frontend_ci }}" "frontend")
+          • Mosaic Tile CI: $(get_status_emoji "${{ needs.mosaic-tile-ci.result }}") \`${{ needs.mosaic-tile-ci.result }}\` $(get_run_reason "mosaic-tile-ci" "${{ needs.mosaic-tile-ci.result }}" "${{ steps.skip-reasons.outputs.mosaic_tile_ci }}" "mosaic_tile")
+          • Mosaic Vending CI: $(get_status_emoji "${{ needs.mosaic-vending-ci.result }}") \`${{ needs.mosaic-vending-ci.result }}\` $(get_run_reason "mosaic-vending-ci" "${{ needs.mosaic-vending-ci.result }}" "${{ steps.skip-reasons.outputs.mosaic_vending_ci }}" "mosaic_vending")
 
-          ## 🚀 Deployment
-          • Mosaic Tile: $(get_status_emoji "${{ needs.deploy-mosaic-tile.result }}") ${{ needs.deploy-mosaic-tile.result }} $(get_run_reason "deploy-mosaic-tile" "${{ needs.deploy-mosaic-tile.result }}" "${{ steps.skip-reasons.outputs.deploy_mosaic_tile }}" "mosaic_tile")
-          • Mosaic Vending: $(get_status_emoji "${{ needs.deploy-mosaic-vending.result }}") ${{ needs.deploy-mosaic-vending.result }} $(get_run_reason "deploy-mosaic-vending" "${{ needs.deploy-mosaic-vending.result }}" "${{ steps.skip-reasons.outputs.deploy_mosaic_vending }}" "mosaic_vending")
+          **🚀 Deployment**
+          • Mosaic Tile: $(get_status_emoji "${{ needs.deploy-mosaic-tile.result }}") \`${{ needs.deploy-mosaic-tile.result }}\` $(get_run_reason "deploy-mosaic-tile" "${{ needs.deploy-mosaic-tile.result }}" "${{ steps.skip-reasons.outputs.deploy_mosaic_tile }}" "mosaic_tile")
+          • Mosaic Vending: $(get_status_emoji "${{ needs.deploy-mosaic-vending.result }}") \`${{ needs.deploy-mosaic-vending.result }}\` $(get_run_reason "deploy-mosaic-vending" "${{ needs.deploy-mosaic-vending.result }}" "${{ steps.skip-reasons.outputs.deploy_mosaic_vending }}" "mosaic_vending")
 
-          ## 🧪 E2E Tests
-          • Mosaic Tile: $(get_status_emoji "${{ needs.mosaic-tile-e2e.result }}") ${{ needs.mosaic-tile-e2e.result }} $(get_run_reason "mosaic-tile-e2e" "${{ needs.mosaic-tile-e2e.result }}" "${{ steps.skip-reasons.outputs.mosaic_tile_e2e }}" "mosaic_tile")
-          • Mosaic Vending: $(get_status_emoji "${{ needs.mosaic-vending-e2e.result }}") ${{ needs.mosaic-vending-e2e.result }} $(get_run_reason "mosaic-vending-e2e" "${{ needs.mosaic-vending-e2e.result }}" "${{ steps.skip-reasons.outputs.mosaic_vending_e2e }}" "mosaic_vending")
-          • Full E2E: $(get_status_emoji "${{ needs.full-e2e.result }}") ${{ needs.full-e2e.result }} $(get_run_reason "full-e2e" "${{ needs.full-e2e.result }}" "${{ steps.skip-reasons.outputs.full_e2e }}" "full")
+          **🧪 E2E Tests**
+          • Mosaic Tile: $(get_status_emoji "${{ needs.mosaic-tile-e2e.result }}") \`${{ needs.mosaic-tile-e2e.result }}\` $(get_run_reason "mosaic-tile-e2e" "${{ needs.mosaic-tile-e2e.result }}" "${{ steps.skip-reasons.outputs.mosaic_tile_e2e }}" "mosaic_tile")
+          • Mosaic Vending: $(get_status_emoji "${{ needs.mosaic-vending-e2e.result }}") \`${{ needs.mosaic-vending-e2e.result }}\` $(get_run_reason "mosaic-vending-e2e" "${{ needs.mosaic-vending-e2e.result }}" "${{ steps.skip-reasons.outputs.mosaic_vending_e2e }}" "mosaic_vending")
+          • Full E2E: $(get_status_emoji "${{ needs.full-e2e.result }}") \`${{ needs.full-e2e.result }}\` $(get_run_reason "full-e2e" "${{ needs.full-e2e.result }}" "${{ steps.skip-reasons.outputs.full_e2e }}" "full")
 
-          ## 🔗 Links
-          • [Workflow Run](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
-          • [Commit](https://github.com/${{ github.repository }}/commit/${{ github.sha }})"
+          **🔗 Links**
+          • [View Run Details](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
+          • [View Changes](https://github.com/${{ github.repository }}/commit/${{ github.sha }})
+
+          **📊 Status Badges**
+          • [Frontend CI](https://github.com/${{ github.repository }}/actions/workflows/pixel-canvas.yml)
+          • [Mosaic Tile CI](https://github.com/${{ github.repository }}/actions/workflows/pixel-canvas.yml)
+          • [Mosaic Vending CI](https://github.com/${{ github.repository }}/actions/workflows/pixel-canvas.yml)"
 
           # Send to Discord
-          curl -H "Content-Type: application/json" -X POST -d "{\"content\":\"$message\"}" $DISCORD_WEBHOOK
+          curl -H "Content-Type: application/json" -X POST -d '{
+            "username": "GitHub Actions",
+            "avatar_url": "https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png",
+            "embeds": [{
+              "title": "🚀 Workflow Run",
+              "description": "'"$message"'",
+              "color": '"$([ "$overall_status" == "success" ] && echo "5025616" || echo "15158332")"'
+            }]
+          }' $DISCORD_WEBHOOK
