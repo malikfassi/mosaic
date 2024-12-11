@@ -109,11 +109,12 @@ jobs:
             local component_hash=$2
             local job_prefix=$3
             
-            # Look for runs with this hash
+            # Look for successful runs
             local last_runs=$(gh run list \
               --workflow mosaic.yml \
-              --json jobs,databaseId,createdAt,url,headSha \
-              --limit 10 | jq -c '.[]')
+              --json conclusion,databaseId,createdAt,url,headSha \
+              --limit 20 \
+              --status completed | jq -c '.[]')
             
             local latest_success_run=""
             local latest_success_time=""
@@ -124,28 +125,39 @@ jobs:
               while read -r run; do
                 local run_id=$(echo "$run" | jq -r '.databaseId')
                 local run_sha=$(echo "$run" | jq -r '.headSha')
-                local jobs_json=$(echo "$run" | jq -r '.jobs')
                 local created_at=$(echo "$run" | jq -r '.createdAt')
                 local run_url=$(echo "$run" | jq -r '.url')
+                local conclusion=$(echo "$run" | jq -r '.conclusion')
                 
-                # Get the execution plan from the run artifacts
-                local plan_url="https://api.github.com/repos/${{ github.repository }}/actions/runs/$run_id/artifacts"
-                local plan_json=$(curl -H "Authorization: token $GH_TOKEN" "$plan_url" | jq -r '.artifacts[] | select(.name == "execution-plan").url')
-                
-                if [[ -n "$plan_json" ]]; then
-                  local plan_content=$(curl -H "Authorization: token $GH_TOKEN" -L "$plan_json" | jq -r ".components.$component.hash")
+                # Only check successful runs
+                if [[ "$conclusion" == "success" ]]; then
+                  # Get detailed job information
+                  local run_details=$(gh run view "$run_id" --json jobs | jq -c .)
+                  local job_results=$(echo "$run_details" | jq -c "[.jobs[] | select(.name | startswith(\"$job_prefix\")) | {name: .name, conclusion: .conclusion}]")
                   
-                  if [[ "$plan_content" == "${!component_hash}" ]]; then
-                    # Get results for all jobs with this prefix
-                    local job_results=$(echo "$jobs_json" | jq -c "[.[] | select(.name | startswith(\"$job_prefix\")) | {name: .name, conclusion: .conclusion}]")
-                    
-                    # Update latest success info if this is more recent
-                    if [[ -z "$latest_success_time" || "$created_at" > "$latest_success_time" ]]; then
-                      latest_success_time="$created_at"
-                      latest_success_run="{\"run_id\":\"$run_id\",\"created_at\":\"$created_at\",\"url\":\"$run_url\"}"
-                      latest_job_results="$job_results"
+                  # Create temp dir for artifact
+                  local temp_dir=$(mktemp -d)
+                  cd "$temp_dir"
+                  
+                  # Try to download execution plan
+                  if gh run download "$run_id" --name execution-plan --dir . >/dev/null 2>&1; then
+                    if [ -f "execution_plan.json" ]; then
+                      local plan_hash=$(jq -r ".components.$component.hash" execution_plan.json)
+                      
+                      if [[ "$plan_hash" == "${!component_hash}" ]]; then
+                        # Update latest success info if this is more recent
+                        if [[ -z "$latest_success_time" || "$created_at" > "$latest_success_time" ]]; then
+                          latest_success_time="$created_at"
+                          latest_success_run="{\"run_id\":\"$run_id\",\"created_at\":\"$created_at\",\"url\":\"$run_url\"}"
+                          latest_job_results="$job_results"
+                        fi
+                      fi
                     fi
                   fi
+                  
+                  # Clean up
+                  cd - >/dev/null
+                  rm -rf "$temp_dir"
                 fi
               done <<< "$last_runs"
             fi
@@ -158,14 +170,20 @@ jobs:
               echo "{\"found\":false,\"job_results\":[]}"
             fi
           }
-
-          # Check each component with its job prefix
-          frontend_run=$(check_previous_runs "frontend" "FRONTEND_HASH" "frontend-ci")
-          mosaic_tile_run=$(check_previous_runs "mosaic_tile" "MOSAIC_TILE_HASH" "mosaic-tile")
-          mosaic_vending_run=$(check_previous_runs "mosaic_vending" "MOSAIC_VENDING_HASH" "mosaic-vending")
           
-          # Combine into final JSON
-          echo "previous_runs={\"frontend\":$frontend_run,\"mosaic_tile\":$mosaic_tile_run,\"mosaic_vending\":$mosaic_vending_run}" >> $GITHUB_OUTPUT
+          # Check each component
+          frontend_runs=$(check_previous_runs "frontend" "FRONTEND_HASH" "frontend-ci")
+          mosaic_tile_runs=$(check_previous_runs "mosaic_tile" "MOSAIC_TILE_HASH" "mosaic-tile")
+          mosaic_vending_runs=$(check_previous_runs "mosaic_vending" "MOSAIC_VENDING_HASH" "mosaic-vending")
+          
+          # Combine results
+          echo "previous_runs<<EOF" >> $GITHUB_OUTPUT
+          echo "{
+            \"frontend\": $frontend_runs,
+            \"mosaic_tile\": $mosaic_tile_runs,
+            \"mosaic_vending\": $mosaic_vending_runs
+          }" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
 
   create-plan:
     runs-on: ubuntu-latest

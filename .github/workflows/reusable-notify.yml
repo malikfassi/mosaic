@@ -104,7 +104,7 @@ jobs:
           }
           
           # Generate status message
-          cat > message.md << 'STATUSMSG'
+          cat > status.md << 'STATUSMSG'
           # 🚀 Workflow Run Report
 
           `$(echo "$PLAN" | jq -r '.metadata.commit_sha')` • $(echo "$PLAN" | jq -r '.metadata.event_type') • `main` • [View Run](https://github.com/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID)
@@ -198,17 +198,18 @@ jobs:
           # Save message to output
           {
             echo 'message<<EOF'
-            cat message.md
+            cat status.md
             echo 'EOF'
           } >> $GITHUB_OUTPUT
 
       - name: Send Discord Notification
         if: always()
-        uses: Ilshidur/action-discord@master
+        shell: bash
         env:
           DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
-        with:
-          args: ${{ steps.status.outputs.message }}
+        run: |
+          # Send file to Discord webhook
+          curl -F "file=@status.md" "$DISCORD_WEBHOOK"
 
       - name: Update Status Gist
         if: inputs.gist_id != ''
