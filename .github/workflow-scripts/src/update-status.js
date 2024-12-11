@@ -1,23 +1,50 @@
 import { getOctokit } from '@actions/github';
 
-// Update status for a specific job
-async function updateJobStatus(octokit, gistId, jobName, componentHash, success) {
+async function updateStatus() {
   try {
-    // Create or update the file
-    const filename = `${jobName}.${componentHash}.json`;
+    const token = process.env.GIST_SECRET;
+    const gistId = process.env.GIST_ID;
+    const jobName = process.env.JOB_NAME;
+    const success = process.env.JOB_SUCCESS === 'true';
+    const executionPlan = JSON.parse(process.env.EXECUTION_PLAN || '{}');
+
+    if (!token || !gistId || !jobName || !executionPlan) {
+      throw new Error('Missing required environment variables');
+    }
+
+    // Only update successful jobs
+    if (!success) {
+      console.log(`Job ${jobName} was not successful, skipping status update`);
+      return;
+    }
+
+    const octokit = getOctokit(token);
+    const jobInfo = executionPlan.jobs[jobName];
+
+    if (!jobInfo) {
+      throw new Error(`Job ${jobName} not found in execution plan`);
+    }
+
+    // Create status file content - match the format we expect when reading
     const content = JSON.stringify({
-      job: jobName,
-      hash: componentHash,
-      success,
+      success: true,
       timestamp: new Date().toISOString(),
-      run_id: process.env.GITHUB_RUN_ID,
-      run_number: process.env.GITHUB_RUN_NUMBER,
-      workflow: process.env.GITHUB_WORKFLOW,
-      repository: process.env.GITHUB_REPOSITORY,
-      ref: process.env.GITHUB_REF
+      run: {
+        id: jobInfo.id,
+        job: jobName,
+        componentName: jobInfo.componentName,
+        componentHash: jobInfo.componentHash,
+        workflowId: jobInfo.workflowId,
+        commitId: jobInfo.commitId,
+        results: jobInfo.results || {}
+      }
     }, null, 2);
 
     // Update gist
+    const filename = jobName.endsWith('-e2e') 
+      ? `${jobName}.${jobInfo.commitId}.json` // E2E jobs use commit hash
+      : `${jobName}.${jobInfo.componentHash}.json`; // Component jobs use component hash
+
     await octokit.rest.gists.update({
       gist_id: gistId,
       files: {
@@ -27,63 +54,11 @@ async function updateJobStatus(octokit, gistId, jobName, componentHash, success)
       }
     });
 
-    console.log(`Updated status for ${jobName} (${componentHash}): ${success}`);
-    return true;
-  } catch (error) {
-    if (error.status === 404) {
-      console.warn('Gist not found, creating new one...');
-      try {
-        await octokit.rest.gists.create({
-          public: false,
-          description: `Job status for ${jobName}`,
-          files: {
-            [filename]: {
-              content
-            }
-          }
-        });
-        return true;
-      } catch (createError) {
-        console.error(`Error creating gist: ${createError.message}`);
-        throw createError;
-      }
-    }
-    console.error(`Error updating status for ${jobName}: ${error.message}`);
-    throw error;
-  }
-}
-
-// Main function to update job status
-async function updateStatus() {
-  try {
-    const token = process.env.GIST_SECRET;
-    const gistId = process.env.GIST_ID;
-    const jobName = process.env.JOB_NAME;
-    const componentHash = process.env.COMPONENT_HASH;
-    const success = process.env.JOB_SUCCESS === 'true';
-
-    if (!token || !gistId || !jobName || !componentHash) {
-      throw new Error('Missing required environment variables');
-    }
-
-    const octokit = getOctokit(token);
-    return await updateJobStatus(octokit, gistId, jobName, componentHash, success);
+    console.log(`Updated status for ${jobName}`);
   } catch (error) {
     console.error('Error updating status:', error);
     throw error;
   }
 }
 
-// Run if called directly
-if (require.main === module) {
-  updateStatus()
-    .then(result => {
-      if (!result) process.exit(1);
-    })
-    .catch(error => {
-      console.error(error);
-      process.exit(1);
-    });
-}
-
-export { updateStatus, updateJobStatus }; 
+export { updateStatus }; 

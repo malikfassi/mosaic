@@ -1,6 +1,5 @@
 {
   "dependencies": {
-    "@actions/cache": "^3.2.2",
     "@actions/core": "^1.10.1",
     "@actions/github": "^6.0.0",
     "@octokit/rest": "^20.0.2",
@@ -11,8 +10,8 @@
   "name": "mosaic-workflow-scripts",
   "scripts": {
     "execution-plan": "node src/execution-plan.js",
-    "get-status": "node src/get-status.js",
-    "notify": "node src/notify.js"
+    "notify": "node src/notify.js",
+    "update-status": "node src/update-status.js"
   },
   "type": "module",
   "version": "1.0.0"
