@@ -249,10 +249,14 @@ jobs:
               "components": $components,
               "jobs": $jobs,
               "metadata": $metadata
-            }')
+            }' | jq -c .)
 
-          # Save plan to output
-          echo "plan=$plan" >> $GITHUB_OUTPUT
+          # Save plan to output using the new multiline syntax
+          {
+            echo "plan<<EOF"
+            echo "$plan"
+            echo "EOF"
+          } >> $GITHUB_OUTPUT
 
           # Also save plan to artifact
           echo "$plan" > execution_plan.json
