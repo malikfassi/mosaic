@@ -8,485 +8,63 @@ on:
 
 jobs:
   changes:
-    runs-on: ubuntu-latest
-    permissions:
-      pull-requests: read
-    outputs:
-      frontend: ${{ steps.filter.outputs.frontend }}
-      mosaic_tile: ${{ steps.filter.outputs.mosaic_tile }}
-      mosaic_vending: ${{ steps.filter.outputs.mosaic_vending }}
-      frontend_hash: ${{ steps.hashes.outputs.frontend_hash }}
-      mosaic_tile_hash: ${{ steps.hashes.outputs.mosaic_tile_hash }}
-      mosaic_vending_hash: ${{ steps.hashes.outputs.mosaic_vending_hash }}
-      frontend_needs_run: ${{ steps.check-runs.outputs.frontend_needs_run }}
-      mosaic_tile_needs_run: ${{ steps.check-runs.outputs.mosaic_tile_needs_run }}
-      mosaic_vending_needs_run: ${{ steps.check-runs.outputs.mosaic_vending_needs_run }}
-      mosaic_tile_e2e_needs_run: ${{ steps.check-runs.outputs.mosaic_tile_e2e_needs_run }}
-      mosaic_vending_e2e_needs_run: ${{ steps.check-runs.outputs.mosaic_vending_e2e_needs_run }}
-      full_e2e_needs_run: ${{ steps.check-runs.outputs.full_e2e_needs_run }}
-    steps:
-      - uses: actions/checkout@v3
-      - uses: dorny/paths-filter@v2
-        id: filter
-        with:
-          filters: |
-            frontend:
-              - 'frontend/**'
-            mosaic_tile:
-              - 'contracts/mosaic-tile-nft/**'
-              - 'contracts/Cargo.toml'
-            mosaic_vending:
-              - 'contracts/mosaic-vending-minter/**'
-              - 'contracts/Cargo.toml'
-      
-      - name: Get code hashes
-        id: hashes
-        run: |
-          # Frontend hash
-          if [[ "${{ steps.filter.outputs.frontend }}" == "true" ]]; then
-            echo "frontend_hash=$(find frontend -type f -exec sha256sum {} \; | sort | sha256sum | cut -d' ' -f1)" >> $GITHUB_OUTPUT
-          fi
-          
-          # Contract hashes
-          if [[ "${{ steps.filter.outputs.mosaic_tile }}" == "true" ]]; then
-            echo "mosaic_tile_hash=$(find contracts/mosaic-tile-nft -type f -exec sha256sum {} \; | sort | sha256sum | cut -d' ' -f1)" >> $GITHUB_OUTPUT
-          fi
-          if [[ "${{ steps.filter.outputs.mosaic_vending }}" == "true" ]]; then
-            echo "mosaic_vending_hash=$(find contracts/mosaic-vending-minter -type f -exec sha256sum {} \; | sort | sha256sum | cut -d' ' -f1)" >> $GITHUB_OUTPUT
-          fi
+    uses: ./.github/workflows/components/changes.yml
 
-      - name: Check previous workflow runs
-        id: check-runs
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          # Function to check if a job has ever succeeded for current code hash
-          check_job_success() {
-            local job_name=$1
-            local code_hash=$2
-            local success=false
-            
-            # Get last successful run for the job with matching code hash
-            gh run list --workflow pixel-canvas.yml \
-              --json conclusion,jobs,headSha \
-              --jq ".[] | select(.conclusion == \"success\" and .jobs[].name == \"$job_name\") | .headSha" \
-              --limit 100 | while read -r sha; do
-                # Check if the code hash matches for this successful run
-                if [[ "$(git show $sha:$3 | sha256sum | cut -d' ' -f1)" == "$code_hash" ]]; then
-                  success=true
-                  break
-                fi
-              done
-            
-            echo $success
-          }
-          
-          # Frontend
-          if [[ "${{ steps.filter.outputs.frontend }}" == "true" ]]; then
-            echo "frontend_needs_run=true" >> $GITHUB_OUTPUT
-          else
-            echo "frontend_needs_run=false" >> $GITHUB_OUTPUT
-          fi
-
-          # Mosaic Tile
-          if [[ "${{ steps.filter.outputs.mosaic_tile }}" == "true" ]]; then
-            echo "mosaic_tile_needs_run=true" >> $GITHUB_OUTPUT
-          else
-            echo "mosaic_tile_needs_run=false" >> $GITHUB_OUTPUT
-          fi
-
-          # Mosaic Vending
-          if [[ "${{ steps.filter.outputs.mosaic_vending }}" == "true" ]]; then
-            echo "mosaic_vending_needs_run=true" >> $GITHUB_OUTPUT
-          else
-            echo "mosaic_vending_needs_run=false" >> $GITHUB_OUTPUT
-          fi
-
-          # Check full-e2e needs run
-          if [[ "${{ steps.filter.outputs.frontend }}" == "true" || \
-                "${{ steps.filter.outputs.mosaic_tile }}" == "true" || \
-                "${{ steps.filter.outputs.mosaic_vending }}" == "true" ]]; then
-            echo "full_e2e_needs_run=true" >> $GITHUB_OUTPUT
-          else
-            echo "full_e2e_needs_run=false" >> $GITHUB_OUTPUT
-          fi
-
-  # Shared Rust setup job
   rust-setup:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      - uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: stable
-          override: true
-          components: rustfmt, clippy
-      - name: Cache dependencies
-        uses: actions/cache@v3
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            target
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+    uses: ./.github/workflows/components/rust-setup.yml
 
   frontend-ci:
     needs: changes
-    if: needs.changes.outputs.frontend_needs_run == 'true'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      - uses: actions/setup-node@v3
-        with:
-          node-version: '18'
-      - name: Install dependencies
-        run: cd frontend && npm ci
-      - name: Run linting
-        run: cd frontend && npm run lint
-      - name: Run tests
-        run: cd frontend && npm test
+    uses: ./.github/workflows/components/frontend.yml
+    with:
+      needs_run: ${{ needs.changes.outputs.frontend_needs_run }}
 
   mosaic-tile-ci:
-    needs: [
-      rust-setup,
-      changes
-    ]
-    if: needs.changes.outputs.mosaic_tile_needs_run == 'true'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      - name: Check formatting
-        run: |
-          cd contracts/mosaic-tile-nft
-          cargo fmt -- --check
-      - name: Run clippy
-        run: |
-          cd contracts/mosaic-tile-nft
-          cargo clippy -- -D warnings
-      - name: Run unit tests
-        run: |
-          cd contracts/mosaic-tile-nft
-          cargo test
-      - name: Check schema generation
-        run: |
-          cd contracts/mosaic-tile-nft
-          cargo run --example schema
+    needs: [changes, rust-setup]
+    uses: ./.github/workflows/components/contracts.yml
+    with:
+      contract_name: mosaic-tile
+      needs_run: ${{ needs.changes.outputs.mosaic_tile_needs_run }}
 
   mosaic-vending-ci:
-    needs: [
-      rust-setup,
-      changes
-    ]
-    if: needs.changes.outputs.mosaic_vending_needs_run == 'true'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      - name: Check formatting
-        run: |
-          cd contracts/mosaic-vending-minter
-          cargo fmt -- --check
-      - name: Run clippy
-        run: |
-          cd contracts/mosaic-vending-minter
-          cargo clippy -- -D warnings
-      - name: Run unit tests
-        run: |
-          cd contracts/mosaic-vending-minter
-          cargo test
-      - name: Check schema generation
-        run: |
-          cd contracts/mosaic-vending-minter
-          cargo run --example schema
-
-  deploy-mosaic-tile:
-    needs: mosaic-tile-ci
-    if: needs.changes.outputs.mosaic_tile_deploy_needs_run == 'true'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      - name: Deploy mosaic-tile contract
-        run: echo "Deploying mosaic-tile contract..."
-
-  deploy-mosaic-vending:
-    needs: mosaic-vending-ci
-    if: needs.changes.outputs.mosaic_vending_deploy_needs_run == 'true'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      - name: Deploy mosaic-vending contract
-        run: echo "Deploying mosaic-vending contract..."
+    needs: [changes, rust-setup]
+    uses: ./.github/workflows/components/contracts.yml
+    with:
+      contract_name: mosaic-vending
+      needs_run: ${{ needs.changes.outputs.mosaic_vending_needs_run }}
 
   mosaic-tile-e2e:
-    needs: deploy-mosaic-tile
-    if: |
-      needs.changes.outputs.mosaic_tile_e2e_needs_run == 'true' &&
-      github.ref == 'refs/heads/main'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      - name: Run E2E tests
-        run: echo "Running mosaic-tile E2E tests..."
+    needs: [mosaic-tile-ci]
+    uses: ./.github/workflows/components/e2e.yml
+    with:
+      test_type: mosaic-tile
+      needs_run: ${{ needs.changes.outputs.mosaic_tile_needs_run }}
 
   mosaic-vending-e2e:
-    needs: deploy-mosaic-vending
-    if: |
-      needs.changes.outputs.mosaic_vending_e2e_needs_run == 'true' &&
-      github.ref == 'refs/heads/main'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      - name: Run E2E tests
-        run: echo "Running mosaic-vending E2E tests..."
+    needs: [mosaic-vending-ci]
+    uses: ./.github/workflows/components/e2e.yml
+    with:
+      test_type: mosaic-vending
+      needs_run: ${{ needs.changes.outputs.mosaic_vending_needs_run }}
 
   full-e2e:
-    needs: [
-      frontend-ci,
-      mosaic-tile-e2e,
-      mosaic-vending-e2e
-    ]
-    if: |
-      needs.changes.outputs.full_e2e_needs_run == 'true' &&
-      github.ref == 'refs/heads/main'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      - name: Run full E2E test suite
-        run: echo "Running full E2E test suite..."
+    needs: [frontend-ci, mosaic-tile-e2e, mosaic-vending-e2e]
+    uses: ./.github/workflows/components/e2e.yml
+    with:
+      test_type: full
+      needs_run: ${{ needs.changes.outputs.full_e2e_needs_run }}
 
   notify:
-    needs: [
-      frontend-ci,
-      mosaic-tile-ci,
-      mosaic-vending-ci,
-      deploy-mosaic-tile,
-      deploy-mosaic-vending,
-      mosaic-tile-e2e,
-      mosaic-vending-e2e,
-      full-e2e
-    ]
+    needs: [frontend-ci, mosaic-tile-ci, mosaic-vending-ci, mosaic-tile-e2e, mosaic-vending-e2e, full-e2e]
     if: always()
-    runs-on: ubuntu-latest
-    steps:
-      - name: Get skip reasons
-        id: skip-reasons
-        run: |
-          get_skip_reason() {
-            local job_name=$1
-            local component=$2
-            local is_main="${{ github.ref == 'refs/heads/main' }}"
-            
-            if [[ "${{ needs.changes.outputs }}" != *"$component=true"* ]]; then
-              echo "✅ No changes detected"
-            elif [[ "$job_name" =~ ^deploy || "$job_name" =~ e2e$ ]] && [[ "$is_main" != "true" ]]; then
-              echo "⏭️ Not on main branch"
-            else
-              echo ""
-            fi
-          }
-          
-          # Frontend
-          echo "frontend_ci=$([ "${{ needs.frontend-ci.result }}" == "skipped" ] && get_skip_reason "frontend-ci" "frontend" || echo "")" >> $GITHUB_OUTPUT
-          
-          # Contract CI
-          echo "mosaic_tile_ci=$([ "${{ needs.mosaic-tile-ci.result }}" == "skipped" ] && get_skip_reason "mosaic-tile-ci" "mosaic_tile" || echo "")" >> $GITHUB_OUTPUT
-          echo "mosaic_vending_ci=$([ "${{ needs.mosaic-vending-ci.result }}" == "skipped" ] && get_skip_reason "mosaic-vending-ci" "mosaic_vending" || echo "")" >> $GITHUB_OUTPUT
-          
-          # Deployments
-          echo "deploy_mosaic_tile=$([ "${{ needs.deploy-mosaic-tile.result }}" == "skipped" ] && get_skip_reason "deploy-mosaic-tile" "mosaic_tile" || echo "")" >> $GITHUB_OUTPUT
-          echo "deploy_mosaic_vending=$([ "${{ needs.deploy-mosaic-vending.result }}" == "skipped" ] && get_skip_reason "deploy-mosaic-vending" "mosaic_vending" || echo "")" >> $GITHUB_OUTPUT
-          
-          # E2E tests
-          echo "mosaic_tile_e2e=$([ "${{ needs.mosaic-tile-e2e.result }}" == "skipped" ] && get_skip_reason "mosaic-tile-e2e" "mosaic_tile" || echo "")" >> $GITHUB_OUTPUT
-          echo "mosaic_vending_e2e=$([ "${{ needs.mosaic-vending-e2e.result }}" == "skipped" ] && get_skip_reason "mosaic-vending-e2e" "mosaic_vending" || echo "")" >> $GITHUB_OUTPUT
-          echo "full_e2e=$([ "${{ needs.full-e2e.result }}" == "skipped" ] && get_skip_reason "full-e2e" "full" || echo "")" >> $GITHUB_OUTPUT
-
-      - name: Generate badges
-        uses: schneegans/dynamic-badges-action@v1.6.0
-        continue-on-error: true
-        with:
-          auth: ${{ secrets.GIST_TOKEN }}
-          gistID: 1ff46a4915f58fa0fce5cab7577f94f1
-          filename: frontend-ci.json
-          label: Frontend CI
-          message: ${{ needs.frontend-ci.result }}
-          color: ${{ needs.frontend-ci.result == 'success' && 'success' || 'critical' }}
-
-      - name: Generate Mosaic Tile CI badge
-        uses: schneegans/dynamic-badges-action@v1.6.0
-        continue-on-error: true
-        with:
-          auth: ${{ secrets.GIST_TOKEN }}
-          gistID: 1ff46a4915f58fa0fce5cab7577f94f1
-          filename: mosaic-tile-ci.json
-          label: Mosaic Tile CI
-          message: ${{ needs.mosaic-tile-ci.result }}
-          color: ${{ needs.mosaic-tile-ci.result == 'success' && 'success' || 'critical' }}
-
-      - name: Generate Mosaic Vending CI badge
-        uses: schneegans/dynamic-badges-action@v1.6.0
-        continue-on-error: true
-        with:
-          auth: ${{ secrets.GIST_TOKEN }}
-          gistID: 1ff46a4915f58fa0fce5cab7577f94f1
-          filename: mosaic-vending-ci.json
-          label: Mosaic Vending CI
-          message: ${{ needs.mosaic-vending-ci.result }}
-          color: ${{ needs.mosaic-vending-ci.result == 'success' && 'success' || 'critical' }}
-
-      - name: Generate Deploy Mosaic Tile badge
-        uses: schneegans/dynamic-badges-action@v1.6.0
-        continue-on-error: true
-        with:
-          auth: ${{ secrets.GIST_TOKEN }}
-          gistID: 1ff46a4915f58fa0fce5cab7577f94f1
-          filename: deploy-mosaic-tile.json
-          label: Deploy Mosaic Tile
-          message: ${{ needs.deploy-mosaic-tile.result }}
-          color: ${{ needs.deploy-mosaic-tile.result == 'success' && 'success' || 'critical' }}
-
-      - name: Generate Deploy Mosaic Vending badge
-        uses: schneegans/dynamic-badges-action@v1.6.0
-        continue-on-error: true
-        with:
-          auth: ${{ secrets.GIST_TOKEN }}
-          gistID: 1ff46a4915f58fa0fce5cab7577f94f1
-          filename: deploy-mosaic-vending.json
-          label: Deploy Mosaic Vending
-          message: ${{ needs.deploy-mosaic-vending.result }}
-          color: ${{ needs.deploy-mosaic-vending.result == 'success' && 'success' || 'critical' }}
-
-      - name: Generate Mosaic Tile E2E badge
-        uses: schneegans/dynamic-badges-action@v1.6.0
-        continue-on-error: true
-        with:
-          auth: ${{ secrets.GIST_TOKEN }}
-          gistID: 1ff46a4915f58fa0fce5cab7577f94f1
-          filename: mosaic-tile-e2e.json
-          label: Mosaic Tile E2E
-          message: ${{ needs.mosaic-tile-e2e.result }}
-          color: ${{ needs.mosaic-tile-e2e.result == 'success' && 'success' || 'critical' }}
-
-      - name: Generate Mosaic Vending E2E badge
-        uses: schneegans/dynamic-badges-action@v1.6.0
-        continue-on-error: true
-        with:
-          auth: ${{ secrets.GIST_TOKEN }}
-          gistID: 1ff46a4915f58fa0fce5cab7577f94f1
-          filename: mosaic-vending-e2e.json
-          label: Mosaic Vending E2E
-          message: ${{ needs.mosaic-vending-e2e.result }}
-          color: ${{ needs.mosaic-vending-e2e.result == 'success' && 'success' || 'critical' }}
-
-      - name: Generate Full E2E badge
-        uses: schneegans/dynamic-badges-action@v1.6.0
-        continue-on-error: true
-        with:
-          auth: ${{ secrets.GIST_TOKEN }}
-          gistID: 1ff46a4915f58fa0fce5cab7577f94f1
-          filename: full-e2e.json
-          label: Full E2E Tests
-          message: ${{ needs.full-e2e.result }}
-          color: ${{ needs.full-e2e.result == 'success' && 'success' || 'critical' }}
-
-      - name: Send Discord notification
-        if: always()
-        env:
-          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
-        run: |
-          # Function to get status emoji
-          get_status_emoji() {
-            case "$1" in
-              "success") echo "✅";;
-              "failure") echo "❌";;
-              "cancelled") echo "⚠️";;
-              "skipped") echo "⏭️";;
-              *) echo "❓";;
-            esac
-          }
-
-          # Function to get run reason
-          get_run_reason() {
-            local job_name=$1
-            local result=$2
-            local skip_reason=$3
-            local component=$4
-            local needs_run
-            
-            case "$component" in
-              "frontend") needs_run="${{ needs.changes.outputs.frontend_needs_run }}" ;;
-              "mosaic_tile") needs_run="${{ needs.changes.outputs.mosaic_tile_needs_run }}" ;;
-              "mosaic_vending") needs_run="${{ needs.changes.outputs.mosaic_vending_needs_run }}" ;;
-              "full") needs_run="${{ needs.changes.outputs.full_e2e_needs_run }}" ;;
-              *) needs_run="false" ;;
-            esac
-            
-            if [[ "$result" == "skipped" ]]; then
-              echo "$skip_reason"
-            elif [[ "$needs_run" == "true" ]]; then
-              if [[ "${{ needs.changes.outputs }}" == *"${component}=true"* ]]; then
-                echo "🔄 Changes detected"
-              else
-                echo "🆕 Never ran before"
-              fi
-            else
-              echo "🔄 Changes detected"
-            fi
-          }
-
-          # Overall status
-          overall_status="success"
-          for job in frontend-ci mosaic-tile-ci mosaic-vending-ci deploy-mosaic-tile deploy-mosaic-vending mosaic-tile-e2e mosaic-vending-e2e full-e2e; do
-            if [[ "${{ needs[job].result }}" == "failure" ]]; then
-              overall_status="failure"
-              break
-            fi
-          done
-
-          # Build notification message
-          message=$(cat << EOF
-          **🚀 Workflow Run: $([ "$overall_status" == "success" ] && echo "✅ Success" || echo "❌ Failed")**
-
-          **🔨 Build & Test**
-          • Frontend CI: $(get_status_emoji "${{ needs.frontend-ci.result }}") \`${{ needs.frontend-ci.result }}\` $(get_run_reason "frontend-ci" "${{ needs.frontend-ci.result }}" "${{ steps.skip-reasons.outputs.frontend_ci }}" "frontend")
-          • Mosaic Tile CI: $(get_status_emoji "${{ needs.mosaic-tile-ci.result }}") \`${{ needs.mosaic-tile-ci.result }}\` $(get_run_reason "mosaic-tile-ci" "${{ needs.mosaic-tile-ci.result }}" "${{ steps.skip-reasons.outputs.mosaic_tile_ci }}" "mosaic_tile")
-          • Mosaic Vending CI: $(get_status_emoji "${{ needs.mosaic-vending-ci.result }}") \`${{ needs.mosaic-vending-ci.result }}\` $(get_run_reason "mosaic-vending-ci" "${{ needs.mosaic-vending-ci.result }}" "${{ steps.skip-reasons.outputs.mosaic_vending_ci }}" "mosaic_vending")
-
-          **🚀 Deployment**
-          • Mosaic Tile: $(get_status_emoji "${{ needs.deploy-mosaic-tile.result }}") \`${{ needs.deploy-mosaic-tile.result }}\` $(get_run_reason "deploy-mosaic-tile" "${{ needs.deploy-mosaic-tile.result }}" "${{ steps.skip-reasons.outputs.deploy_mosaic_tile }}" "mosaic_tile")
-          • Mosaic Vending: $(get_status_emoji "${{ needs.deploy-mosaic-vending.result }}") \`${{ needs.deploy-mosaic-vending.result }}\` $(get_run_reason "deploy-mosaic-vending" "${{ needs.deploy-mosaic-vending.result }}" "${{ steps.skip-reasons.outputs.deploy_mosaic_vending }}" "mosaic_vending")
-
-          **🧪 E2E Tests**
-          • Mosaic Tile: $(get_status_emoji "${{ needs.mosaic-tile-e2e.result }}") \`${{ needs.mosaic-tile-e2e.result }}\` $(get_run_reason "mosaic-tile-e2e" "${{ needs.mosaic-tile-e2e.result }}" "${{ steps.skip-reasons.outputs.mosaic_tile_e2e }}" "mosaic_tile")
-          • Mosaic Vending: $(get_status_emoji "${{ needs.mosaic-vending-e2e.result }}") \`${{ needs.mosaic-vending-e2e.result }}\` $(get_run_reason "mosaic-vending-e2e" "${{ needs.mosaic-vending-e2e.result }}" "${{ steps.skip-reasons.outputs.mosaic_vending_e2e }}" "mosaic_vending")
-          • Full E2E: $(get_status_emoji "${{ needs.full-e2e.result }}") \`${{ needs.full-e2e.result }}\` $(get_run_reason "full-e2e" "${{ needs.full-e2e.result }}" "${{ steps.skip-reasons.outputs.full_e2e }}" "full")
-
-          **🔗 Links**
-          • [View Run Details](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
-          • [View Changes](https://github.com/${{ github.repository }}/commit/${{ github.sha }})
-
-          **📊 Status Badges**
-          • [Frontend CI](https://github.com/${{ github.repository }}/actions/workflows/pixel-canvas.yml)
-          • [Mosaic Tile CI](https://github.com/${{ github.repository }}/actions/workflows/pixel-canvas.yml)
-          • [Mosaic Vending CI](https://github.com/${{ github.repository }}/actions/workflows/pixel-canvas.yml)
-          EOF
-          )
-
-          # Escape the message for JSON
-          message_escaped=$(echo "$message" | jq -R -s '.')
-
-          # Send to Discord
-          json_data=$(cat << EOF
-          {
-            "username": "GitHub Actions",
-            "avatar_url": "https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png",
-            "embeds": [{
-              "title": "🚀 Workflow Run",
-              "description": ${message_escaped},
-              "color": $([ "$overall_status" == "success" ] && echo "5025616" || echo "15158332")
-            }]
-          }
-          EOF
-          )
-
-          curl -H "Content-Type: application/json" -X POST -d "$json_data" $DISCORD_WEBHOOK
+    uses: ./.github/workflows/components/notify.yml
+    with:
+      frontend_ci_result: ${{ needs.frontend-ci.result }}
+      mosaic_tile_ci_result: ${{ needs.mosaic-tile-ci.result }}
+      mosaic_vending_ci_result: ${{ needs.mosaic-vending-ci.result }}
+      mosaic_tile_e2e_result: ${{ needs.mosaic-tile-e2e.result }}
+      mosaic_vending_e2e_result: ${{ needs.mosaic-vending-e2e.result }}
+      full_e2e_result: ${{ needs.full-e2e.result }}
+    secrets:
+      DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
+      GIST_TOKEN: ${{ secrets.GIST_TOKEN }}

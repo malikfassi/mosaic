@@ -1,0 +1,87 @@
+name: Changes Detection
+
+on:
+  workflow_call:
+    outputs:
+      frontend:
+        description: "Whether frontend changes were detected"
+        value: ${{ jobs.changes.outputs.frontend }}
+      mosaic_tile:
+        description: "Whether mosaic-tile changes were detected"
+        value: ${{ jobs.changes.outputs.mosaic_tile }}
+      mosaic_vending:
+        description: "Whether mosaic-vending changes were detected"
+        value: ${{ jobs.changes.outputs.mosaic_vending }}
+      frontend_needs_run:
+        description: "Whether frontend CI needs to run"
+        value: ${{ jobs.changes.outputs.frontend_needs_run }}
+      mosaic_tile_needs_run:
+        description: "Whether mosaic-tile CI needs to run"
+        value: ${{ jobs.changes.outputs.mosaic_tile_needs_run }}
+      mosaic_vending_needs_run:
+        description: "Whether mosaic-vending CI needs to run"
+        value: ${{ jobs.changes.outputs.mosaic_vending_needs_run }}
+      full_e2e_needs_run:
+        description: "Whether full E2E tests need to run"
+        value: ${{ jobs.changes.outputs.full_e2e_needs_run }}
+
+jobs:
+  changes:
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: read
+    outputs:
+      frontend: ${{ steps.filter.outputs.frontend }}
+      mosaic_tile: ${{ steps.filter.outputs.mosaic_tile }}
+      mosaic_vending: ${{ steps.filter.outputs.mosaic_vending }}
+      frontend_needs_run: ${{ steps.check-runs.outputs.frontend_needs_run }}
+      mosaic_tile_needs_run: ${{ steps.check-runs.outputs.mosaic_tile_needs_run }}
+      mosaic_vending_needs_run: ${{ steps.check-runs.outputs.mosaic_vending_needs_run }}
+      full_e2e_needs_run: ${{ steps.check-runs.outputs.full_e2e_needs_run }}
+    steps:
+      - uses: actions/checkout@v3
+      - uses: dorny/paths-filter@v2
+        id: filter
+        with:
+          filters: |
+            frontend:
+              - 'frontend/**'
+            mosaic_tile:
+              - 'contracts/mosaic-tile-nft/**'
+              - 'contracts/Cargo.toml'
+            mosaic_vending:
+              - 'contracts/mosaic-vending-minter/**'
+              - 'contracts/Cargo.toml'
+      
+      - name: Check needs run
+        id: check-runs
+        run: |
+          # Frontend
+          if [[ "${{ steps.filter.outputs.frontend }}" == "true" ]]; then
+            echo "frontend_needs_run=true" >> $GITHUB_OUTPUT
+          else
+            echo "frontend_needs_run=false" >> $GITHUB_OUTPUT
+          fi
+
+          # Mosaic Tile
+          if [[ "${{ steps.filter.outputs.mosaic_tile }}" == "true" ]]; then
+            echo "mosaic_tile_needs_run=true" >> $GITHUB_OUTPUT
+          else
+            echo "mosaic_tile_needs_run=false" >> $GITHUB_OUTPUT
+          fi
+
+          # Mosaic Vending
+          if [[ "${{ steps.filter.outputs.mosaic_vending }}" == "true" ]]; then
+            echo "mosaic_vending_needs_run=true" >> $GITHUB_OUTPUT
+          else
+            echo "mosaic_vending_needs_run=false" >> $GITHUB_OUTPUT
+          fi
+
+          # Check full-e2e needs run
+          if [[ "${{ steps.filter.outputs.frontend }}" == "true" || \
+                "${{ steps.filter.outputs.mosaic_tile }}" == "true" || \
+                "${{ steps.filter.outputs.mosaic_vending }}" == "true" ]]; then
+            echo "full_e2e_needs_run=true" >> $GITHUB_OUTPUT
+          else
+            echo "full_e2e_needs_run=false" >> $GITHUB_OUTPUT
+          fi 

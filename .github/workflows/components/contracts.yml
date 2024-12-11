@@ -1,0 +1,36 @@
+name: Contract CI
+
+on:
+  workflow_call:
+    inputs:
+      contract_name:
+        required: true
+        type: string
+        description: "Name of the contract (mosaic-tile or mosaic-vending)"
+      needs_run:
+        required: true
+        type: boolean
+        description: "Whether this workflow needs to run"
+
+jobs:
+  contract-ci:
+    if: inputs.needs_run
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Check formatting
+        run: |
+          cd contracts/${{ inputs.contract_name }}-nft
+          cargo fmt -- --check
+      - name: Run clippy
+        run: |
+          cd contracts/${{ inputs.contract_name }}-nft
+          cargo clippy -- -D warnings
+      - name: Run unit tests
+        run: |
+          cd contracts/${{ inputs.contract_name }}-nft
+          cargo test
+      - name: Check schema generation
+        run: |
+          cd contracts/${{ inputs.contract_name }}-nft
+          cargo run --example schema 

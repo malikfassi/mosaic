@@ -1,0 +1,37 @@
+name: E2E Tests
+
+on:
+  workflow_call:
+    inputs:
+      test_type:
+        required: true
+        type: string
+        description: "Type of E2E test (mosaic-tile, mosaic-vending, or full)"
+      needs_run:
+        required: true
+        type: boolean
+        description: "Whether this workflow needs to run"
+
+jobs:
+  e2e:
+    if: inputs.needs_run && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Run E2E tests
+        run: |
+          case "${{ inputs.test_type }}" in
+            "mosaic-tile")
+              echo "Running mosaic-tile E2E tests..."
+              ;;
+            "mosaic-vending")
+              echo "Running mosaic-vending E2E tests..."
+              ;;
+            "full")
+              echo "Running full E2E test suite..."
+              ;;
+            *)
+              echo "Unknown test type: ${{ inputs.test_type }}"
+              exit 1
+              ;;
+          esac 

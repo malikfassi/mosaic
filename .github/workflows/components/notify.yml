@@ -1,0 +1,128 @@
+name: Notifications
+
+on:
+  workflow_call:
+    inputs:
+      frontend_ci_result:
+        required: true
+        type: string
+      mosaic_tile_ci_result:
+        required: true
+        type: string
+      mosaic_vending_ci_result:
+        required: true
+        type: string
+      mosaic_tile_e2e_result:
+        required: true
+        type: string
+      mosaic_vending_e2e_result:
+        required: true
+        type: string
+      full_e2e_result:
+        required: true
+        type: string
+    secrets:
+      DISCORD_WEBHOOK:
+        required: true
+      GIST_TOKEN:
+        required: true
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Generate badges
+        uses: schneegans/dynamic-badges-action@v1.6.0
+        continue-on-error: true
+        with:
+          auth: ${{ secrets.GIST_TOKEN }}
+          gistID: 1ff46a4915f58fa0fce5cab7577f94f1
+          filename: frontend-ci.json
+          label: Frontend CI
+          message: ${{ inputs.frontend_ci_result }}
+          color: ${{ inputs.frontend_ci_result == 'success' && 'success' || 'critical' }}
+
+      - name: Generate Mosaic Tile CI badge
+        uses: schneegans/dynamic-badges-action@v1.6.0
+        continue-on-error: true
+        with:
+          auth: ${{ secrets.GIST_TOKEN }}
+          gistID: 1ff46a4915f58fa0fce5cab7577f94f1
+          filename: mosaic-tile-ci.json
+          label: Mosaic Tile CI
+          message: ${{ inputs.mosaic_tile_ci_result }}
+          color: ${{ inputs.mosaic_tile_ci_result == 'success' && 'success' || 'critical' }}
+
+      - name: Generate Mosaic Vending CI badge
+        uses: schneegans/dynamic-badges-action@v1.6.0
+        continue-on-error: true
+        with:
+          auth: ${{ secrets.GIST_TOKEN }}
+          gistID: 1ff46a4915f58fa0fce5cab7577f94f1
+          filename: mosaic-vending-ci.json
+          label: Mosaic Vending CI
+          message: ${{ inputs.mosaic_vending_ci_result }}
+          color: ${{ inputs.mosaic_vending_ci_result == 'success' && 'success' || 'critical' }}
+
+      - name: Send Discord notification
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
+        run: |
+          # Function to get status emoji
+          get_status_emoji() {
+            case "$1" in
+              "success") echo "✅";;
+              "failure") echo "❌";;
+              "cancelled") echo "⚠️";;
+              "skipped") echo "⏭️";;
+              *) echo "❓";;
+            esac
+          }
+
+          # Overall status
+          overall_status="success"
+          for result in "${{ inputs.frontend_ci_result }}" "${{ inputs.mosaic_tile_ci_result }}" "${{ inputs.mosaic_vending_ci_result }}" "${{ inputs.mosaic_tile_e2e_result }}" "${{ inputs.mosaic_vending_e2e_result }}" "${{ inputs.full_e2e_result }}"; do
+            if [[ "$result" == "failure" ]]; then
+              overall_status="failure"
+              break
+            fi
+          done
+
+          # Build notification message
+          message=$(cat << EOF
+          **🚀 Workflow Run: $([ "$overall_status" == "success" ] && echo "✅ Success" || echo "❌ Failed")**
+
+          **🔨 Build & Test**
+          • Frontend CI: $(get_status_emoji "${{ inputs.frontend_ci_result }}") \`${{ inputs.frontend_ci_result }}\`
+          • Mosaic Tile CI: $(get_status_emoji "${{ inputs.mosaic_tile_ci_result }}") \`${{ inputs.mosaic_tile_ci_result }}\`
+          • Mosaic Vending CI: $(get_status_emoji "${{ inputs.mosaic_vending_ci_result }}") \`${{ inputs.mosaic_vending_ci_result }}\`
+
+          **🧪 E2E Tests**
+          • Mosaic Tile: $(get_status_emoji "${{ inputs.mosaic_tile_e2e_result }}") \`${{ inputs.mosaic_tile_e2e_result }}\`
+          • Mosaic Vending: $(get_status_emoji "${{ inputs.mosaic_vending_e2e_result }}") \`${{ inputs.mosaic_vending_e2e_result }}\`
+          • Full E2E: $(get_status_emoji "${{ inputs.full_e2e_result }}") \`${{ inputs.full_e2e_result }}\`
+
+          **🔗 Links**
+          • [View Run Details](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
+          • [View Changes](https://github.com/${{ github.repository }}/commit/${{ github.sha }})
+          EOF
+          )
+
+          # Escape the message for JSON
+          message_escaped=$(echo "$message" | jq -R -s '.')
+
+          # Send to Discord
+          json_data=$(cat << EOF
+          {
+            "username": "GitHub Actions",
+            "avatar_url": "https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png",
+            "embeds": [{
+              "title": "🚀 Workflow Run",
+              "description": ${message_escaped},
+              "color": $([ "$overall_status" == "success" ] && echo "5025616" || echo "15158332")
+            }]
+          }
+          EOF
+          )
+
+          curl -H "Content-Type: application/json" -X POST -d "$json_data" $DISCORD_WEBHOOK 

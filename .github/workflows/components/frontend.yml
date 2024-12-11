@@ -1,0 +1,25 @@
+name: Frontend CI
+
+on:
+  workflow_call:
+    inputs:
+      needs_run:
+        required: true
+        type: boolean
+        description: "Whether this workflow needs to run"
+
+jobs:
+  frontend-ci:
+    if: inputs.needs_run
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+      - name: Install dependencies
+        run: cd frontend && npm ci
+      - name: Run linting
+        run: cd frontend && npm run lint
+      - name: Run tests
+        run: cd frontend && npm test 
