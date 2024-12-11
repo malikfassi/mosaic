@@ -83,5 +83,3 @@ jobs:
           action: update
           execution_plan: ${{ inputs.execution_plan }}
           gist_id: ${{ inputs.gist_id }}
-        secrets:
-          GIST_TOKEN: ${{ secrets.GIST_TOKEN }}
