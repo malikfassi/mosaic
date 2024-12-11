@@ -27,6 +27,22 @@ function generateComponentStatus(name, jobs, results) {
   return lines.join('\n');
 }
 
+async function sendDiscordMessage(message, webhookUrl) {
+  const response = await fetch(webhookUrl, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      content: message,
+    }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Failed to send Discord message: ${response.statusText}`);
+  }
+}
+
 async function main() {
   try {
     // Get inputs from environment
@@ -81,14 +97,20 @@ async function main() {
     // Add run link
     sections.push(`\n[View run](${plan.metadata.repository}/actions/runs/${plan.metadata.run_id})`);
 
-    // Join all sections and write to file
+    // Join all sections and send to Discord
     const message = sections.join('\n\n');
-    await writeFile('discord_message.txt', message);
     
+    // Send to Discord
+    const webhookUrl = process.env.DISCORD_WEBHOOK;
+    if (!webhookUrl) {
+      throw new Error('Discord webhook URL not provided');
+    }
+    
+    await sendDiscordMessage(message, webhookUrl);
     console.log('Generated Discord message:');
     console.log(message);
   } catch (error) {
-    console.error('Error generating Discord message:', error);
+    console.error('Error in notify:', error);
     process.exit(1);
   }
 }

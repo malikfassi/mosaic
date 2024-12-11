@@ -82,7 +82,7 @@ jobs:
         working-directory: .github/workflow-scripts
         run: npm ci
 
-      - name: Generate Discord Message
+      - name: Generate and Send Discord Message
         working-directory: .github/workflow-scripts
         env:
           EXECUTION_PLAN: ${{ inputs.execution_plan }}
@@ -102,17 +102,8 @@ jobs:
           MOSAIC_TILE_E2E_RESULT: ${{ inputs.mosaic_tile_e2e_result }}
           MOSAIC_VENDING_E2E_RESULT: ${{ inputs.mosaic_vending_e2e_result }}
           FULL_E2E_RESULT: ${{ inputs.full_e2e_result }}
-        run: |
-          npm run notify
-          echo "Generated Discord message:"
-          cat discord_message.txt
-
-      - name: Send Discord Message
-        uses: tsickert/discord-webhook@v5.3.0
-        with:
-          webhook-url: ${{ secrets.DISCORD_WEBHOOK }}
-          filename: discord_message.txt
-          working-directory: .github/workflow-scripts
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
+        run: npm run notify
 
       - name: Update Gist Status
         working-directory: .github/workflow-scripts
