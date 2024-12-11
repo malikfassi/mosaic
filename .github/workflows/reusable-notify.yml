@@ -21,6 +21,12 @@ on:
       full_e2e_result:
         required: true
         type: string
+      mosaic_tile_deploy_result:
+        required: true
+        type: string
+      mosaic_vending_deploy_result:
+        required: true
+        type: string
     secrets:
       DISCORD_WEBHOOK:
         required: true
@@ -57,24 +63,29 @@ jobs:
           get_run_status() {
             local job_name=$1
             local result=$2
+            local depends_on=$3  # Optional: job that this job depends on
             
             if [[ "$result" == "skipped" ]]; then
-              # Find last run to determine skip reason
-              local last_run=$(gh run list --workflow pixel-canvas.yml \
-                --json conclusion,jobs,databaseId,url \
-                --jq ".[] | select(.jobs[].name == \"$job_name\") | {conclusion: .conclusion, url: .url}" \
-                --limit 1)
-              
-              if [[ -n "$last_run" ]]; then
-                local conclusion=$(echo "$last_run" | jq -r '.conclusion')
-                local run_url=$(echo "$last_run" | jq -r '.url')
-                if [[ "$conclusion" == "success" ]]; then
-                  echo "⏭️ \`skipped\` ([previous success]($run_url))"
-                else
-                  echo "⏭️ \`skipped\` (no successful run)"
-                fi
+              if [[ -n "$depends_on" && "${{ inputs[depends_on] }}" == "failure" ]]; then
+                echo "⏭️ \`skipped\` (previous step failed)"
               else
-                echo "⏭️ \`skipped\` (no previous run)"
+                # Find last run to determine skip reason
+                local last_run=$(gh run list --workflow pixel-canvas.yml \
+                  --json conclusion,jobs,databaseId,url \
+                  --jq ".[] | select(.jobs[].name == \"$job_name\") | {conclusion: .conclusion, url: .url}" \
+                  --limit 1)
+                
+                if [[ -n "$last_run" ]]; then
+                  local conclusion=$(echo "$last_run" | jq -r '.conclusion')
+                  local run_url=$(echo "$last_run" | jq -r '.url')
+                  if [[ "$conclusion" == "success" ]]; then
+                    echo "⏭️ \`skipped\` ([previous success]($run_url))"
+                  else
+                    echo "⏭️ \`skipped\` (no successful run)"
+                  fi
+                else
+                  echo "⏭️ \`skipped\` (no previous run)"
+                fi
               fi
             else
               echo "$(get_status_emoji "$result") \`$result\`"
@@ -83,7 +94,7 @@ jobs:
 
           # Overall status
           overall_status="success"
-          for result in "${{ inputs.frontend_ci_result }}" "${{ inputs.mosaic_tile_ci_result }}" "${{ inputs.mosaic_vending_ci_result }}" "${{ inputs.mosaic_tile_e2e_result }}" "${{ inputs.mosaic_vending_e2e_result }}" "${{ inputs.full_e2e_result }}"; do
+          for result in "${{ inputs.frontend_ci_result }}" "${{ inputs.mosaic_tile_ci_result }}" "${{ inputs.mosaic_vending_ci_result }}" "${{ inputs.mosaic_tile_deploy_result }}" "${{ inputs.mosaic_vending_deploy_result }}" "${{ inputs.mosaic_tile_e2e_result }}" "${{ inputs.mosaic_vending_e2e_result }}" "${{ inputs.full_e2e_result }}"; do
             if [[ "$result" == "failure" ]]; then
               overall_status="failure"
               break
@@ -99,10 +110,14 @@ jobs:
           • Mosaic Tile CI: $(get_run_status "mosaic-tile-ci" "${{ inputs.mosaic_tile_ci_result }}")
           • Mosaic Vending CI: $(get_run_status "mosaic-vending-ci" "${{ inputs.mosaic_vending_ci_result }}")
 
+          **🧪 Deployment**
+          • Mosaic Tile: $(get_run_status "deploy-mosaic-tile" "${{ inputs.mosaic_tile_deploy_result }}" "mosaic_tile_ci_result")
+          • Mosaic Vending: $(get_run_status "deploy-mosaic-vending" "${{ inputs.mosaic_vending_deploy_result }}" "mosaic_vending_ci_result")
+
           **🧪 E2E Tests**
-          • Mosaic Tile: $(get_run_status "mosaic-tile-e2e" "${{ inputs.mosaic_tile_e2e_result }}")
-          • Mosaic Vending: $(get_run_status "mosaic-vending-e2e" "${{ inputs.mosaic_vending_e2e_result }}")
-          • Full E2E: $(get_run_status "full-e2e" "${{ inputs.full_e2e_result }}")
+          • Mosaic Tile: $(get_run_status "mosaic-tile-e2e" "${{ inputs.mosaic_tile_e2e_result }}" "mosaic_tile_deploy_result")
+          • Mosaic Vending: $(get_run_status "mosaic-vending-e2e" "${{ inputs.mosaic_vending_e2e_result }}" "mosaic_vending_deploy_result")
+          • Full E2E: $(get_run_status "full-e2e" "${{ inputs.full_e2e_result }}" "mosaic_vending_e2e_result")
 
           **🔗 Links**
           • [View Run Details](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})

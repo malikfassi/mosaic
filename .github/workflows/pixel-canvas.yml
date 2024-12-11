@@ -38,15 +38,33 @@ jobs:
       contract_name: mosaic-vending
       needs_run: ${{ needs.changes.outputs.mosaic_vending_needs_run }}
 
-  mosaic-tile-e2e:
+  deploy-mosaic-tile:
     needs: [mosaic-tile-ci]
+    if: needs.mosaic-tile-ci.result == 'success'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Deploy mosaic-tile contract
+        run: echo "Deploying mosaic-tile contract..."
+
+  deploy-mosaic-vending:
+    needs: [mosaic-vending-ci]
+    if: needs.mosaic-vending-ci.result == 'success'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Deploy mosaic-vending contract
+        run: echo "Deploying mosaic-vending contract..."
+
+  mosaic-tile-e2e:
+    needs: [deploy-mosaic-tile]
     uses: ./.github/workflows/reusable-e2e.yml
     with:
       test_type: mosaic-tile
       needs_run: ${{ needs.changes.outputs.mosaic_tile_needs_run }}
 
   mosaic-vending-e2e:
-    needs: [mosaic-vending-ci]
+    needs: [deploy-mosaic-vending]
     uses: ./.github/workflows/reusable-e2e.yml
     with:
       test_type: mosaic-vending
@@ -60,13 +78,15 @@ jobs:
       needs_run: ${{ needs.changes.outputs.full_e2e_needs_run }}
 
   notify:
-    needs: [changes, frontend-ci, mosaic-tile-ci, mosaic-vending-ci, mosaic-tile-e2e, mosaic-vending-e2e, full-e2e]
+    needs: [changes, frontend-ci, mosaic-tile-ci, mosaic-vending-ci, deploy-mosaic-tile, deploy-mosaic-vending, mosaic-tile-e2e, mosaic-vending-e2e, full-e2e]
     if: always()
     uses: ./.github/workflows/reusable-notify.yml
     with:
       frontend_ci_result: ${{ needs.frontend-ci.result }}
       mosaic_tile_ci_result: ${{ needs.mosaic-tile-ci.result }}
       mosaic_vending_ci_result: ${{ needs.mosaic-vending-ci.result }}
+      mosaic_tile_deploy_result: ${{ needs.deploy-mosaic-tile.result }}
+      mosaic_vending_deploy_result: ${{ needs.deploy-mosaic-vending.result }}
       mosaic_tile_e2e_result: ${{ needs.mosaic-tile-e2e.result }}
       mosaic_vending_e2e_result: ${{ needs.mosaic-vending-e2e.result }}
       full_e2e_result: ${{ needs.full-e2e.result }}
