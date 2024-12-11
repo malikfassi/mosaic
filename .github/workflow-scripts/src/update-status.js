@@ -1,6 +1,29 @@
 import { getOctokit } from '@actions/github';
 import { JOBS, COMPONENTS, getAllFileNames } from './workflow-config.js';
 
+// Map job names to their result environment variables
+const JOB_RESULT_MAP = {
+  'frontend-ci-lint': 'frontend_lint_result',
+  'frontend-ci-test': 'frontend_test_result',
+  'frontend-ci-build': 'frontend_build_result',
+  
+  'mosaic-tile-ci-format': 'mosaic_tile_format_result',
+  'mosaic-tile-ci-lint': 'mosaic_tile_lint_result',
+  'mosaic-tile-ci-test': 'mosaic_tile_test_result',
+  'mosaic-tile-ci-schema': 'mosaic_tile_schema_result',
+  'deploy-mosaic-tile': 'mosaic_tile_deploy_result',
+  'mosaic-tile-e2e': 'mosaic_tile_e2e_result',
+  
+  'mosaic-vending-ci-format': 'mosaic_vending_format_result',
+  'mosaic-vending-ci-lint': 'mosaic_vending_lint_result',
+  'mosaic-vending-ci-test': 'mosaic_vending_test_result',
+  'mosaic-vending-ci-schema': 'mosaic_vending_schema_result',
+  'deploy-mosaic-vending': 'mosaic_vending_deploy_result',
+  'mosaic-vending-e2e': 'mosaic_vending_e2e_result',
+  
+  'full-e2e': 'full_e2e_result'
+};
+
 async function main() {
   try {
     // Get inputs from environment
@@ -43,8 +66,13 @@ async function main() {
     // Prepare gist files update
     const files = {};
     for (const filename of filenames) {
-      const [jobName, hash] = filename.split('.');
-      const result = results[`${jobName.toLowerCase().replace(/-/g, '_')}_result`];
+      const [jobName] = filename.split('.');
+      const resultKey = JOB_RESULT_MAP[jobName];
+      if (!resultKey) {
+        console.warn(`No result mapping found for job: ${jobName}`);
+        continue;
+      }
+      const result = results[resultKey];
 
       // Only update files for successful jobs
       if (result === 'success') {
@@ -57,7 +85,6 @@ async function main() {
             workflow_id: plan.metadata.workflow_id,
             commit_sha: plan.metadata.commit_sha,
             repository: plan.metadata.repository,
-            component_hash: hash,
             branch: plan.metadata.branch
           }
         };
