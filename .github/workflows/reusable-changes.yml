@@ -3,27 +3,18 @@ name: Changes Detection
 on:
   workflow_call:
     outputs:
-      frontend_files_changed:
-        description: "Whether frontend files were changed"
-        value: ${{ jobs.check-files-changes.outputs.frontend }}
-      mosaic_tile_files_changed:
-        description: "Whether mosaic-tile files were changed"
-        value: ${{ jobs.check-files-changes.outputs.mosaic_tile }}
-      mosaic_vending_files_changed:
-        description: "Whether mosaic-vending files were changed"
-        value: ${{ jobs.check-files-changes.outputs.mosaic_vending }}
       frontend_needs_run:
         description: "Whether frontend CI needs to run"
-        value: ${{ jobs.check-previous-run.outputs.frontend_needs_run }}
+        value: ${{ jobs.check-needs-run.outputs.frontend_needs_run }}
       mosaic_tile_needs_run:
         description: "Whether mosaic-tile CI needs to run"
-        value: ${{ jobs.check-previous-run.outputs.mosaic_tile_needs_run }}
+        value: ${{ jobs.check-needs-run.outputs.mosaic_tile_needs_run }}
       mosaic_vending_needs_run:
         description: "Whether mosaic-vending CI needs to run"
-        value: ${{ jobs.check-previous-run.outputs.mosaic_vending_needs_run }}
+        value: ${{ jobs.check-needs-run.outputs.mosaic_vending_needs_run }}
       full_e2e_needs_run:
         description: "Whether full E2E tests need to run"
-        value: ${{ jobs.check-previous-run.outputs.full_e2e_needs_run }}
+        value: ${{ jobs.check-needs-run.outputs.full_e2e_needs_run }}
 
 jobs:
   check-files-changes:
@@ -49,7 +40,7 @@ jobs:
               - 'contracts/mosaic-vending-minter/**'
               - 'contracts/Cargo.toml'
 
-  check-previous-run:
+  check-needs-run:
     needs: check-files-changes
     runs-on: ubuntu-latest
     permissions:
@@ -64,56 +55,39 @@ jobs:
         with:
           fetch-depth: 0  # Needed to get all history
 
-      - name: Check previous runs
+      - name: Check if jobs need to run
         id: check-runs
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          # Function to check if a job needs to run based on history
+          # Function to check if a job needs to run
           check_job_needs_run() {
             local job_name=$1
             local files_changed=$2
             local code_path=$3
             
-            # If no files changed, job can be skipped
-            if [[ "$files_changed" != "true" ]]; then
-              echo "false"
+            # If files changed, we need to run
+            if [[ "$files_changed" == "true" ]]; then
+              echo "true"
               return
             fi
             
-            # Get current files hash
-            local current_hash=$(find "$code_path" -type f -exec sha256sum {} \; | sort | sha256sum | cut -d' ' -f1)
-            
-            # Check previous runs for this job
-            local found_matching_run=false
-            gh run list --workflow pixel-canvas.yml \
+            # No files changed, check previous run status
+            local last_run=$(gh run list --workflow pixel-canvas.yml \
               --json conclusion,jobs,headSha \
               --jq ".[] | select(.jobs[].name == \"$job_name\") | {conclusion: .conclusion, sha: .headSha}" \
-              --limit 100 | while read -r run; do
-                local sha=$(echo "$run" | jq -r '.sha')
-                local conclusion=$(echo "$run" | jq -r '.conclusion')
-                
-                # Get hash of files at that commit
-                local old_hash=$(git show "$sha:$code_path" 2>/dev/null | sha256sum | cut -d' ' -f1)
-                
-                # If hashes match, we found a previous run with same code
-                if [[ "$old_hash" == "$current_hash" ]]; then
-                  found_matching_run=true
-                  if [[ "$conclusion" == "success" ]]; then
-                    needs_run=false
-                  else
-                    needs_run=true
-                  fi
-                  break
-                fi
-              done
+              --limit 1)
             
-            # If no matching run found, we need to run
-            if [[ "$found_matching_run" != "true" ]]; then
-              needs_run=true
+            if [[ -n "$last_run" ]]; then
+              local conclusion=$(echo "$last_run" | jq -r '.conclusion')
+              if [[ "$conclusion" == "success" ]]; then
+                echo "false"  # Previous run succeeded, no need to run
+              else
+                echo "true"   # Previous run failed, need to run
+              fi
+            else
+              echo "true"     # No previous run found, need to run
             fi
-            
-            echo "$needs_run"
           }
           
           # Check each job
