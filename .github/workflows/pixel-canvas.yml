@@ -473,7 +473,8 @@ jobs:
           done
 
           # Build notification message
-          message="**🚀 Workflow Run: $([ "$overall_status" == "success" ] && echo "✅ Success" || echo "❌ Failed")**
+          message=$(cat << EOF
+          **🚀 Workflow Run: $([ "$overall_status" == "success" ] && echo "✅ Success" || echo "❌ Failed")**
 
           **🔨 Build & Test**
           • Frontend CI: $(get_status_emoji "${{ needs.frontend-ci.result }}") \`${{ needs.frontend-ci.result }}\` $(get_run_reason "frontend-ci" "${{ needs.frontend-ci.result }}" "${{ steps.skip-reasons.outputs.frontend_ci }}" "frontend")
@@ -496,15 +497,25 @@ jobs:
           **📊 Status Badges**
           • [Frontend CI](https://github.com/${{ github.repository }}/actions/workflows/pixel-canvas.yml)
           • [Mosaic Tile CI](https://github.com/${{ github.repository }}/actions/workflows/pixel-canvas.yml)
-          • [Mosaic Vending CI](https://github.com/${{ github.repository }}/actions/workflows/pixel-canvas.yml)"
+          • [Mosaic Vending CI](https://github.com/${{ github.repository }}/actions/workflows/pixel-canvas.yml)
+          EOF
+          )
+
+          # Escape the message for JSON
+          message_escaped=$(echo "$message" | jq -R -s '.')
 
           # Send to Discord
-          curl -H "Content-Type: application/json" -X POST -d '{
+          json_data=$(cat << EOF
+          {
             "username": "GitHub Actions",
             "avatar_url": "https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png",
             "embeds": [{
               "title": "🚀 Workflow Run",
-              "description": "'"$message"'",
-              "color": '"$([ "$overall_status" == "success" ] && echo "5025616" || echo "15158332")"'
+              "description": ${message_escaped},
+              "color": $([ "$overall_status" == "success" ] && echo "5025616" || echo "15158332")
             }]
-          }' $DISCORD_WEBHOOK
+          }
+          EOF
+          )
+
+          curl -H "Content-Type: application/json" -X POST -d "$json_data" $DISCORD_WEBHOOK
