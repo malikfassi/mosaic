@@ -24,26 +24,29 @@ jobs:
     needs: changes
     uses: ./.github/workflows/reusable-frontend.yml
     with:
-      needs_run: ${{ needs.changes.outputs.frontend_needs_run }}
+      needs_run: ${{ fromJson(needs.changes.outputs.plan).jobs.frontend-ci.needs_run }}
+      component_hash: ${{ fromJson(needs.changes.outputs.plan).components.frontend.hash }}
 
   mosaic-tile-ci:
     needs: [changes, rust-setup]
     uses: ./.github/workflows/reusable-contracts.yml
     with:
       contract_name: mosaic-tile
-      needs_run: ${{ needs.changes.outputs.mosaic_tile_needs_run }}
+      needs_run: ${{ fromJson(needs.changes.outputs.plan).jobs.mosaic-tile-ci.needs_run }}
+      component_hash: ${{ fromJson(needs.changes.outputs.plan).components.mosaic_tile.hash }}
 
   mosaic-vending-ci:
     needs: [changes, rust-setup]
     uses: ./.github/workflows/reusable-contracts.yml
     with:
       contract_name: mosaic-vending
-      needs_run: ${{ needs.changes.outputs.mosaic_vending_needs_run }}
+      needs_run: ${{ fromJson(needs.changes.outputs.plan).jobs.mosaic-vending-ci.needs_run }}
+      component_hash: ${{ fromJson(needs.changes.outputs.plan).components.mosaic_vending.hash }}
 
   # Deployment jobs
   deploy-mosaic-tile:
     needs: mosaic-tile-ci
-    if: needs.mosaic-tile-ci.result == 'success'
+    if: ${{ fromJson(needs.changes.outputs.plan).jobs.deploy-mosaic-tile.condition }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
@@ -52,7 +55,7 @@ jobs:
 
   deploy-mosaic-vending:
     needs: mosaic-vending-ci
-    if: needs.mosaic-vending-ci.result == 'success'
+    if: ${{ fromJson(needs.changes.outputs.plan).jobs.deploy-mosaic-vending.condition }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
@@ -65,21 +68,21 @@ jobs:
     uses: ./.github/workflows/reusable-e2e.yml
     with:
       test_type: mosaic-tile
-      needs_run: ${{ needs.changes.outputs.mosaic_tile_needs_run }}
+      needs_run: ${{ fromJson(needs.changes.outputs.plan).jobs.mosaic-tile-e2e.needs_run }}
 
   mosaic-vending-e2e:
     needs: deploy-mosaic-vending
     uses: ./.github/workflows/reusable-e2e.yml
     with:
       test_type: mosaic-vending
-      needs_run: ${{ needs.changes.outputs.mosaic_vending_needs_run }}
+      needs_run: ${{ fromJson(needs.changes.outputs.plan).jobs.mosaic-vending-e2e.needs_run }}
 
   full-e2e:
     needs: [frontend-ci, mosaic-tile-e2e, mosaic-vending-e2e]
     uses: ./.github/workflows/reusable-e2e.yml
     with:
       test_type: full
-      needs_run: ${{ needs.changes.outputs.full_e2e_needs_run }}
+      needs_run: ${{ fromJson(needs.changes.outputs.plan).jobs.full-e2e.needs_run }}
 
   # Final notification
   notify:
@@ -87,6 +90,7 @@ jobs:
     if: always()
     uses: ./.github/workflows/reusable-notify.yml
     with:
+      execution_plan: ${{ needs.changes.outputs.plan }}
       frontend_ci_result: ${{ needs.frontend-ci.result }}
       mosaic_tile_ci_result: ${{ needs.mosaic-tile-ci.result }}
       mosaic_vending_ci_result: ${{ needs.mosaic-vending-ci.result }}
@@ -95,9 +99,6 @@ jobs:
       mosaic_tile_e2e_result: ${{ needs.mosaic-tile-e2e.result }}
       mosaic_vending_e2e_result: ${{ needs.mosaic-vending-e2e.result }}
       full_e2e_result: ${{ needs.full-e2e.result }}
-      frontend_hash: ${{ needs.changes.outputs.frontend_hash }}
-      mosaic_tile_hash: ${{ needs.changes.outputs.mosaic_tile_hash }}
-      mosaic_vending_hash: ${{ needs.changes.outputs.mosaic_vending_hash }}
     secrets:
       DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
       GIST_TOKEN: ${{ secrets.GIST_TOKEN }}
