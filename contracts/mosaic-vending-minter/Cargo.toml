@@ -29,7 +29,7 @@ sg721          = "0.22.0"
 sg721-base     = "0.22.0"
 thiserror      = "1.0.48"
 mosaic-tile-nft = { path = "../mosaic-tile-nft", version = "0.1.0" }
-rand = { version = "0.8", default-features = false }
+rand = { version = "0.8", default-features = false, features = ["std_rng"] }
 getrandom = { version = "0.2", features = ["js"] }
 
 [dev-dependencies]
