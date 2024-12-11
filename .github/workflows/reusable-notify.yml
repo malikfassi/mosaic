@@ -169,35 +169,45 @@ jobs:
           
           # Create message
           message="🚀 **Workflow Run Report**
-          
-          **Components**
-          
+
           **Frontend**
-          Status: $frontend_status
-          Hash: $frontend_hash
+          Hash: \`$(echo "$plan" | jq -r '.components.frontend.hash')\`
+          Changes: $(if [[ "$(echo "$plan" | jq -r '.components.frontend.files_changed')" == "true" ]]; then
+            echo "Yes"
+            echo "$plan" | jq -r '.components.frontend.changed_files | map("  - " + .) | join("\n")' | sed 's/^/    /'
+          else
+            echo "No (using $(echo "$plan" | jq -r '.components.frontend.previous_run.run.created_at' | cut -d'T' -f1) [run]($(echo "$plan" | jq -r '.components.frontend.previous_run.run.url')))"
+          fi)
+          Jobs:
+            CI: $frontend_result
           
           **Mosaic Tile**
-          Status: $mosaic_tile_status
-          Hash: $mosaic_tile_hash
+          Hash: \`$(echo "$plan" | jq -r '.components.mosaic_tile.hash')\`
+          Changes: $(if [[ "$(echo "$plan" | jq -r '.components.mosaic_tile.files_changed')" == "true" ]]; then
+            echo "Yes"
+            echo "$plan" | jq -r '.components.mosaic_tile.changed_files | map("  - " + .) | join("\n")' | sed 's/^/    /'
+          else
+            echo "No (using $(echo "$plan" | jq -r '.components.mosaic_tile.previous_run.run.created_at' | cut -d'T' -f1) [run]($(echo "$plan" | jq -r '.components.mosaic_tile.previous_run.run.url')))"
+          fi)
+          Jobs:
+            CI: $mosaic_tile_result
+            Deploy: $mosaic_tile_deploy_result
+            E2E: $mosaic_tile_e2e_result
           
           **Mosaic Vending**
-          Status: $mosaic_vending_status
-          Hash: $mosaic_vending_hash
+          Hash: \`$(echo "$plan" | jq -r '.components.mosaic_vending.hash')\`
+          Changes: $(if [[ "$(echo "$plan" | jq -r '.components.mosaic_vending.files_changed')" == "true" ]]; then
+            echo "Yes"
+            echo "$plan" | jq -r '.components.mosaic_vending.changed_files | map("  - " + .) | join("\n")' | sed 's/^/    /'
+          else
+            echo "No (using $(echo "$plan" | jq -r '.components.mosaic_vending.previous_run.run.created_at' | cut -d'T' -f1) [run]($(echo "$plan" | jq -r '.components.mosaic_vending.previous_run.run.url')))"
+          fi)
+          Jobs:
+            CI: $mosaic_vending_result
+            Deploy: $mosaic_vending_deploy_result
+            E2E: $mosaic_vending_e2e_result
           
-          **Jobs**
-          
-          **CI Jobs**
-          Frontend CI: $frontend_result
-          Mosaic Tile CI: $mosaic_tile_result
-          Mosaic Vending CI: $mosaic_vending_result
-          
-          **Deploy Jobs**
-          Mosaic Tile Deploy: $mosaic_tile_deploy_result
-          Mosaic Vending Deploy: $mosaic_vending_deploy_result
-          
-          **E2E Jobs**
-          Mosaic Tile E2E: $mosaic_tile_e2e_result
-          Mosaic Vending E2E: $mosaic_vending_e2e_result
+          **Integration**
           Full E2E: $full_e2e_result
           
           **Run Details**
