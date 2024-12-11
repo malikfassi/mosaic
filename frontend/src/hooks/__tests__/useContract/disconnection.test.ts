@@ -38,16 +38,17 @@ describe('useContract Disconnection', () => {
     expect(result.current.isConnected).toBe(true)
     
     // Then disconnect
-    act(() => {
+    await act(async () => {
       result.current.disconnect()
+      // Wait for state update within the act block
+      await waitForStateUpdate()
     })
     
-    // Wait for state updates to complete
-    await waitForStateUpdate()
-    
+    // Verify disconnected state
     expect(result.current.isConnected).toBe(false)
     expect(result.current.address).toBe('')
     expect(result.current.error).toBeNull()
+    expect(result.current.client).toBeNull()
   })
 
   it('clears error state on disconnect', async () => {
@@ -72,14 +73,16 @@ describe('useContract Disconnection', () => {
     expect(result.current.error).toEqual(expectedError)
     
     // Then disconnect
-    act(() => {
+    await act(async () => {
       result.current.disconnect()
+      // Wait for state update within the act block
+      await waitForStateUpdate()
     })
-    
-    // Wait for state updates to complete
-    await waitForStateUpdate()
     
     // Verify error state is cleared
     expect(result.current.error).toBeNull()
+    expect(result.current.isConnected).toBe(false)
+    expect(result.current.address).toBe('')
+    expect(result.current.client).toBeNull()
   })
 }) 
