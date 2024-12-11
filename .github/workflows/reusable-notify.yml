@@ -129,11 +129,22 @@ jobs:
         with:
           args: ${{ steps.status.outputs.message }}
 
+      - name: Create status file
+        run: |
+          echo "${{ steps.status.outputs.message }}" > status.md
+
       - name: Update Status Gist
         if: always()
-        uses: peter-evans/create-gist@v2
+        uses: fjogeleit/http-request-action@v1
         with:
-          token: ${{ secrets.GIST_TOKEN }}
-          gist_id: YOUR_GIST_ID_HERE
-          file_name: status.md
-          content: ${{ steps.status.outputs.message }}
+          url: https://api.github.com/gists/${{ inputs.gist_id }}
+          method: 'PATCH'
+          bearerToken: ${{ secrets.GIST_TOKEN }}
+          data: |
+            {
+              "files": {
+                "status.md": {
+                  "content": "${{ steps.status.outputs.message }}"
+                }
+              }
+            }
