@@ -46,6 +46,7 @@ jobs:
 
       - name: Generate Status Message
         id: status
+        shell: bash
         run: |
           # Parse execution plan
           plan='${{ inputs.execution_plan }}'
@@ -104,100 +105,105 @@ jobs:
             echo "$result_text"
           }
           
-          # Create message
-          message="# 🚀 Workflow Run Report
+          # Create message content
+          cat > message.md << 'EOL'
+          # 🚀 Workflow Run Report
 
-\`$(echo "$plan" | jq -r '.metadata.commit_sha')\` • $(echo "$plan" | jq -r '.metadata.event_type') • \`main\` • [View Run](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
-$(if [[ "${{ inputs.frontend_ci_result }}" == "success" && "${{ inputs.mosaic_tile_ci_result }}" == "success" && "${{ inputs.mosaic_vending_ci_result }}" == "success" && "${{ inputs.full_e2e_result }}" == "success" ]]; then echo "✅"; else echo "❌"; fi) Overall Status
+          `$(echo "$plan" | jq -r '.metadata.commit_sha')` • $(echo "$plan" | jq -r '.metadata.event_type') • `main` • [View Run](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
+          $(if [[ "${{ inputs.frontend_ci_result }}" == "success" && "${{ inputs.mosaic_tile_ci_result }}" == "success" && "${{ inputs.mosaic_vending_ci_result }}" == "success" && "${{ inputs.full_e2e_result }}" == "success" ]]; then echo "✅"; else echo "❌"; fi) Overall Status
 
-## 🔍 Components
+          ## 🔍 Components
 
-### 🎨 Frontend (\`$(echo "$plan" | jq -r '.components.frontend.hash')\`)
-$(if [[ "$(echo "$plan" | jq -r '.components.frontend.files_changed')" == "true" ]]; then
-  echo "📝 Changes:"
-  echo "$plan" | jq -r '.components.frontend.changed_files | map("- " + .) | join("\n")'
-else
-  previous_run=$(echo "$plan" | jq -r '.components.frontend.previous_run')
-  if [[ "$(echo "$previous_run" | jq -r '.found')" == "true" ]]; then
-    echo "✨ No changes _(using $(echo "$previous_run.run" | jq -r '.created_at' | cut -d'T' -f1) [run]($(echo "$previous_run.run" | jq -r '.url')))_"
-  else
-    echo "🆕 First run"
-  fi
-fi)
+          ### 🎨 Frontend (`$(echo "$plan" | jq -r '.components.frontend.hash')`)
+          $(if [[ "$(echo "$plan" | jq -r '.components.frontend.files_changed')" == "true" ]]; then
+            echo "📝 Changes:"
+            echo "$plan" | jq -r '.components.frontend.changed_files | map("- " + .) | join("\n")'
+          else
+            previous_run=$(echo "$plan" | jq -r '.components.frontend.previous_run')
+            if [[ "$(echo "$previous_run" | jq -r '.found')" == "true" ]]; then
+              echo "✨ No changes _(using $(echo "$previous_run.run" | jq -r '.created_at' | cut -d'T' -f1) [run]($(echo "$previous_run.run" | jq -r '.url')))_"
+            else
+              echo "🆕 First run"
+            fi
+          fi)
 
-**Pipeline:** $(if [[ "$(echo "$plan" | jq -r '.jobs.frontend-ci.needs_run')" == "false" ]]; then
-  echo "✅ CI _(reused)_"
-else
-  echo "CI: $(format_job_result "frontend-ci" "${{ inputs.frontend_ci_result }}")"
-fi)
+          **Pipeline:** $(if [[ "$(echo "$plan" | jq -r '.jobs.frontend-ci.needs_run')" == "false" ]]; then
+            echo "✅ CI _(reused)_"
+          else
+            echo "CI: $(format_job_result "frontend-ci" "${{ inputs.frontend_ci_result }}")"
+          fi)
 
-### 🧩 Mosaic Tile (\`$(echo "$plan" | jq -r '.components.mosaic_tile.hash')\`)
-$(if [[ "$(echo "$plan" | jq -r '.components.mosaic_tile.files_changed')" == "true" ]]; then
-  echo "📝 Changes:"
-  echo "$plan" | jq -r '.components.mosaic_tile.changed_files | map("- " + .) | join("\n")'
-else
-  previous_run=$(echo "$plan" | jq -r '.components.mosaic_tile.previous_run')
-  if [[ "$(echo "$previous_run" | jq -r '.found')" == "true" ]]; then
-    echo "✨ No changes _(using $(echo "$previous_run.run" | jq -r '.created_at' | cut -d'T' -f1) [run]($(echo "$previous_run.run" | jq -r '.url')))_"
-  else
-    echo "🆕 First run"
-  fi
-fi)
+          ### 🧩 Mosaic Tile (`$(echo "$plan" | jq -r '.components.mosaic_tile.hash')`)
+          $(if [[ "$(echo "$plan" | jq -r '.components.mosaic_tile.files_changed')" == "true" ]]; then
+            echo "📝 Changes:"
+            echo "$plan" | jq -r '.components.mosaic_tile.changed_files | map("- " + .) | join("\n")'
+          else
+            previous_run=$(echo "$plan" | jq -r '.components.mosaic_tile.previous_run')
+            if [[ "$(echo "$previous_run" | jq -r '.found')" == "true" ]]; then
+              echo "✨ No changes _(using $(echo "$previous_run.run" | jq -r '.created_at' | cut -d'T' -f1) [run]($(echo "$previous_run.run" | jq -r '.url')))_"
+            else
+              echo "🆕 First run"
+            fi
+          fi)
 
-**Pipeline:** $(if [[ "$(echo "$plan" | jq -r '.jobs.mosaic-tile-ci.needs_run')" == "false" ]]; then
-  echo "✅ CI _(reused)_ → "
-else
-  echo "CI: $(format_job_result "mosaic-tile-ci" "${{ inputs.mosaic_tile_ci_result }}") → "
-fi)$(if [[ "$(echo "$plan" | jq -r '.jobs.deploy-mosaic-tile.needs_run')" == "false" ]]; then
-  echo "✅ Deploy _(reused)_ → "
-else
-  echo "Deploy: $(format_job_result "deploy-mosaic-tile" "${{ inputs.mosaic_tile_deploy_result }}") → "
-fi)$(if [[ "$(echo "$plan" | jq -r '.jobs.mosaic-tile-e2e.needs_run')" == "false" ]]; then
-  echo "✅ E2E _(reused)_"
-else
-  echo "E2E: $(format_job_result "mosaic-tile-e2e" "${{ inputs.mosaic_tile_e2e_result }}")"
-fi)
+          **Pipeline:** $(if [[ "$(echo "$plan" | jq -r '.jobs.mosaic-tile-ci.needs_run')" == "false" ]]; then
+            echo "✅ CI _(reused)_ → "
+          else
+            echo "CI: $(format_job_result "mosaic-tile-ci" "${{ inputs.mosaic_tile_ci_result }}") → "
+          fi)$(if [[ "$(echo "$plan" | jq -r '.jobs.deploy-mosaic-tile.needs_run')" == "false" ]]; then
+            echo "✅ Deploy _(reused)_ → "
+          else
+            echo "Deploy: $(format_job_result "deploy-mosaic-tile" "${{ inputs.mosaic_tile_deploy_result }}") → "
+          fi)$(if [[ "$(echo "$plan" | jq -r '.jobs.mosaic-tile-e2e.needs_run')" == "false" ]]; then
+            echo "✅ E2E _(reused)_"
+          else
+            echo "E2E: $(format_job_result "mosaic-tile-e2e" "${{ inputs.mosaic_tile_e2e_result }}")"
+          fi)
 
-### 🎲 Mosaic Vending (\`$(echo "$plan" | jq -r '.components.mosaic_vending.hash')\`)
-$(if [[ "$(echo "$plan" | jq -r '.components.mosaic_vending.files_changed')" == "true" ]]; then
-  echo "📝 Changes:"
-  echo "$plan" | jq -r '.components.mosaic_vending.changed_files | map("- " + .) | join("\n")'
-else
-  previous_run=$(echo "$plan" | jq -r '.components.mosaic_vending.previous_run')
-  if [[ "$(echo "$previous_run" | jq -r '.found')" == "true" ]]; then
-    echo "✨ No changes _(using $(echo "$previous_run.run" | jq -r '.created_at' | cut -d'T' -f1) [run]($(echo "$previous_run.run" | jq -r '.url')))_"
-  else
-    echo "🆕 First run"
-  fi
-fi)
+          ### 🎲 Mosaic Vending (`$(echo "$plan" | jq -r '.components.mosaic_vending.hash')`)
+          $(if [[ "$(echo "$plan" | jq -r '.components.mosaic_vending.files_changed')" == "true" ]]; then
+            echo "📝 Changes:"
+            echo "$plan" | jq -r '.components.mosaic_vending.changed_files | map("- " + .) | join("\n")'
+          else
+            previous_run=$(echo "$plan" | jq -r '.components.mosaic_vending.previous_run')
+            if [[ "$(echo "$previous_run" | jq -r '.found')" == "true" ]]; then
+              echo "✨ No changes _(using $(echo "$previous_run.run" | jq -r '.created_at' | cut -d'T' -f1) [run]($(echo "$previous_run.run" | jq -r '.url')))_"
+            else
+              echo "🆕 First run"
+            fi
+          fi)
 
-**Pipeline:** $(if [[ "$(echo "$plan" | jq -r '.jobs.mosaic-vending-ci.needs_run')" == "false" ]]; then
-  echo "✅ CI _(reused)_ → "
-else
-  echo "CI: $(format_job_result "mosaic-vending-ci" "${{ inputs.mosaic_vending_ci_result }}") → "
-fi)$(if [[ "$(echo "$plan" | jq -r '.jobs.deploy-mosaic-vending.needs_run')" == "false" ]]; then
-  echo "✅ Deploy _(reused)_ → "
-else
-  echo "Deploy: $(format_job_result "deploy-mosaic-vending" "${{ inputs.mosaic_vending_deploy_result }}") → "
-fi)$(if [[ "$(echo "$plan" | jq -r '.jobs.mosaic-vending-e2e.needs_run')" == "false" ]]; then
-  echo "✅ E2E _(reused)_"
-else
-  echo "E2E: $(format_job_result "mosaic-vending-e2e" "${{ inputs.mosaic_vending_e2e_result }}")"
-fi)
+          **Pipeline:** $(if [[ "$(echo "$plan" | jq -r '.jobs.mosaic-vending-ci.needs_run')" == "false" ]]; then
+            echo "✅ CI _(reused)_ → "
+          else
+            echo "CI: $(format_job_result "mosaic-vending-ci" "${{ inputs.mosaic_vending_ci_result }}") → "
+          fi)$(if [[ "$(echo "$plan" | jq -r '.jobs.deploy-mosaic-vending.needs_run')" == "false" ]]; then
+            echo "✅ Deploy _(reused)_ → "
+          else
+            echo "Deploy: $(format_job_result "deploy-mosaic-vending" "${{ inputs.mosaic_vending_deploy_result }}") → "
+          fi)$(if [[ "$(echo "$plan" | jq -r '.jobs.mosaic-vending-e2e.needs_run')" == "false" ]]; then
+            echo "✅ E2E _(reused)_"
+          else
+            echo "E2E: $(format_job_result "mosaic-vending-e2e" "${{ inputs.mosaic_vending_e2e_result }}")"
+          fi)
 
-### 🔄 Integration
-**Full E2E:** $(if [[ "$(echo "$plan" | jq -r '.jobs.full-e2e.needs_run')" == "false" ]]; then
-  echo "✅ _(no changes)_"
-else
-  echo "$(format_job_result "full-e2e" "${{ inputs.full_e2e_result }}")"
-fi)
+          ### 🔄 Integration
+          **Full E2E:** $(if [[ "$(echo "$plan" | jq -r '.jobs.full-e2e.needs_run')" == "false" ]]; then
+            echo "✅ _(no changes)_"
+          else
+            echo "$(format_job_result "full-e2e" "${{ inputs.full_e2e_result }}")"
+          fi)
 
-## 📋 Execution Plan
-\`\`\`json
-$plan
-\`\`\`"
+          ## 📋 Execution Plan
+          \`\`\`json
+          $plan
+          \`\`\`
+          EOL
+
+          # Process the message template
+          message=$(envsubst < message.md)
           
-          # Save message
+          # Save message to output
           {
             echo "message<<EOF"
             echo "$message"
