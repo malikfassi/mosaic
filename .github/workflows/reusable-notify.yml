@@ -27,6 +27,18 @@ on:
       mosaic_vending_deploy_result:
         required: true
         type: string
+      frontend_hash:
+        required: true
+        type: string
+        description: "Hash of frontend changes"
+      mosaic_tile_hash:
+        required: true
+        type: string
+        description: "Hash of mosaic-tile changes"
+      mosaic_vending_hash:
+        required: true
+        type: string
+        description: "Hash of mosaic-vending changes"
     secrets:
       DISCORD_WEBHOOK:
         required: true
@@ -47,6 +59,9 @@ jobs:
         env:
           DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
           GH_TOKEN: ${{ github.token }}
+          FRONTEND_HASH: ${{ inputs.frontend_hash }}
+          MOSAIC_TILE_HASH: ${{ inputs.mosaic_tile_hash }}
+          MOSAIC_VENDING_HASH: ${{ inputs.mosaic_vending_hash }}
         run: |
           # Function to get status emoji
           get_status_emoji() {
@@ -64,31 +79,48 @@ jobs:
             local job_name=$1
             local result=$2
             local depends_on=$3  # Optional: job that this job depends on
+            local component_hash=$4  # Optional: component hash for checking previous runs
             
-            if [[ "$result" == "skipped" ]]; then
-              if [[ -n "$depends_on" && "${{ inputs[depends_on] }}" == "failure" ]]; then
-                echo "⏭️ \`skipped\` (previous step failed)"
-              else
-                # Find last run to determine skip reason
-                local last_run=$(gh run list --workflow pixel-canvas.yml \
-                  --json conclusion,jobs,databaseId,url \
-                  --jq ".[] | select(.jobs[].name == \"$job_name\") | {conclusion: .conclusion, url: .url}" \
-                  --limit 1)
-                
-                if [[ -n "$last_run" ]]; then
-                  local conclusion=$(echo "$last_run" | jq -r '.conclusion')
-                  local run_url=$(echo "$last_run" | jq -r '.url')
-                  if [[ "$conclusion" == "success" ]]; then
-                    echo "⏭️ \`skipped\` ([previous success]($run_url))"
-                  else
-                    echo "⏭️ \`skipped\` (no successful run)"
-                  fi
-                else
-                  echo "⏭️ \`skipped\` (no previous run)"
-                fi
-              fi
-            else
+            # For actually run jobs, show direct status
+            if [[ "$result" != "skipped" ]]; then
               echo "$(get_status_emoji "$result") \`$result\`"
+              return
+            fi
+            
+            # For skipped jobs, determine why
+            
+            # Case 1: Dependency failure
+            if [[ -n "$depends_on" && "${{ inputs[depends_on] }}" == "failure" ]]; then
+              echo "⏭️ \`not run\` (previous step failed)"
+              return
+            fi
+            
+            # Case 2: Check if we have a hash to compare
+            if [[ -z "$component_hash" ]]; then
+              echo "❌ \`error\` (missing hash)"
+              return
+            fi
+            
+            # Case 3: Look for successful run with this exact hash
+            local last_successful_run_with_hash=$(gh run list --workflow pixel-canvas.yml \
+              --json conclusion,jobs,databaseId \
+              --jq ".[] | select(.jobs[].name == \"$job_name\" and .conclusion == \"success\")" \
+              --limit 10 | while read -r run; do
+                run_id=$(echo "$run" | jq -r '.databaseId')
+                run_hash=$(gh api "/repos/${{ github.repository }}/actions/runs/$run_id/jobs" \
+                  --jq ".jobs[] | select(.name == \"check-needs-run\").steps[] | select(.name == \"Check if jobs need to run\").outputs.${component_hash}")
+                
+                if [[ "$run_hash" == "${!component_hash}" ]]; then
+                  echo "found"
+                  break
+                fi
+              done)
+            
+            # If we found a successful run with this hash, it's valid to skip
+            if [[ -n "$last_successful_run_with_hash" ]]; then
+              echo "✅ \`not run\` (previously successful)"
+            else
+              echo "❌ \`error\` (should run - no success with current hash)"
             fi
           }
 
@@ -106,17 +138,17 @@ jobs:
           **🚀 Workflow Run: $([ "$overall_status" == "success" ] && echo "✅ Success" || echo "❌ Failed")**
 
           **🔨 Build & Test**
-          • Frontend CI: $(get_run_status "frontend-ci" "${{ inputs.frontend_ci_result }}")
-          • Mosaic Tile CI: $(get_run_status "mosaic-tile-ci" "${{ inputs.mosaic_tile_ci_result }}")
-          • Mosaic Vending CI: $(get_run_status "mosaic-vending-ci" "${{ inputs.mosaic_vending_ci_result }}")
+          • Frontend CI: $(get_run_status "frontend-ci" "${{ inputs.frontend_ci_result }}" "" "FRONTEND_HASH")
+          • Mosaic Tile CI: $(get_run_status "mosaic-tile-ci" "${{ inputs.mosaic_tile_ci_result }}" "" "MOSAIC_TILE_HASH")
+          • Mosaic Vending CI: $(get_run_status "mosaic-vending-ci" "${{ inputs.mosaic_vending_ci_result }}" "" "MOSAIC_VENDING_HASH")
 
           **🧪 Deployment**
-          • Mosaic Tile: $(get_run_status "deploy-mosaic-tile" "${{ inputs.mosaic_tile_deploy_result }}" "mosaic_tile_ci_result")
-          • Mosaic Vending: $(get_run_status "deploy-mosaic-vending" "${{ inputs.mosaic_vending_deploy_result }}" "mosaic_vending_ci_result")
+          • Mosaic Tile: $(get_run_status "deploy-mosaic-tile" "${{ inputs.mosaic_tile_deploy_result }}" "mosaic_tile_ci_result" "MOSAIC_TILE_HASH")
+          • Mosaic Vending: $(get_run_status "deploy-mosaic-vending" "${{ inputs.mosaic_vending_deploy_result }}" "mosaic_vending_ci_result" "MOSAIC_VENDING_HASH")
 
           **🧪 E2E Tests**
-          • Mosaic Tile: $(get_run_status "mosaic-tile-e2e" "${{ inputs.mosaic_tile_e2e_result }}" "mosaic_tile_deploy_result")
-          • Mosaic Vending: $(get_run_status "mosaic-vending-e2e" "${{ inputs.mosaic_vending_e2e_result }}" "mosaic_vending_deploy_result")
+          • Mosaic Tile: $(get_run_status "mosaic-tile-e2e" "${{ inputs.mosaic_tile_e2e_result }}" "mosaic_tile_deploy_result" "MOSAIC_TILE_HASH")
+          • Mosaic Vending: $(get_run_status "mosaic-vending-e2e" "${{ inputs.mosaic_vending_e2e_result }}" "mosaic_vending_deploy_result" "MOSAIC_VENDING_HASH")
           • Full E2E: $(get_run_status "full-e2e" "${{ inputs.full_e2e_result }}" "mosaic_vending_e2e_result")
 
           **🔗 Links**
