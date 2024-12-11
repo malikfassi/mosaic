@@ -37,7 +37,7 @@ on:
     secrets:
       DISCORD_WEBHOOK:
         required: true
-      GIST_TOKEN:
+      GIST_SECRET:
         required: true
 
 jobs:
@@ -69,6 +69,8 @@ jobs:
           MOSAIC_TILE_E2E_RESULT: ${{ inputs.mosaic_tile_e2e_result }}
           MOSAIC_VENDING_E2E_RESULT: ${{ inputs.mosaic_vending_e2e_result }}
           FULL_E2E_RESULT: ${{ inputs.full_e2e_result }}
+          GIST_SECRET: ${{ secrets.GIST_SECRET }}
+          GIST_ID: ${{ inputs.gist_id }}
         run: npm run notify
 
       - name: Send Discord notification

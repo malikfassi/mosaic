@@ -48,10 +48,3 @@ jobs:
           GIST_ID: ${{ inputs.gist_id }}
           GITHUB_TOKEN: ${{ github.token }}
         run: npm run execution-plan
-
-      - name: Upload execution plan
-        uses: actions/upload-artifact@v3
-        with:
-          name: execution-plan
-          path: execution_plan.json
-          retention-days: 1  # Only keep for 1 day since it's just for debugging
