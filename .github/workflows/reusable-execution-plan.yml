@@ -47,4 +47,6 @@ jobs:
           GIST_SECRET: ${{ secrets.GIST_SECRET }}
           GIST_ID: ${{ inputs.GIST_ID }}
           GITHUB_TOKEN: ${{ github.token }}
-        run: npm run execution-plan
+        run: |
+          npm run execution-plan
+          setoutput name=plan,value=${{ steps.plan.outputs.plan }}
