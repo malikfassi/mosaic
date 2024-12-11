@@ -34,10 +34,10 @@ jobs:
               - 'frontend/**'
             mosaic_tile:
               - 'contracts/mosaic-tile-nft/**'
-              - 'Cargo.toml'
+              - 'contracts/Cargo.toml'
             mosaic_vending:
               - 'contracts/mosaic-vending-minter/**'
-              - 'Cargo.toml'
+              - 'contracts/Cargo.toml'
       
       - name: Get code hashes
         id: hashes

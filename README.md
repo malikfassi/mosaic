@@ -137,7 +137,6 @@ Our CI/CD pipeline ensures code quality and reliability:
 
 ### Security
 
-- Dependency scanning with cargo deny
 - Regular security audits
 - See [SECURITY.md](SECURITY.md) for details
 

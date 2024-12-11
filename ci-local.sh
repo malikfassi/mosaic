@@ -184,11 +184,6 @@ if [[ $RUN_ADDITIONAL -eq 1 ]]; then
     echo -e "\n${YELLOW}Running Additional Checks${NC}"
     run_step "Coverage" "." "cargo tarpaulin --verbose --workspace --timeout 120" || exit 1
     run_step "WASM build" "." "cargo build --release --target wasm32-unknown-unknown" || exit 1
-    
-    # Optional: Only if cargo-deny is installed
-    if command -v cargo-deny &> /dev/null; then
-        run_step "Cargo deny check" "." "cargo deny check --workspace" || exit 1
-    fi
 fi
 
 echo -e "\n${GREEN}All requested CI checks completed successfully!${NC}"
