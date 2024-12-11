@@ -105,7 +105,7 @@ async function checkPreviousRun(octokit, jobName, componentHash) {
 
 async function generateExecutionPlan() {
   try {
-    const token = process.env.GIST_TOKEN;
+    const token = process.env.GIST_SECRET;
     const gistId = process.env.GIST_ID;
     console.log('GIST_ID:', gistId); // Debug log
     const octokit = getOctokit(token);

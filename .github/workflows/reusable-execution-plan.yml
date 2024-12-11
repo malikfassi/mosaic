@@ -44,7 +44,7 @@ jobs:
         id: plan
         working-directory: .github/workflow-scripts
         env:
-          GIST_TOKEN: ${{ secrets.GIST_SECRET }}
+          GIST_SECRET: ${{ secrets.GIST_SECRET }}
           GIST_ID: ${{ inputs.gist_id }}
           GITHUB_TOKEN: ${{ github.token }}
         run: npm run execution-plan

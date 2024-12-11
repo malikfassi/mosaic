@@ -17,7 +17,7 @@ jobs:
     with:
       gist_id: ${{ vars.GIST_ID }}
     secrets:
-      GIST_TOKEN: ${{ secrets.GIST_SECRET }}
+      GIST_SECRET: ${{ secrets.GIST_SECRET }}
 
   rust-setup:
     uses: ./.github/workflows/reusable-rust-setup.yml
@@ -107,4 +107,4 @@ jobs:
       gist_id: ${{ vars.GIST_ID }}
     secrets:
       DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
-      GIST_TOKEN: ${{ secrets.GIST_SECRET }}
+      GIST_SECRET: ${{ secrets.GIST_SECRET }}
