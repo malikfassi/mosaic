@@ -6,6 +6,10 @@ on:
   pull_request:
     branches: [ main ]
 
+permissions:
+  pull-requests: read  # Required for the changes job
+  contents: read      # Required for checkout and git operations
+
 jobs:
   changes:
     uses: ./.github/workflows/reusable-changes.yml
