@@ -11,26 +11,71 @@ on:
         required: true
         type: string
         description: "Whether this workflow needs to run ('true' or 'false')"
+      component_hash:
+        required: true
+        type: string
+        description: "Hash of the contract component state"
 
 jobs:
-  contract-ci:
+  format:
     if: inputs.needs_run == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
+      - uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
+          components: rustfmt
       - name: Check formatting
         run: |
           cd contracts/${{ inputs.contract_name }}-nft
           cargo fmt -- --check
+
+  lint:
+    if: inputs.needs_run == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
+          components: clippy
       - name: Run clippy
         run: |
           cd contracts/${{ inputs.contract_name }}-nft
           cargo clippy -- -D warnings
+
+  test:
+    if: inputs.needs_run == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
       - name: Run unit tests
         run: |
           cd contracts/${{ inputs.contract_name }}-nft
           cargo test
+
+  schema:
+    if: inputs.needs_run == 'true'
+    needs: [format, lint, test]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
       - name: Check schema generation
         run: |
           cd contracts/${{ inputs.contract_name }}-nft
-          cargo run --example schema 
+          cargo run --example schema

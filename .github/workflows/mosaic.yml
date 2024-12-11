@@ -1,4 +1,4 @@
-name: Pixel Canvas CI/CD
+name: Mosaic CI/CD
 
 on:
   push:
@@ -7,46 +7,46 @@ on:
     branches: [ main ]
 
 permissions:
-  pull-requests: read  # Required for the changes job
+  pull-requests: read  # Required for the execution plan job
   contents: read      # Required for checkout and git operations
   actions: read      # Required to read workflow runs
 
 jobs:
   # Initial setup jobs
-  changes:
-    uses: ./.github/workflows/reusable-changes.yml
+  execution-plan:
+    uses: ./.github/workflows/reusable-execution-plan.yml
 
   rust-setup:
     uses: ./.github/workflows/reusable-rust-setup.yml
 
   # CI jobs
   frontend-ci:
-    needs: changes
+    needs: execution-plan
     uses: ./.github/workflows/reusable-frontend.yml
     with:
-      needs_run: ${{ fromJson(needs.changes.outputs.plan).jobs.frontend-ci.needs_run }}
-      component_hash: ${{ fromJson(needs.changes.outputs.plan).components.frontend.hash }}
+      needs_run: ${{ fromJson(needs.execution-plan.outputs.plan).jobs.frontend-ci.needs_run }}
+      component_hash: ${{ fromJson(needs.execution-plan.outputs.plan).components.frontend.hash }}
 
   mosaic-tile-ci:
-    needs: [changes, rust-setup]
+    needs: [execution-plan, rust-setup]
     uses: ./.github/workflows/reusable-contracts.yml
     with:
       contract_name: mosaic-tile
-      needs_run: ${{ fromJson(needs.changes.outputs.plan).jobs.mosaic-tile-ci.needs_run }}
-      component_hash: ${{ fromJson(needs.changes.outputs.plan).components.mosaic_tile.hash }}
+      needs_run: ${{ fromJson(needs.execution-plan.outputs.plan).jobs.mosaic-tile-ci.needs_run }}
+      component_hash: ${{ fromJson(needs.execution-plan.outputs.plan).components.mosaic_tile.hash }}
 
   mosaic-vending-ci:
-    needs: [changes, rust-setup]
+    needs: [execution-plan, rust-setup]
     uses: ./.github/workflows/reusable-contracts.yml
     with:
       contract_name: mosaic-vending
-      needs_run: ${{ fromJson(needs.changes.outputs.plan).jobs.mosaic-vending-ci.needs_run }}
-      component_hash: ${{ fromJson(needs.changes.outputs.plan).components.mosaic_vending.hash }}
+      needs_run: ${{ fromJson(needs.execution-plan.outputs.plan).jobs.mosaic-vending-ci.needs_run }}
+      component_hash: ${{ fromJson(needs.execution-plan.outputs.plan).components.mosaic_vending.hash }}
 
   # Deployment jobs
   deploy-mosaic-tile:
     needs: mosaic-tile-ci
-    if: ${{ fromJson(needs.changes.outputs.plan).jobs.deploy-mosaic-tile.condition }}
+    if: ${{ fromJson(needs.execution-plan.outputs.plan).jobs.deploy-mosaic-tile.condition }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
@@ -55,7 +55,7 @@ jobs:
 
   deploy-mosaic-vending:
     needs: mosaic-vending-ci
-    if: ${{ fromJson(needs.changes.outputs.plan).jobs.deploy-mosaic-vending.condition }}
+    if: ${{ fromJson(needs.execution-plan.outputs.plan).jobs.deploy-mosaic-vending.condition }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
@@ -68,29 +68,29 @@ jobs:
     uses: ./.github/workflows/reusable-e2e.yml
     with:
       test_type: mosaic-tile
-      needs_run: ${{ fromJson(needs.changes.outputs.plan).jobs.mosaic-tile-e2e.needs_run }}
+      needs_run: ${{ fromJson(needs.execution-plan.outputs.plan).jobs.mosaic-tile-e2e.needs_run }}
 
   mosaic-vending-e2e:
     needs: deploy-mosaic-vending
     uses: ./.github/workflows/reusable-e2e.yml
     with:
       test_type: mosaic-vending
-      needs_run: ${{ fromJson(needs.changes.outputs.plan).jobs.mosaic-vending-e2e.needs_run }}
+      needs_run: ${{ fromJson(needs.execution-plan.outputs.plan).jobs.mosaic-vending-e2e.needs_run }}
 
   full-e2e:
     needs: [frontend-ci, mosaic-tile-e2e, mosaic-vending-e2e]
     uses: ./.github/workflows/reusable-e2e.yml
     with:
       test_type: full
-      needs_run: ${{ fromJson(needs.changes.outputs.plan).jobs.full-e2e.needs_run }}
+      needs_run: ${{ fromJson(needs.execution-plan.outputs.plan).jobs.full-e2e.needs_run }}
 
   # Final notification
   notify:
-    needs: [changes, frontend-ci, mosaic-tile-ci, mosaic-vending-ci, deploy-mosaic-tile, deploy-mosaic-vending, mosaic-tile-e2e, mosaic-vending-e2e, full-e2e]
+    needs: [execution-plan, frontend-ci, mosaic-tile-ci, mosaic-vending-ci, deploy-mosaic-tile, deploy-mosaic-vending, mosaic-tile-e2e, mosaic-vending-e2e, full-e2e]
     if: always()
     uses: ./.github/workflows/reusable-notify.yml
     with:
-      execution_plan: ${{ needs.changes.outputs.plan }}
+      execution_plan: ${{ needs.execution-plan.outputs.plan }}
       frontend_ci_result: ${{ needs.frontend-ci.result }}
       mosaic_tile_ci_result: ${{ needs.mosaic-tile-ci.result }}
       mosaic_vending_ci_result: ${{ needs.mosaic-vending-ci.result }}

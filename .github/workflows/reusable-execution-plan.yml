@@ -1,14 +1,14 @@
-name: Changes Detection
+name: Generate Execution Plan
 
 on:
   workflow_call:
     outputs:
       plan:
         description: "Complete execution plan for all jobs"
-        value: ${{ jobs.generate-plan.outputs.plan }}
+        value: ${{ jobs.create-plan.outputs.plan }}
 
 jobs:
-  check-files:
+  detect-changes:
     runs-on: ubuntu-latest
     permissions:
       pull-requests: read
@@ -16,9 +16,6 @@ jobs:
       frontend_changes: ${{ steps.filter.outputs.frontend }}
       mosaic_tile_changes: ${{ steps.filter.outputs.mosaic_tile }}
       mosaic_vending_changes: ${{ steps.filter.outputs.mosaic_vending }}
-      frontend_hash: ${{ steps.hashes.outputs.frontend_hash }}
-      mosaic_tile_hash: ${{ steps.hashes.outputs.mosaic_tile_hash }}
-      mosaic_vending_hash: ${{ steps.hashes.outputs.mosaic_vending_hash }}
     steps:
       - uses: actions/checkout@v3
         with:
@@ -37,6 +34,15 @@ jobs:
               - 'contracts/mosaic-vending-minter/**'
               - 'contracts/Cargo.toml'
 
+  calculate-hashes:
+    runs-on: ubuntu-latest
+    needs: detect-changes
+    outputs:
+      frontend_hash: ${{ steps.hashes.outputs.frontend_hash }}
+      mosaic_tile_hash: ${{ steps.hashes.outputs.mosaic_tile_hash }}
+      mosaic_vending_hash: ${{ steps.hashes.outputs.mosaic_vending_hash }}
+    steps:
+      - uses: actions/checkout@v3
       - name: Generate component hashes
         id: hashes
         run: |
@@ -64,16 +70,16 @@ jobs:
           fi
           echo "mosaic_vending_hash=$mosaic_vending_hash" >> $GITHUB_OUTPUT
 
-  generate-plan:
-    needs: check-files
+  check-previous-runs:
     runs-on: ubuntu-latest
+    needs: [detect-changes, calculate-hashes]
     permissions:
       actions: read
     outputs:
-      plan: ${{ steps.create-plan.outputs.plan }}
+      previous_runs: ${{ steps.check-runs.outputs.previous_runs }}
     steps:
-      - name: Create execution plan
-        id: create-plan
+      - name: Check previous runs
+        id: check-runs
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -83,7 +89,7 @@ jobs:
             local component_hash=$2
             
             # Look for successful runs with this hash
-            local last_runs=$(gh run list --workflow pixel-canvas.yml \
+            local last_runs=$(gh run list --workflow mosaic.yml \
               --json conclusion,jobs,databaseId,createdAt,url \
               --jq ".[] | select(.jobs[].name == \"$job_name\" and .conclusion == \"success\")" \
               --limit 10)
@@ -109,46 +115,67 @@ jobs:
             echo "{\"found\": false}"
           }
 
+          # Check each component
+          previous_runs=$(cat << EOF
+          {
+            "frontend": $(check_previous_runs "frontend-ci" "FRONTEND_HASH"),
+            "mosaic_tile": $(check_previous_runs "mosaic-tile-ci" "MOSAIC_TILE_HASH"),
+            "mosaic_vending": $(check_previous_runs "mosaic-vending-ci" "MOSAIC_VENDING_HASH")
+          }
+          EOF
+          )
+
+          echo "previous_runs=$previous_runs" >> $GITHUB_OUTPUT
+
+  create-plan:
+    runs-on: ubuntu-latest
+    needs: [detect-changes, calculate-hashes, check-previous-runs]
+    outputs:
+      plan: ${{ steps.create-plan.outputs.plan }}
+    steps:
+      - name: Create execution plan
+        id: create-plan
+        run: |
           # Create plan for each component
           plan=$(cat << EOF
           {
             "components": {
               "frontend": {
                 "name": "frontend",
-                "hash": "${{ needs.check-files.outputs.frontend_hash }}",
-                "files_changed": ${{ needs.check-files.outputs.frontend_changes }},
-                "previous_run": $(check_previous_runs "frontend-ci" "FRONTEND_HASH"),
+                "hash": "${{ needs.calculate-hashes.outputs.frontend_hash }}",
+                "files_changed": ${{ needs.detect-changes.outputs.frontend_changes }},
+                "previous_run": $(echo '${{ needs.check-previous-runs.outputs.previous_runs }}' | jq '.frontend'),
                 "dependencies": []
               },
               "mosaic_tile": {
                 "name": "mosaic-tile",
-                "hash": "${{ needs.check-files.outputs.mosaic_tile_hash }}",
-                "files_changed": ${{ needs.check-files.outputs.mosaic_tile_changes }},
-                "previous_run": $(check_previous_runs "mosaic-tile-ci" "MOSAIC_TILE_HASH"),
+                "hash": "${{ needs.calculate-hashes.outputs.mosaic_tile_hash }}",
+                "files_changed": ${{ needs.detect-changes.outputs.mosaic_tile_changes }},
+                "previous_run": $(echo '${{ needs.check-previous-runs.outputs.previous_runs }}' | jq '.mosaic_tile'),
                 "dependencies": ["rust-setup"]
               },
               "mosaic_vending": {
                 "name": "mosaic-vending",
-                "hash": "${{ needs.check-files.outputs.mosaic_vending_hash }}",
-                "files_changed": ${{ needs.check-files.outputs.mosaic_vending_changes }},
-                "previous_run": $(check_previous_runs "mosaic-vending-ci" "MOSAIC_VENDING_HASH"),
+                "hash": "${{ needs.calculate-hashes.outputs.mosaic_vending_hash }}",
+                "files_changed": ${{ needs.detect-changes.outputs.mosaic_vending_changes }},
+                "previous_run": $(echo '${{ needs.check-previous-runs.outputs.previous_runs }}' | jq '.mosaic_vending'),
                 "dependencies": ["rust-setup"]
               }
             },
             "jobs": {
               "frontend-ci": {
                 "component": "frontend",
-                "needs_run": ${{ needs.check-files.outputs.frontend_changes }} || $(check_previous_runs "frontend-ci" "FRONTEND_HASH" | jq '.found') == false,
+                "needs_run": ${{ needs.detect-changes.outputs.frontend_changes }} || $(echo '${{ needs.check-previous-runs.outputs.previous_runs }}' | jq '.frontend.found') == false,
                 "dependencies": ["changes"]
               },
               "mosaic-tile-ci": {
                 "component": "mosaic_tile",
-                "needs_run": ${{ needs.check-files.outputs.mosaic_tile_changes }} || $(check_previous_runs "mosaic-tile-ci" "MOSAIC_TILE_HASH" | jq '.found') == false,
+                "needs_run": ${{ needs.detect-changes.outputs.mosaic_tile_changes }} || $(echo '${{ needs.check-previous-runs.outputs.previous_runs }}' | jq '.mosaic_tile.found') == false,
                 "dependencies": ["changes", "rust-setup"]
               },
               "mosaic-vending-ci": {
                 "component": "mosaic_vending",
-                "needs_run": ${{ needs.check-files.outputs.mosaic_vending_changes }} || $(check_previous_runs "mosaic-vending-ci" "MOSAIC_VENDING_HASH" | jq '.found') == false,
+                "needs_run": ${{ needs.detect-changes.outputs.mosaic_vending_changes }} || $(echo '${{ needs.check-previous-runs.outputs.previous_runs }}' | jq '.mosaic_vending.found') == false,
                 "dependencies": ["changes", "rust-setup"]
               },
               "deploy-mosaic-tile": {
@@ -175,7 +202,7 @@ jobs:
               },
               "full-e2e": {
                 "component": null,
-                "needs_run": ${{ needs.check-files.outputs.frontend_changes }} || ${{ needs.check-files.outputs.mosaic_tile_changes }} || ${{ needs.check-files.outputs.mosaic_vending_changes }},
+                "needs_run": ${{ needs.detect-changes.outputs.frontend_changes }} || ${{ needs.detect-changes.outputs.mosaic_tile_changes }} || ${{ needs.detect-changes.outputs.mosaic_vending_changes }},
                 "dependencies": ["frontend-ci", "mosaic-tile-e2e", "mosaic-vending-e2e"]
               }
             },
