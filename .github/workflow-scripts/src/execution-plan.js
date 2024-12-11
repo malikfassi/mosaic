@@ -23,7 +23,7 @@ function calculateComponentHash(component) {
     const matches = globSync(pattern, { 
       dot: true, 
       nodir: true,
-      cwd: process.cwd(),
+      cwd: process.env.GITHUB_WORKSPACE,
       absolute: false
     });
     console.log(`Found ${matches.length} files for pattern ${pattern}`);
