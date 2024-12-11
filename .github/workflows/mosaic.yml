@@ -7,13 +7,11 @@ on:
     branches: [ main ]
 
 permissions:
-  pull-requests: read  # Required for the execution plan job
-  contents: read      # Required for checkout and git operations
-  actions: read      # Required to read workflow runs
-  gists: write       # Required for gist operations
+  pull-requests: read
+  contents: read
+  actions: read
 
 jobs:
-  # Initial setup jobs
   execution-plan:
     uses: ./.github/workflows/reusable-execution-plan.yml
     with:
@@ -24,7 +22,6 @@ jobs:
   rust-setup:
     uses: ./.github/workflows/reusable-rust-setup.yml
 
-  # CI jobs
   frontend-ci:
     needs: execution-plan
     uses: ./.github/workflows/reusable-frontend.yml
@@ -48,7 +45,6 @@ jobs:
       needs_run: ${{ fromJson(needs.execution-plan.outputs.plan).jobs.mosaic-vending-ci.needs_run }}
       component_hash: ${{ fromJson(needs.execution-plan.outputs.plan).components.mosaic_vending.hash }}
 
-  # Deployment jobs
   deploy-mosaic-tile:
     needs: mosaic-tile-ci
     if: needs.mosaic-tile-ci.result == 'success'
@@ -67,7 +63,6 @@ jobs:
       - name: Deploy mosaic-vending contract
         run: echo "Deploying mosaic-vending contract..."
 
-  # E2E test jobs
   mosaic-tile-e2e:
     needs: deploy-mosaic-tile
     if: needs.deploy-mosaic-tile.result == 'success'
@@ -95,7 +90,6 @@ jobs:
       test_type: full
       needs_run: ${{ fromJson(needs.execution-plan.outputs.plan).jobs.full-e2e.needs_run }}
 
-  # Final notification
   notify:
     needs: [execution-plan, frontend-ci, mosaic-tile-ci, mosaic-vending-ci, deploy-mosaic-tile, deploy-mosaic-vending, mosaic-tile-e2e, mosaic-vending-e2e, full-e2e]
     if: always()

@@ -6,9 +6,11 @@ on:
       gist_id:
         required: true
         type: string
+        description: "Gist ID for storing job results"
     secrets:
-      GIST_TOKEN:
+      GIST_SECRET:
         required: true
+        description: "Token for gist access"
     outputs:
       plan:
         description: "Complete execution plan for all jobs"
@@ -35,27 +37,6 @@ jobs:
           cache: 'npm'
           cache-dependency-path: .github/workflow-scripts/package.json
 
-      # Cache node_modules
-      - name: Cache node_modules
-        uses: actions/cache@v3
-        with:
-          path: |
-            .github/workflow-scripts/node_modules
-          key: node-modules-${{ hashFiles('.github/workflow-scripts/package-lock.json') }}
-          restore-keys: |
-            node-modules-
-
-      # Cache gist data between runs
-      - name: Cache gist data
-        uses: actions/cache@v3
-        with:
-          path: |
-            ~/.cache/gist-data
-          key: gist-data-${{ inputs.gist_id }}-${{ github.sha }}
-          restore-keys: |
-            gist-data-${{ inputs.gist_id }}-
-            gist-data-
-
       - name: Install dependencies
         working-directory: .github/workflow-scripts
         run: npm ci
@@ -64,11 +45,9 @@ jobs:
         id: plan
         working-directory: .github/workflow-scripts
         env:
-          GIST_TOKEN: ${{ secrets.GIST_TOKEN }}
+          GIST_TOKEN: ${{ secrets.GIST_SECRET }}
           GIST_ID: ${{ inputs.gist_id }}
           GITHUB_TOKEN: ${{ github.token }}
-          RUNNER_TEMP: ${{ runner.temp }}
-          CACHE_PATH: ~/.cache/gist-data
         run: npm run execution-plan
 
       - name: Upload execution plan
