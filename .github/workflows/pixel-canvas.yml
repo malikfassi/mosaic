@@ -177,11 +177,12 @@ jobs:
         run: cd frontend && npm test
       - name: Generate badge
         uses: schneegans/dynamic-badges-action@v1.6.0
+        continue-on-error: true
         with:
           auth: ${{ secrets.GIST_SECRET }}
-          gistID: ${{ secrets.BADGE_GIST_ID }}
+          gistID: 1ff46a4915f58fa0fce5cab7577f94f1
           filename: frontend-ci.json
-          label: frontend
+          label: Frontend CI
           message: ${{ job.status }}
           color: ${{ job.status == 'success' && 'success' || 'critical' }}
 
@@ -209,14 +210,15 @@ jobs:
       - name: Check schema generation
         run: |
           cd contracts/mosaic-tile-nft
-          cargo schema
+          cargo run --example schema
       - name: Generate badge
         uses: schneegans/dynamic-badges-action@v1.6.0
+        continue-on-error: true
         with:
           auth: ${{ secrets.GIST_SECRET }}
-          gistID: ${{ secrets.BADGE_GIST_ID }}
+          gistID: 1ff46a4915f58fa0fce5cab7577f94f1
           filename: mosaic-tile-ci.json
-          label: mosaic-tile
+          label: Mosaic Tile CI
           message: ${{ job.status }}
           color: ${{ job.status == 'success' && 'success' || 'critical' }}
 
@@ -244,14 +246,15 @@ jobs:
       - name: Check schema generation
         run: |
           cd contracts/mosaic-vending-minter
-          cargo schema
+          cargo run --example schema
       - name: Generate badge
         uses: schneegans/dynamic-badges-action@v1.6.0
+        continue-on-error: true
         with:
           auth: ${{ secrets.GIST_SECRET }}
-          gistID: ${{ secrets.BADGE_GIST_ID }}
+          gistID: 1ff46a4915f58fa0fce5cab7577f94f1
           filename: mosaic-vending-ci.json
-          label: mosaic-vending
+          label: Mosaic Vending CI
           message: ${{ job.status }}
           color: ${{ job.status == 'success' && 'success' || 'critical' }}
 
@@ -263,6 +266,16 @@ jobs:
       - uses: actions/checkout@v3
       - name: Deploy mosaic-tile contract
         run: echo "Deploying mosaic-tile contract..."
+      - name: Generate badge
+        uses: schneegans/dynamic-badges-action@v1.6.0
+        continue-on-error: true
+        with:
+          auth: ${{ secrets.GIST_SECRET }}
+          gistID: 1ff46a4915f58fa0fce5cab7577f94f1
+          filename: deploy-mosaic-tile.json
+          label: Deploy Mosaic Tile
+          message: ${{ job.status }}
+          color: ${{ job.status == 'success' && 'success' || 'critical' }}
 
   deploy-mosaic-vending:
     needs: mosaic-vending-ci
@@ -272,6 +285,16 @@ jobs:
       - uses: actions/checkout@v3
       - name: Deploy mosaic-vending contract
         run: echo "Deploying mosaic-vending contract..."
+      - name: Generate badge
+        uses: schneegans/dynamic-badges-action@v1.6.0
+        continue-on-error: true
+        with:
+          auth: ${{ secrets.GIST_SECRET }}
+          gistID: 1ff46a4915f58fa0fce5cab7577f94f1
+          filename: deploy-mosaic-vending.json
+          label: Deploy Mosaic Vending
+          message: ${{ job.status }}
+          color: ${{ job.status == 'success' && 'success' || 'critical' }}
 
   mosaic-tile-e2e:
     needs: deploy-mosaic-tile
@@ -283,6 +306,16 @@ jobs:
       - uses: actions/checkout@v3
       - name: Run E2E tests
         run: echo "Running mosaic-tile E2E tests..."
+      - name: Generate badge
+        uses: schneegans/dynamic-badges-action@v1.6.0
+        continue-on-error: true
+        with:
+          auth: ${{ secrets.GIST_SECRET }}
+          gistID: 1ff46a4915f58fa0fce5cab7577f94f1
+          filename: mosaic-tile-e2e.json
+          label: Mosaic Tile E2E
+          message: ${{ job.status }}
+          color: ${{ job.status == 'success' && 'success' || 'critical' }}
 
   mosaic-vending-e2e:
     needs: deploy-mosaic-vending
@@ -294,6 +327,16 @@ jobs:
       - uses: actions/checkout@v3
       - name: Run E2E tests
         run: echo "Running mosaic-vending E2E tests..."
+      - name: Generate badge
+        uses: schneegans/dynamic-badges-action@v1.6.0
+        continue-on-error: true
+        with:
+          auth: ${{ secrets.GIST_SECRET }}
+          gistID: 1ff46a4915f58fa0fce5cab7577f94f1
+          filename: mosaic-vending-e2e.json
+          label: Mosaic Vending E2E
+          message: ${{ job.status }}
+          color: ${{ job.status == 'success' && 'success' || 'critical' }}
 
   full-e2e:
     needs: [
@@ -309,6 +352,16 @@ jobs:
       - uses: actions/checkout@v3
       - name: Run full E2E test suite
         run: echo "Running full E2E test suite..."
+      - name: Generate badge
+        uses: schneegans/dynamic-badges-action@v1.6.0
+        continue-on-error: true
+        with:
+          auth: ${{ secrets.GIST_SECRET }}
+          gistID: 1ff46a4915f58fa0fce5cab7577f94f1
+          filename: full-e2e.json
+          label: Full E2E Tests
+          message: ${{ job.status }}
+          color: ${{ job.status == 'success' && 'success' || 'critical' }}
 
   notify:
     needs: [
