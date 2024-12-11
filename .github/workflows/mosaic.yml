@@ -126,3 +126,6 @@ jobs:
       full_e2e_result: ${{ needs.full-e2e.result }}
 
       gist_id: ${{ vars.GIST_ID }}
+    secrets:
+      GIST_SECRET: ${{ secrets.GIST_SECRET }}
+      DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
