@@ -31,6 +31,9 @@ on:
       full_e2e_result:
         required: true
         type: string
+      gist_id:
+        required: true
+        type: string
     secrets:
       DISCORD_WEBHOOK:
         required: true
@@ -192,9 +195,6 @@ jobs:
           [View execution plan](https://gist.github.com/${{ inputs.gist_id }}/raw/execution_plan.json)
           STATUSMSG
 
-          # Save execution plan
-          echo "$PLAN" > execution_plan.json
-          
           # Save message to output
           {
             echo 'message<<EOF'
