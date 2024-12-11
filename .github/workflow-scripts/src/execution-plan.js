@@ -46,7 +46,24 @@ async function checkGistFiles(gistId, token) {
     throw error;
   });
 
-  return gist.files;
+  // Get previous run data from gist files
+  const previousRuns = {};
+  Object.entries(gist.files).forEach(([filename, file]) => {
+    try {
+      const content = JSON.parse(file.content);
+      const jobName = filename.split('.')[0];
+      previousRuns[jobName] = {
+        exists: true,
+        success: content.success,
+        timestamp: content.timestamp,
+        run_id: content.run_id
+      };
+    } catch (error) {
+      console.warn(`Error parsing ${filename}: ${error.message}`);
+    }
+  });
+
+  return previousRuns;
 }
 
 async function generateExecutionPlan() {
@@ -57,8 +74,8 @@ async function generateExecutionPlan() {
     throw new Error('Missing required environment variables');
   }
 
-  // Get gist files
-  const gistFiles = await checkGistFiles(gistId, token);
+  // Get previous runs from gist
+  const previousRuns = await checkGistFiles(gistId, token);
 
   // Calculate component hashes and check gist existence
   const components = {};
@@ -66,11 +83,7 @@ async function generateExecutionPlan() {
     const hash = calculateComponentHash(componentName);
     components[componentName] = {
       hash,
-      gist_exists: Object.keys(gistFiles).some(filename => {
-        const jobName = filename.split('.')[0];
-        const jobConfig = getAllJobs()[jobName];
-        return jobConfig?.component === componentName;
-      })
+      gist_exists: Object.values(previousRuns).some(run => run.exists && run.success)
     };
   });
 
@@ -90,15 +103,18 @@ async function generateExecutionPlan() {
   // Add all jobs
   Object.entries(getAllJobs()).forEach(([jobName, jobConfig]) => {
     const component = components[jobConfig.component];
+    const previousRun = previousRuns[jobName];
     plan.jobs[jobName] = {
       component: jobConfig.component,
-      needs_run: !component?.gist_exists || false
+      needs_run: !previousRun?.exists || !previousRun?.success,
+      previous_run: previousRun
     };
   });
 
   // Save plan
-  await writeFile('execution-plan.json', JSON.stringify(plan, null, 2));
-  console.log('Generated execution plan:', JSON.stringify(plan, null, 2));
+  const planJson = JSON.stringify(plan);
+  await writeFile('execution-plan.json', planJson);
+  console.log('Generated execution plan:', planJson);
 
   return plan;
 }
