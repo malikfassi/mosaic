@@ -40,6 +40,10 @@ jobs:
   notify:
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
       - name: Generate Status Message
         id: status
         run: |
@@ -55,8 +59,29 @@ jobs:
             local previous_run=$(echo "$component" | jq -r '.previous_run')
             local has_previous=$(echo "$previous_run" | jq -r '.found')
             
+            # Get list of changed files
+            local changed_files=""
             if [[ "$files_changed" == "true" ]]; then
-              echo "🔄 Changes detected"
+              case "$name" in
+                "frontend")
+                  changed_files=$(git diff --name-only HEAD^ HEAD frontend/)
+                  ;;
+                "mosaic_tile")
+                  changed_files=$(git diff --name-only HEAD^ HEAD contracts/mosaic-tile-nft/)
+                  ;;
+                "mosaic_vending")
+                  changed_files=$(git diff --name-only HEAD^ HEAD contracts/mosaic-vending-minter/)
+                  ;;
+              esac
+              
+              # Format changed files list
+              if [[ -n "$changed_files" ]]; then
+                changed_files="\nChanged files:\n\`\`\`\n$changed_files\n\`\`\`"
+              fi
+            fi
+            
+            if [[ "$files_changed" == "true" ]]; then
+              echo "🔄 Changes detected$changed_files"
             elif [[ "$has_previous" == "true" ]]; then
               local run_url=$(echo "$previous_run" | jq -r '.url')
               local created_at=$(echo "$previous_run" | jq -r '.created_at')

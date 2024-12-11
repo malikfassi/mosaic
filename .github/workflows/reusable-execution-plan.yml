@@ -16,6 +16,9 @@ jobs:
       frontend_changes: ${{ steps.filter.outputs.frontend }}
       mosaic_tile_changes: ${{ steps.filter.outputs.mosaic_tile }}
       mosaic_vending_changes: ${{ steps.filter.outputs.mosaic_vending }}
+      frontend_files: ${{ steps.changed-files.outputs.frontend_files }}
+      mosaic_tile_files: ${{ steps.changed-files.outputs.mosaic_tile_files }}
+      mosaic_vending_files: ${{ steps.changed-files.outputs.mosaic_vending_files }}
     steps:
       - uses: actions/checkout@v3
         with:
@@ -33,6 +36,18 @@ jobs:
             mosaic_vending:
               - 'contracts/mosaic-vending-minter/**'
               - 'contracts/Cargo.toml'
+      
+      - name: Get changed files
+        id: changed-files
+        run: |
+          # Get list of changed files for each component
+          frontend_files=$(git diff --name-only ${{ github.event.before }} ${{ github.sha }} -- frontend/ | jq -R -s -c 'split("\n")[:-1]')
+          mosaic_tile_files=$(git diff --name-only ${{ github.event.before }} ${{ github.sha }} -- contracts/mosaic-tile-nft/ contracts/Cargo.toml | jq -R -s -c 'split("\n")[:-1]')
+          mosaic_vending_files=$(git diff --name-only ${{ github.event.before }} ${{ github.sha }} -- contracts/mosaic-vending-minter/ contracts/Cargo.toml | jq -R -s -c 'split("\n")[:-1]')
+          
+          echo "frontend_files=$frontend_files" >> $GITHUB_OUTPUT
+          echo "mosaic_tile_files=$mosaic_tile_files" >> $GITHUB_OUTPUT
+          echo "mosaic_vending_files=$mosaic_vending_files" >> $GITHUB_OUTPUT
 
   calculate-hashes:
     runs-on: ubuntu-latest
@@ -153,12 +168,16 @@ jobs:
             --argjson frontend_changes ${{ needs.detect-changes.outputs.frontend_changes }} \
             --argjson mosaic_tile_changes ${{ needs.detect-changes.outputs.mosaic_tile_changes }} \
             --argjson mosaic_vending_changes ${{ needs.detect-changes.outputs.mosaic_vending_changes }} \
+            --argjson frontend_files '${{ needs.detect-changes.outputs.frontend_files }}' \
+            --argjson mosaic_tile_files '${{ needs.detect-changes.outputs.mosaic_tile_files }}' \
+            --argjson mosaic_vending_files '${{ needs.detect-changes.outputs.mosaic_vending_files }}' \
             --argjson previous_runs '${{ needs.check-previous-runs.outputs.previous_runs }}' \
             '{
               "frontend": {
                 "name": "frontend",
                 "hash": $frontend_hash,
                 "files_changed": $frontend_changes,
+                "changed_files": $frontend_files,
                 "previous_run": $previous_runs.frontend,
                 "dependencies": []
               },
@@ -166,6 +185,7 @@ jobs:
                 "name": "mosaic-tile",
                 "hash": $mosaic_tile_hash,
                 "files_changed": $mosaic_tile_changes,
+                "changed_files": $mosaic_tile_files,
                 "previous_run": $previous_runs.mosaic_tile,
                 "dependencies": ["rust-setup"]
               },
@@ -173,6 +193,7 @@ jobs:
                 "name": "mosaic-vending",
                 "hash": $mosaic_vending_hash,
                 "files_changed": $mosaic_vending_changes,
+                "changed_files": $mosaic_vending_files,
                 "previous_run": $previous_runs.mosaic_vending,
                 "dependencies": ["rust-setup"]
               }
