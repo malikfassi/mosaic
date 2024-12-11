@@ -78,10 +78,15 @@ jobs:
     outputs:
       previous_runs: ${{ steps.check-runs.outputs.previous_runs }}
     steps:
+      - uses: actions/checkout@v3
+      
       - name: Check previous runs
         id: check-runs
         env:
           GH_TOKEN: ${{ github.token }}
+          FRONTEND_HASH: ${{ needs.calculate-hashes.outputs.frontend_hash }}
+          MOSAIC_TILE_HASH: ${{ needs.calculate-hashes.outputs.mosaic_tile_hash }}
+          MOSAIC_VENDING_HASH: ${{ needs.calculate-hashes.outputs.mosaic_vending_hash }}
         run: |
           # Function to check previous runs
           check_previous_runs() {
@@ -112,7 +117,7 @@ jobs:
                     # Found matching run
                     local created_at=$(echo "$run" | jq -r '.createdAt')
                     local run_url=$(echo "$run" | jq -r '.url')
-                    echo "{\"found\": true, \"run_id\": \"$run_id\", \"created_at\": \"$created_at\", \"url\": \"$run_url\"}"
+                    echo "{\"found\":true,\"run_id\":\"$run_id\",\"created_at\":\"$created_at\",\"url\":\"$run_url\"}"
                     return
                   fi
                 fi
@@ -120,21 +125,16 @@ jobs:
             fi
             
             # No matching run found
-            echo "{\"found\": false}"
+            echo "{\"found\":false}"
           }
 
-          # Check each component
-          previous_runs=$(cat << EOF
-          {
-            "frontend": $(check_previous_runs "frontend" "FRONTEND_HASH"),
-            "mosaic_tile": $(check_previous_runs "mosaic_tile" "MOSAIC_TILE_HASH"),
-            "mosaic_vending": $(check_previous_runs "mosaic_vending" "MOSAIC_VENDING_HASH")
-          }
-          EOF
-          )
-
-          # Save previous runs to output
-          echo "previous_runs=$previous_runs" >> $GITHUB_OUTPUT
+          # Check each component and build JSON
+          frontend_run=$(check_previous_runs "frontend" "FRONTEND_HASH")
+          mosaic_tile_run=$(check_previous_runs "mosaic_tile" "MOSAIC_TILE_HASH")
+          mosaic_vending_run=$(check_previous_runs "mosaic_vending" "MOSAIC_VENDING_HASH")
+          
+          # Combine into final JSON
+          echo "previous_runs={\"frontend\":$frontend_run,\"mosaic_tile\":$mosaic_tile_run,\"mosaic_vending\":$mosaic_vending_run}" >> $GITHUB_OUTPUT
 
   create-plan:
     runs-on: ubuntu-latest
