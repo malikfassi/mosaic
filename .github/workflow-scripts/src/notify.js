@@ -1,49 +1,29 @@
 import { writeFile } from 'fs/promises';
-import { getOctokit } from '@actions/github';
-import { JOBS, COMPONENTS, getAllFileNames } from './workflow-config.js';
+import { JOBS, COMPONENTS } from './workflow-config.js';
 
 function formatJobResult(result) {
   if (!result) return '⚪️ Not run';
-  return result === 'success' ? '✅ Success' : '❌ Failed';
+  switch (result.toLowerCase()) {
+    case 'success':
+      return '✅ Success';
+    case 'skipped':
+      return '⏭️ Skipped';
+    case 'failure':
+      return '❌ Failed';
+    default:
+      return `⚠️ ${result}`;
+  }
 }
 
-function generateStatusMessage(plan, results) {
+function generateComponentStatus(name, jobs, results) {
   const lines = [];
-
-  // Frontend status
-  if (COMPONENTS.frontend) {
-    lines.push('**Frontend**');
-    COMPONENTS.frontend.jobs.forEach(jobName => {
-      const previousRun = plan.jobs[jobName]?.previous_run;
-      lines.push(`- ${jobName}: ${formatJobResult(results[jobName])}${previousRun ? ` (Previous: ${formatJobResult(previousRun.result)})` : ''}`);
-    });
+  lines.push(`**${name}**`);
+  
+  for (const jobName of jobs) {
+    const result = results[jobName.toLowerCase().replace(/-/g, '_')];
+    lines.push(`- ${jobName}: ${formatJobResult(result)}`);
   }
-
-  // Mosaic Tile status
-  if (COMPONENTS.mosaic_tile) {
-    lines.push('**Mosaic Tile**');
-    COMPONENTS.mosaic_tile.jobs.forEach(jobName => {
-      const previousRun = plan.jobs[jobName]?.previous_run;
-      lines.push(`- ${jobName}: ${formatJobResult(results[jobName])}${previousRun ? ` (Previous: ${formatJobResult(previousRun.result)})` : ''}`);
-    });
-  }
-
-  // Mosaic Vending status
-  if (COMPONENTS.mosaic_vending) {
-    lines.push('**Mosaic Vending**');
-    COMPONENTS.mosaic_vending.jobs.forEach(jobName => {
-      const previousRun = plan.jobs[jobName]?.previous_run;
-      lines.push(`- ${jobName}: ${formatJobResult(results[jobName])}${previousRun ? ` (Previous: ${formatJobResult(previousRun.result)})` : ''}`);
-    });
-  }
-
-  // Integration status (full-e2e)
-  if (plan.jobs[JOBS.FULL_E2E]) {
-    lines.push('**Integration**');
-    const previousRun = plan.jobs[JOBS.FULL_E2E]?.previous_run;
-    lines.push(`- ${JOBS.FULL_E2E}: ${formatJobResult(results[JOBS.FULL_E2E])}${previousRun ? ` (Previous: ${formatJobResult(previousRun.result)})` : ''}`);
-  }
-
+  
   return lines.join('\n');
 }
 
@@ -52,67 +32,64 @@ async function main() {
     // Get inputs from environment
     const plan = JSON.parse(process.env.EXECUTION_PLAN);
     const results = {
-      [JOBS.FRONTEND_LINT]: process.env.FRONTEND_CI_RESULT,
-      [JOBS.FRONTEND_TEST]: process.env.FRONTEND_CI_RESULT,
-      [JOBS.FRONTEND_BUILD]: process.env.FRONTEND_CI_RESULT,
-      [JOBS.MOSAIC_TILE_FORMAT]: process.env.MOSAIC_TILE_CI_RESULT,
-      [JOBS.MOSAIC_TILE_LINT]: process.env.MOSAIC_TILE_CI_RESULT,
-      [JOBS.MOSAIC_TILE_TEST]: process.env.MOSAIC_TILE_CI_RESULT,
-      [JOBS.MOSAIC_TILE_SCHEMA]: process.env.MOSAIC_TILE_CI_RESULT,
-      [JOBS.MOSAIC_TILE_DEPLOY]: process.env.MOSAIC_TILE_DEPLOY_RESULT,
-      [JOBS.MOSAIC_TILE_E2E]: process.env.MOSAIC_TILE_E2E_RESULT,
-      [JOBS.MOSAIC_VENDING_FORMAT]: process.env.MOSAIC_VENDING_CI_RESULT,
-      [JOBS.MOSAIC_VENDING_LINT]: process.env.MOSAIC_VENDING_CI_RESULT,
-      [JOBS.MOSAIC_VENDING_TEST]: process.env.MOSAIC_VENDING_CI_RESULT,
-      [JOBS.MOSAIC_VENDING_SCHEMA]: process.env.MOSAIC_VENDING_CI_RESULT,
-      [JOBS.MOSAIC_VENDING_DEPLOY]: process.env.MOSAIC_VENDING_DEPLOY_RESULT,
-      [JOBS.MOSAIC_VENDING_E2E]: process.env.MOSAIC_VENDING_E2E_RESULT,
-      [JOBS.FULL_E2E]: process.env.FULL_E2E_RESULT
+      frontend_lint_result: process.env.FRONTEND_LINT_RESULT,
+      frontend_test_result: process.env.FRONTEND_TEST_RESULT,
+      frontend_build_result: process.env.FRONTEND_BUILD_RESULT,
+      
+      mosaic_tile_format_result: process.env.MOSAIC_TILE_FORMAT_RESULT,
+      mosaic_tile_lint_result: process.env.MOSAIC_TILE_LINT_RESULT,
+      mosaic_tile_test_result: process.env.MOSAIC_TILE_TEST_RESULT,
+      mosaic_tile_schema_result: process.env.MOSAIC_TILE_SCHEMA_RESULT,
+      mosaic_tile_deploy_result: process.env.MOSAIC_TILE_DEPLOY_RESULT,
+      mosaic_tile_e2e_result: process.env.MOSAIC_TILE_E2E_RESULT,
+      
+      mosaic_vending_format_result: process.env.MOSAIC_VENDING_FORMAT_RESULT,
+      mosaic_vending_lint_result: process.env.MOSAIC_VENDING_LINT_RESULT,
+      mosaic_vending_test_result: process.env.MOSAIC_VENDING_TEST_RESULT,
+      mosaic_vending_schema_result: process.env.MOSAIC_VENDING_SCHEMA_RESULT,
+      mosaic_vending_deploy_result: process.env.MOSAIC_VENDING_DEPLOY_RESULT,
+      mosaic_vending_e2e_result: process.env.MOSAIC_VENDING_E2E_RESULT,
+      
+      full_e2e_result: process.env.FULL_E2E_RESULT
     };
 
-    // Generate Discord message
-    const message = [
-      '🔄 **Mosaic CI/CD Status**\n',
-      generateStatusMessage(plan, results),
-      '',
-      `[View run](${plan.metadata.repository}/actions/runs/${plan.metadata.run_id})`
-    ].join('\n');
+    // Generate status sections
+    const sections = [];
+    
+    // Header
+    sections.push('🔄 **Mosaic CI/CD Status**\n');
+    
+    // Frontend status
+    if (COMPONENTS.frontend) {
+      sections.push(generateComponentStatus('Frontend', COMPONENTS.frontend.jobs, results));
+    }
+    
+    // Mosaic Tile status
+    if (COMPONENTS.mosaic_tile) {
+      sections.push(generateComponentStatus('Mosaic Tile', COMPONENTS.mosaic_tile.jobs, results));
+    }
+    
+    // Mosaic Vending status
+    if (COMPONENTS.mosaic_vending) {
+      sections.push(generateComponentStatus('Mosaic Vending', COMPONENTS.mosaic_vending.jobs, results));
+    }
+    
+    // Integration status
+    sections.push('**Integration**');
+    sections.push(`- Full E2E: ${formatJobResult(results.full_e2e_result)}`);
+    
+    // Add run link
+    sections.push(`\n[View run](${plan.metadata.repository}/actions/runs/${plan.metadata.run_id})`);
 
-    // Save Discord message
+    // Join all sections and write to file
+    const message = sections.join('\n\n');
     await writeFile('discord_message.txt', message);
-
-    // Update gist with data from results (only update if successful)
-    const octokit = getOctokit(process.env.GIST_SECRET);
-    await octokit.rest.gists.update({
-      gist_id: process.env.GIST_ID,
-      // for all successful jobs, filename must be jobname and hash
-      // content must be the metadata from the job and the previous job
-      
-      files: Object.entries(results).filter(([_, result]) => result === 'success').reduce((acc, [key, _]) => {
-        const job = plan.jobs[key];
-        const previousRun = job.previous_run || {};
-        const content = {
-          success: true,
-          timestamp: new Date().toISOString(),
-          run_id: plan.metadata.run_id,
-          hash: job.hash,
-          previous_run: {
-            success: previousRun.success,
-            timestamp: previousRun.timestamp,
-            run_id: previousRun.run_id,
-            hash: previousRun.hash
-          }
-        };
-        acc[`${key}.${job.hash}.json`] = { content: JSON.stringify(content, null, 2) };
-        return acc;
-      }, {})
-    });
-
+    
+    console.log('Successfully generated Discord message');
   } catch (error) {
     console.error('Error in notify:', error);
     process.exit(1);
   }
-
 }
 
 await main();
