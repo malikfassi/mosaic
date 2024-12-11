@@ -52,6 +52,9 @@ on:
       mosaic_vending_e2e_result:
         required: true
         type: string
+      full_e2e_result:
+        required: true
+        type: string
       gist_id:
         required: true
         type: string
