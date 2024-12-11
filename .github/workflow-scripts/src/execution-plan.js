@@ -107,13 +107,24 @@ async function checkNeedsRun(octokit, jobName, componentHash) {
 async function generateExecutionPlan() {
   try {
     const token = process.env.GITHUB_TOKEN;
+    const gistId = process.env.GIST_ID;
+    console.log('GIST_ID:', gistId); // Debug log
     const octokit = getOctokit(token);
 
-    // Calculate component hashes and job needs
-    const components = {};
-    const jobResults = {};
+    // Initialize all jobs with default needs_run true
+    const jobResults = {
+      'frontend-ci': { needs_run: true },
+      'mosaic-tile-ci': { needs_run: true },
+      'mosaic-vending-ci': { needs_run: true },
+      'deploy-mosaic-tile': { needs_run: true },
+      'deploy-mosaic-vending': { needs_run: true },
+      'mosaic-tile-e2e': { needs_run: true },
+      'mosaic-vending-e2e': { needs_run: true },
+      'full-e2e': { needs_run: true }
+    };
 
-    // First calculate all component hashes
+    // Calculate component hashes
+    const components = {};
     for (const [component, config] of Object.entries(COMPONENTS)) {
       const hash = calculateComponentHash(component);
       components[component] = { hash };
@@ -126,32 +137,12 @@ async function generateExecutionPlan() {
     }
 
     // Generate job conditions
-    const jobs = {
-      'frontend-ci': {
-        needs_run: jobResults['frontend-ci'].needs_run.toString()
-      },
-      'mosaic-tile-ci': {
-        needs_run: jobResults['mosaic-tile-ci'].needs_run.toString()
-      },
-      'mosaic-vending-ci': {
-        needs_run: jobResults['mosaic-vending-ci'].needs_run.toString()
-      },
-      'deploy-mosaic-tile': {
-        needs_run: jobResults['mosaic-tile-ci'].needs_run.toString(),
-      },
-      'deploy-mosaic-vending': {
-        needs_run: jobResults['mosaic-vending-ci'].needs_run.toString(),
-      },
-      'mosaic-tile-e2e': {
-        needs_run: jobResults['mosaic-tile-e2e'].needs_run.toString()
-      },
-      'mosaic-vending-e2e': {
-        needs_run: jobResults['mosaic-vending-e2e'].needs_run.toString()
-      },
-      'full-e2e': {
-        needs_run: (Object.values(jobResults).some(j => j.needs_run)).toString()
-      }
-    };
+    const jobs = {};
+    for (const [jobName, result] of Object.entries(jobResults)) {
+      jobs[jobName] = {
+        needs_run: result.needs_run.toString()
+      };
+    }
 
     // Create complete execution plan
     const plan = {
@@ -163,12 +154,21 @@ async function generateExecutionPlan() {
         run_id: context.runId,
         run_number: context.runNumber,
         event_type: context.eventName,
-        repository: `${context.repo.owner}/${context.repo.repo}`
+        repository: `${context.repo.owner}/${context.repo.repo}`,
+        gist_id: gistId // Add gist ID to metadata for debugging
       }
     };
 
+    console.log('Generated plan:', JSON.stringify(plan, null, 2)); // Debug log
     setOutput('plan', JSON.stringify(plan));
   } catch (error) {
+    console.error('Error generating execution plan:', error);
+    console.error('Environment:', {
+      GIST_ID: process.env.GIST_ID,
+      GITHUB_TOKEN: !!process.env.GITHUB_TOKEN,
+      RUNNER_TEMP: process.env.RUNNER_TEMP,
+      CACHE_PATH: process.env.CACHE_PATH
+    });
     setFailed(error.message);
   }
 }
