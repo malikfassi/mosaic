@@ -129,13 +129,11 @@ jobs:
         with:
           args: ${{ steps.status.outputs.message }}
 
-      - name: Save Status to File
-        run: echo "${{ steps.status.outputs.message }}" > status.md
-
       - name: Update Status Gist
         if: always()
-        uses: exuanbo/actions-deploy-gist@v1
+        uses: peter-evans/create-gist@v2
         with:
           token: ${{ secrets.GIST_TOKEN }}
           gist_id: YOUR_GIST_ID_HERE
-          filename: status.md
+          file_name: status.md
+          content: ${{ steps.status.outputs.message }}

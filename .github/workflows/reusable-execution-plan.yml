@@ -145,85 +145,100 @@ jobs:
       - name: Create execution plan
         id: create-plan
         run: |
-          # Create plan for each component
-          plan=$(cat << EOF
+          # Create components section
+          components=$(cat << EOF
           {
-            "components": {
-              "frontend": {
-                "name": "frontend",
-                "hash": "${{ needs.calculate-hashes.outputs.frontend_hash }}",
-                "files_changed": ${{ needs.detect-changes.outputs.frontend_changes }},
-                "previous_run": $(echo '${{ needs.check-previous-runs.outputs.previous_runs }}' | jq '.frontend'),
-                "dependencies": []
-              },
-              "mosaic_tile": {
-                "name": "mosaic-tile",
-                "hash": "${{ needs.calculate-hashes.outputs.mosaic_tile_hash }}",
-                "files_changed": ${{ needs.detect-changes.outputs.mosaic_tile_changes }},
-                "previous_run": $(echo '${{ needs.check-previous-runs.outputs.previous_runs }}' | jq '.mosaic_tile'),
-                "dependencies": ["rust-setup"]
-              },
-              "mosaic_vending": {
-                "name": "mosaic-vending",
-                "hash": "${{ needs.calculate-hashes.outputs.mosaic_vending_hash }}",
-                "files_changed": ${{ needs.detect-changes.outputs.mosaic_vending_changes }},
-                "previous_run": $(echo '${{ needs.check-previous-runs.outputs.previous_runs }}' | jq '.mosaic_vending'),
-                "dependencies": ["rust-setup"]
-              }
+            "frontend": {
+              "name": "frontend",
+              "hash": "${{ needs.calculate-hashes.outputs.frontend_hash }}",
+              "files_changed": ${{ needs.detect-changes.outputs.frontend_changes }},
+              "previous_run": $(echo '${{ needs.check-previous-runs.outputs.previous_runs }}' | jq '.frontend'),
+              "dependencies": []
             },
-            "jobs": {
-              "frontend-ci": {
-                "component": "frontend",
-                "needs_run": ${{ needs.detect-changes.outputs.frontend_changes }} || $(echo '${{ needs.check-previous-runs.outputs.previous_runs }}' | jq '.frontend.found') == false,
-                "dependencies": ["changes"]
-              },
-              "mosaic-tile-ci": {
-                "component": "mosaic_tile",
-                "needs_run": ${{ needs.detect-changes.outputs.mosaic_tile_changes }} || $(echo '${{ needs.check-previous-runs.outputs.previous_runs }}' | jq '.mosaic_tile.found') == false,
-                "dependencies": ["changes", "rust-setup"]
-              },
-              "mosaic-vending-ci": {
-                "component": "mosaic_vending",
-                "needs_run": ${{ needs.detect-changes.outputs.mosaic_vending_changes }} || $(echo '${{ needs.check-previous-runs.outputs.previous_runs }}' | jq '.mosaic_vending.found') == false,
-                "dependencies": ["changes", "rust-setup"]
-              },
-              "deploy-mosaic-tile": {
-                "component": "mosaic_tile",
-                "needs_run": true,
-                "dependencies": ["mosaic-tile-ci"],
-                "condition": "needs.mosaic-tile-ci.result == 'success'"
-              },
-              "deploy-mosaic-vending": {
-                "component": "mosaic_vending",
-                "needs_run": true,
-                "dependencies": ["mosaic-vending-ci"],
-                "condition": "needs.mosaic-vending-ci.result == 'success'"
-              },
-              "mosaic-tile-e2e": {
-                "component": "mosaic_tile",
-                "needs_run": true,
-                "dependencies": ["deploy-mosaic-tile"]
-              },
-              "mosaic-vending-e2e": {
-                "component": "mosaic_vending",
-                "needs_run": true,
-                "dependencies": ["deploy-mosaic-vending"]
-              },
-              "full-e2e": {
-                "component": null,
-                "needs_run": ${{ needs.detect-changes.outputs.frontend_changes }} || ${{ needs.detect-changes.outputs.mosaic_tile_changes }} || ${{ needs.detect-changes.outputs.mosaic_vending_changes }},
-                "dependencies": ["frontend-ci", "mosaic-tile-e2e", "mosaic-vending-e2e"]
-              }
+            "mosaic_tile": {
+              "name": "mosaic-tile",
+              "hash": "${{ needs.calculate-hashes.outputs.mosaic_tile_hash }}",
+              "files_changed": ${{ needs.detect-changes.outputs.mosaic_tile_changes }},
+              "previous_run": $(echo '${{ needs.check-previous-runs.outputs.previous_runs }}' | jq '.mosaic_tile'),
+              "dependencies": ["rust-setup"]
             },
-            "metadata": {
-              "commit_sha": "${{ github.sha }}",
-              "workflow_id": "${{ github.run_id }}",
-              "created_at": "$(date -u +"%Y-%m-%dT%H:%M:%SZ")",
-              "event_type": "${{ github.event_name }}"
+            "mosaic_vending": {
+              "name": "mosaic-vending",
+              "hash": "${{ needs.calculate-hashes.outputs.mosaic_vending_hash }}",
+              "files_changed": ${{ needs.detect-changes.outputs.mosaic_vending_changes }},
+              "previous_run": $(echo '${{ needs.check-previous-runs.outputs.previous_runs }}' | jq '.mosaic_vending'),
+              "dependencies": ["rust-setup"]
             }
           }
           EOF
           )
+
+          # Create jobs section
+          jobs=$(cat << EOF
+          {
+            "frontend-ci": {
+              "component": "frontend",
+              "needs_run": ${{ needs.detect-changes.outputs.frontend_changes }} || $(echo '${{ needs.check-previous-runs.outputs.previous_runs }}' | jq '.frontend.found') == false,
+              "dependencies": ["changes"]
+            },
+            "mosaic-tile-ci": {
+              "component": "mosaic_tile",
+              "needs_run": ${{ needs.detect-changes.outputs.mosaic_tile_changes }} || $(echo '${{ needs.check-previous-runs.outputs.previous_runs }}' | jq '.mosaic_tile.found') == false,
+              "dependencies": ["changes", "rust-setup"]
+            },
+            "mosaic-vending-ci": {
+              "component": "mosaic_vending",
+              "needs_run": ${{ needs.detect-changes.outputs.mosaic_vending_changes }} || $(echo '${{ needs.check-previous-runs.outputs.previous_runs }}' | jq '.mosaic_vending.found') == false,
+              "dependencies": ["changes", "rust-setup"]
+            },
+            "deploy-mosaic-tile": {
+              "component": "mosaic_tile",
+              "needs_run": true,
+              "dependencies": ["mosaic-tile-ci"],
+              "condition": "needs.mosaic-tile-ci.result == 'success'"
+            },
+            "deploy-mosaic-vending": {
+              "component": "mosaic_vending",
+              "needs_run": true,
+              "dependencies": ["mosaic-vending-ci"],
+              "condition": "needs.mosaic-vending-ci.result == 'success'"
+            },
+            "mosaic-tile-e2e": {
+              "component": "mosaic_tile",
+              "needs_run": true,
+              "dependencies": ["deploy-mosaic-tile"]
+            },
+            "mosaic-vending-e2e": {
+              "component": "mosaic_vending",
+              "needs_run": true,
+              "dependencies": ["deploy-mosaic-vending"]
+            },
+            "full-e2e": {
+              "component": null,
+              "needs_run": ${{ needs.detect-changes.outputs.frontend_changes }} || ${{ needs.detect-changes.outputs.mosaic_tile_changes }} || ${{ needs.detect-changes.outputs.mosaic_vending_changes }},
+              "dependencies": ["frontend-ci", "mosaic-tile-e2e", "mosaic-vending-e2e"]
+            }
+          }
+          EOF
+          )
+
+          # Create metadata section
+          metadata=$(cat << EOF
+          {
+            "commit_sha": "${{ github.sha }}",
+            "workflow_id": "${{ github.run_id }}",
+            "created_at": "$(date -u +"%Y-%m-%dT%H:%M:%SZ")",
+            "event_type": "${{ github.event_name }}"
+          }
+          EOF
+          )
+
+          # Combine all sections into final plan
+          plan=$(jq -n \
+            --argjson components "$components" \
+            --argjson jobs "$jobs" \
+            --argjson metadata "$metadata" \
+            '{components: $components, jobs: $jobs, metadata: $metadata}')
 
           # Save plan to output
           echo "plan=$plan" >> $GITHUB_OUTPUT
