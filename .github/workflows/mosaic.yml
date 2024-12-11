@@ -16,6 +16,7 @@ jobs:
     uses: ./.github/workflows/reusable-execution-plan.yml
     with:
       GIST_ID: ${{ vars.GIST_ID }}
+      GITHUB_SHA: ${{ github.sha }}
     secrets:
       GIST_SECRET: ${{ secrets.GIST_SECRET }}
 

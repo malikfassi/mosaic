@@ -85,7 +85,7 @@ async function generateExecutionPlan() {
   });
 
   // Get all possible filenames with hashes
-  const allFileNames = getAllFileNames(componentHashes);
+  const allFileNames = getAllFileNames(componentHashes, process.env.GITHUB_SHA);
   console.log('Looking for gist files:', allFileNames);
 
   // Get all gist files

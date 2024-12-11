@@ -59,18 +59,15 @@ export const COMPONENTS = {
   }
 };
 
-// Jobs that use commit hash in their filenames
-export const HASH_JOBS = [
-  JOBS.MOSAIC_TILE_E2E,
-  JOBS.MOSAIC_VENDING_E2E,
-  JOBS.FULL_E2E
-];
 
-export function getAllFileNames(componentHashes) {
+export function getAllFileNames(componentHashes, commit_sha) {
   const allJobs = getAllJobs();
   return Object.entries(allJobs).map(([jobName, jobConfig]) => {
     const hash = componentHashes[jobConfig.component];
-    return HASH_JOBS.includes(jobName) ? `${jobName}.${hash}.json` : `${jobName}.json`;
+    if (jobName === JOBS.FULL_E2E) {
+      return `${jobName}.${commit_sha}.json`;
+    }
+    return `${jobName}.${hash}.json`;
   });
 }
 

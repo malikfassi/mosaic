@@ -7,6 +7,10 @@ on:
         required: true
         type: string
         description: "Gist ID for storing job results"
+      GITHUB_SHA:
+        required: true
+        type: string
+        description: "Github SHA for the current commit"
     secrets:
       GIST_SECRET:
         required: true
