@@ -15,16 +15,16 @@ function formatJobResult(result) {
 async function main() {
   try {
     // Get inputs
-    const plan = JSON.parse(core.getInput('execution_plan', { required: true }));
+    const plan = JSON.parse(process.env.EXECUTION_PLAN);
     const results = {
-      frontend_ci: core.getInput('frontend_ci_result', { required: true }),
-      mosaic_tile_ci: core.getInput('mosaic_tile_ci_result', { required: true }),
-      mosaic_vending_ci: core.getInput('mosaic_vending_ci_result', { required: true }),
-      mosaic_tile_deploy: core.getInput('mosaic_tile_deploy_result', { required: true }),
-      mosaic_vending_deploy: core.getInput('mosaic_vending_deploy_result', { required: true }),
-      mosaic_tile_e2e: core.getInput('mosaic_tile_e2e_result', { required: true }),
-      mosaic_vending_e2e: core.getInput('mosaic_vending_e2e_result', { required: true }),
-      full_e2e: core.getInput('full_e2e_result', { required: true })
+      frontend_ci: process.env.FRONTEND_CI_RESULT,
+      mosaic_tile_ci: process.env.MOSAIC_TILE_CI_RESULT,
+      mosaic_vending_ci: process.env.MOSAIC_VENDING_CI_RESULT,
+      mosaic_tile_deploy: process.env.MOSAIC_TILE_DEPLOY_RESULT,
+      mosaic_vending_deploy: process.env.MOSAIC_VENDING_DEPLOY_RESULT,
+      mosaic_tile_e2e: process.env.MOSAIC_TILE_E2E_RESULT,
+      mosaic_vending_e2e: process.env.MOSAIC_VENDING_E2E_RESULT,
+      full_e2e: process.env.FULL_E2E_RESULT
     };
 
     // Format component sections
