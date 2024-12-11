@@ -3,15 +3,6 @@ name: Changes Detection
 on:
   workflow_call:
     outputs:
-      frontend:
-        description: "Whether frontend changes were detected"
-        value: ${{ jobs.changes.outputs.frontend }}
-      mosaic_tile:
-        description: "Whether mosaic-tile changes were detected"
-        value: ${{ jobs.changes.outputs.mosaic_tile }}
-      mosaic_vending:
-        description: "Whether mosaic-vending changes were detected"
-        value: ${{ jobs.changes.outputs.mosaic_vending }}
       frontend_needs_run:
         description: "Whether frontend CI needs to run"
         value: ${{ jobs.changes.outputs.frontend_needs_run }}
@@ -31,15 +22,15 @@ jobs:
     permissions:
       pull-requests: read
     outputs:
-      frontend: ${{ steps.filter.outputs.frontend }}
-      mosaic_tile: ${{ steps.filter.outputs.mosaic_tile }}
-      mosaic_vending: ${{ steps.filter.outputs.mosaic_vending }}
       frontend_needs_run: ${{ steps.check-runs.outputs.frontend_needs_run }}
       mosaic_tile_needs_run: ${{ steps.check-runs.outputs.mosaic_tile_needs_run }}
       mosaic_vending_needs_run: ${{ steps.check-runs.outputs.mosaic_vending_needs_run }}
       full_e2e_needs_run: ${{ steps.check-runs.outputs.full_e2e_needs_run }}
     steps:
       - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0  # Needed to get all history for checking previous runs
+      
       - uses: dorny/paths-filter@v2
         id: filter
         with:
@@ -53,31 +44,90 @@ jobs:
               - 'contracts/mosaic-vending-minter/**'
               - 'contracts/Cargo.toml'
       
-      - name: Check needs run
+      - name: Check job history
         id: check-runs
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
-          # Frontend
-          if [[ "${{ steps.filter.outputs.frontend }}" == "true" ]]; then
-            echo "frontend_needs_run=true" >> $GITHUB_OUTPUT
-          else
-            echo "frontend_needs_run=false" >> $GITHUB_OUTPUT
-          fi
-
-          # Mosaic Tile
-          if [[ "${{ steps.filter.outputs.mosaic_tile }}" == "true" ]]; then
-            echo "mosaic_tile_needs_run=true" >> $GITHUB_OUTPUT
-          else
-            echo "mosaic_tile_needs_run=false" >> $GITHUB_OUTPUT
-          fi
-
-          # Mosaic Vending
-          if [[ "${{ steps.filter.outputs.mosaic_vending }}" == "true" ]]; then
-            echo "mosaic_vending_needs_run=true" >> $GITHUB_OUTPUT
-          else
-            echo "mosaic_vending_needs_run=false" >> $GITHUB_OUTPUT
-          fi
-
-          # Check full-e2e needs run
+          # Function to check if a job needs to run based on history
+          check_job_needs_run() {
+            local job_name=$1
+            local files_changed=$2
+            local needs_run=false
+            
+            # If no files changed, job can be skipped
+            if [[ "$files_changed" != "true" ]]; then
+              echo "false"
+              return
+            fi
+            
+            # Get current files hash for the job's relevant files
+            local current_hash=""
+            case "$job_name" in
+              "frontend-ci")
+                current_hash=$(find frontend -type f -exec sha256sum {} \; | sort | sha256sum | cut -d' ' -f1)
+                ;;
+              "mosaic-tile-ci")
+                current_hash=$(find contracts/mosaic-tile-nft -type f -exec sha256sum {} \; | sort | sha256sum | cut -d' ' -f1)
+                ;;
+              "mosaic-vending-ci")
+                current_hash=$(find contracts/mosaic-vending-minter -type f -exec sha256sum {} \; | sort | sha256sum | cut -d' ' -f1)
+                ;;
+              *)
+                echo "true"  # Unknown job, better run it
+                return
+                ;;
+            esac
+            
+            # Check previous runs for this job
+            local found_matching_run=false
+            gh run list --workflow pixel-canvas.yml \
+              --json conclusion,jobs,headSha \
+              --jq ".[] | select(.jobs[].name == \"$job_name\") | {conclusion: .conclusion, sha: .headSha}" \
+              --limit 100 | while read -r run; do
+                local sha=$(echo "$run" | jq -r '.sha')
+                local conclusion=$(echo "$run" | jq -r '.conclusion')
+                
+                # Get hash of files at that commit
+                local old_hash=""
+                case "$job_name" in
+                  "frontend-ci")
+                    old_hash=$(git show "$sha:frontend" 2>/dev/null | sha256sum | cut -d' ' -f1)
+                    ;;
+                  "mosaic-tile-ci")
+                    old_hash=$(git show "$sha:contracts/mosaic-tile-nft" 2>/dev/null | sha256sum | cut -d' ' -f1)
+                    ;;
+                  "mosaic-vending-ci")
+                    old_hash=$(git show "$sha:contracts/mosaic-vending-minter" 2>/dev/null | sha256sum | cut -d' ' -f1)
+                    ;;
+                esac
+                
+                # If hashes match, we found a previous run with same code
+                if [[ "$old_hash" == "$current_hash" ]]; then
+                  found_matching_run=true
+                  if [[ "$conclusion" == "success" ]]; then
+                    needs_run=false
+                  else
+                    needs_run=true
+                  fi
+                  break
+                fi
+              done
+            
+            # If no matching run found, we need to run
+            if [[ "$found_matching_run" != "true" ]]; then
+              needs_run=true
+            fi
+            
+            echo "$needs_run"
+          }
+          
+          # Check each job
+          echo "frontend_needs_run=$(check_job_needs_run "frontend-ci" "${{ steps.filter.outputs.frontend }}")" >> $GITHUB_OUTPUT
+          echo "mosaic_tile_needs_run=$(check_job_needs_run "mosaic-tile-ci" "${{ steps.filter.outputs.mosaic_tile }}")" >> $GITHUB_OUTPUT
+          echo "mosaic_vending_needs_run=$(check_job_needs_run "mosaic-vending-ci" "${{ steps.filter.outputs.mosaic_vending }}")" >> $GITHUB_OUTPUT
+          
+          # Full E2E needs to run if any component changed
           if [[ "${{ steps.filter.outputs.frontend }}" == "true" || \
                 "${{ steps.filter.outputs.mosaic_tile }}" == "true" || \
                 "${{ steps.filter.outputs.mosaic_vending }}" == "true" ]]; then
