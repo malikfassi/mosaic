@@ -18,14 +18,29 @@ function calculateComponentHash(component) {
   }
 
   // Get all files matching the patterns
-  const files = paths.flatMap(pattern => 
-    globSync(pattern, { dot: true, nodir: true })
-  ).filter(file => !ig.ignores(file));
+  const files = paths.flatMap(pattern => {
+    console.log(`Searching pattern ${pattern} for ${component}`);
+    const matches = globSync(pattern, { 
+      dot: true, 
+      nodir: true,
+      cwd: process.cwd(),
+      absolute: false
+    });
+    console.log(`Found ${matches.length} files for pattern ${pattern}`);
+    return matches;
+  }).filter(file => !ig.ignores(file));
+
+  if (files.length === 0) {
+    console.warn(`No files found for component ${component} with patterns:`, paths);
+  } else {
+    console.log(`Found ${files.length} files for component ${component}:`, files);
+  }
 
   // Sort files for consistent hashing
   files.sort().forEach(file => {
     try {
-      const content = readFileSync(file);
+      console.log(`Reading file ${file}`);
+      const content = readFileSync(file, 'utf8');
       hash.update(`${file}:`);
       hash.update(content);
     } catch (error) {
@@ -33,7 +48,9 @@ function calculateComponentHash(component) {
     }
   });
 
-  return hash.digest('hex');
+  const result = hash.digest('hex');
+  console.log(`Hash for ${component}: ${result}`);
+  return result;
 }
 
 async function getGistFiles(gistId, token) {
@@ -57,6 +74,10 @@ async function generateExecutionPlan() {
     throw new Error('Missing required environment variables');
   }
 
+  // Log current directory for debugging
+  console.log('Current directory:', process.cwd());
+  console.log('Directory contents:', globSync('*', { dot: true }));
+
   // Calculate component hashes first
   const componentHashes = {};
   Object.keys(COMPONENTS).forEach(componentName => {
@@ -65,9 +86,11 @@ async function generateExecutionPlan() {
 
   // Get all possible filenames with hashes
   const allFileNames = getAllFileNames(componentHashes);
+  console.log('Looking for gist files:', allFileNames);
 
   // Get all gist files
   const gistFiles = await getGistFiles(gistId, token);
+  console.log('Found gist files:', Object.keys(gistFiles));
 
   // Generate plan
   const plan = {
@@ -99,7 +122,7 @@ async function generateExecutionPlan() {
           success: content.success,
           timestamp: content.timestamp,
           run_id: content.run_id,
-          hash: filename.split('.')[1]
+          hash: filename.split('.')[1]?.replace('.json', '') || null
         };
       } catch (error) {
         console.warn(`Error parsing ${filename}: ${error.message}`);

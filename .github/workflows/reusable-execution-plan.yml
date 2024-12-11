@@ -49,4 +49,8 @@ jobs:
           GITHUB_TOKEN: ${{ github.token }}
         run: |
           npm run execution-plan
-          echo "plan=$(cat execution-plan.json)" >> $GITHUB_OUTPUT
+          # Escape the JSON for GitHub Actions output
+          EOF=$(dd if=/dev/urandom bs=15 count=1 status=none | base64)
+          echo "plan<<$EOF" >> "$GITHUB_OUTPUT"
+          cat execution-plan.json >> "$GITHUB_OUTPUT"
+          echo "$EOF" >> "$GITHUB_OUTPUT"
