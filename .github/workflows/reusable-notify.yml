@@ -66,17 +66,11 @@ jobs:
           FULL_E2E_RESULT: ${{ inputs.full_e2e_result }}
           GIST_SECRET: ${{ secrets.GIST_SECRET }}
           GIST_ID: ${{ inputs.gist_id }}
-        run: npm run notify
+        run: |
+          npm run notify
 
       - name: Send Discord notification
         uses: tsickert/discord-webhook@v5.3.0
         with:
           webhook-url: ${{ secrets.DISCORD_WEBHOOK }}
           filename: discord_message.txt
-
-      - name: Update status gist
-        uses: ./.github/workflows/reusable-status.yml
-        with:
-          action: update
-          execution_plan: ${{ inputs.execution_plan }}
-          gist_id: ${{ inputs.gist_id }}

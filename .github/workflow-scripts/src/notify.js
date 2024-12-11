@@ -14,7 +14,8 @@ function generateStatusMessage(plan, results) {
   if (COMPONENTS.frontend) {
     lines.push('**Frontend**');
     COMPONENTS.frontend.jobs.forEach(jobName => {
-      lines.push(`- ${jobName}: ${formatJobResult(results[jobName])}`);
+      const previousRun = plan.jobs[jobName]?.previous_run;
+      lines.push(`- ${jobName}: ${formatJobResult(results[jobName])}${previousRun ? ` (Previous: ${formatJobResult(previousRun.result)})` : ''}`);
     });
   }
 
@@ -22,7 +23,8 @@ function generateStatusMessage(plan, results) {
   if (COMPONENTS.mosaic_tile) {
     lines.push('**Mosaic Tile**');
     COMPONENTS.mosaic_tile.jobs.forEach(jobName => {
-      lines.push(`- ${jobName}: ${formatJobResult(results[jobName])}`);
+      const previousRun = plan.jobs[jobName]?.previous_run;
+      lines.push(`- ${jobName}: ${formatJobResult(results[jobName])}${previousRun ? ` (Previous: ${formatJobResult(previousRun.result)})` : ''}`);
     });
   }
 
@@ -30,46 +32,19 @@ function generateStatusMessage(plan, results) {
   if (COMPONENTS.mosaic_vending) {
     lines.push('**Mosaic Vending**');
     COMPONENTS.mosaic_vending.jobs.forEach(jobName => {
-      lines.push(`- ${jobName}: ${formatJobResult(results[jobName])}`);
+      const previousRun = plan.jobs[jobName]?.previous_run;
+      lines.push(`- ${jobName}: ${formatJobResult(results[jobName])}${previousRun ? ` (Previous: ${formatJobResult(previousRun.result)})` : ''}`);
     });
   }
 
   // Integration status (full-e2e)
   if (plan.jobs[JOBS.FULL_E2E]) {
     lines.push('**Integration**');
-    lines.push(`- ${JOBS.FULL_E2E}: ${formatJobResult(results[JOBS.FULL_E2E])}`);
+    const previousRun = plan.jobs[JOBS.FULL_E2E]?.previous_run;
+    lines.push(`- ${JOBS.FULL_E2E}: ${formatJobResult(results[JOBS.FULL_E2E])}${previousRun ? ` (Previous: ${formatJobResult(previousRun.result)})` : ''}`);
   }
 
   return lines.join('\n');
-}
-
-async function updateGist(gistId, token, plan, results) {
-  const octokit = getOctokit(token);
-  const files = {};
-
-  // Get all job filenames
-  const allFileNames = getAllFileNames(plan.components);
-
-  // Update each job's gist file
-  allFileNames.forEach(filename => {
-    const jobName = filename.split('.')[0];
-    const result = results[jobName];
-    if (result) {
-      files[filename] = {
-        content: JSON.stringify({
-          success: result === 'success',
-          timestamp: new Date().toISOString(),
-          run_id: plan.metadata?.run_id
-        })
-      };
-    }
-  });
-
-  // Update gist
-  await octokit.rest.gists.update({
-    gist_id: gistId,
-    files
-  });
 }
 
 async function main() {
@@ -106,12 +81,6 @@ async function main() {
     // Save Discord message
     await writeFile('discord_message.txt', message);
 
-    // Update gist
-    const gistId = process.env.GIST_ID;
-    const token = process.env.GIST_SECRET;
-    if (gistId && token) {
-      await updateGist(gistId, token, plan, results);
-    }
   } catch (error) {
     console.error('Error in notify:', error);
     process.exit(1);
