@@ -85,9 +85,10 @@ async function main() {
     const message = sections.join('\n\n');
     await writeFile('discord_message.txt', message);
     
-    console.log('Successfully generated Discord message');
+    console.log('Generated Discord message:');
+    console.log(message);
   } catch (error) {
-    console.error('Error in notify:', error);
+    console.error('Error generating Discord message:', error);
     process.exit(1);
   }
 }

@@ -4,13 +4,15 @@
     "@actions/github": "^6.0.0",
     "@octokit/rest": "^20.0.2",
     "glob": "^10.3.10",
-    "ignore": "^5.3.0"
+    "ignore": "^5.3.0",
+    "node-fetch": "^3.3.2"
   },
   "description": "Scripts for Mosaic CI/CD workflows",
   "name": "mosaic-workflow-scripts",
   "scripts": {
     "execution-plan": "node src/execution-plan.js",
     "notify": "node src/notify.js",
+    "status": "node src/status.js",
     "update-status": "node src/update-status.js"
   },
   "type": "module",

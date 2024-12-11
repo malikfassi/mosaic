@@ -82,7 +82,39 @@ jobs:
         working-directory: .github/workflow-scripts
         run: npm ci
 
-      - name: Generate and Send Status
+      - name: Generate Discord Message
+        working-directory: .github/workflow-scripts
+        env:
+          EXECUTION_PLAN: ${{ inputs.execution_plan }}
+          FRONTEND_LINT_RESULT: ${{ inputs.frontend_lint_result }}  
+          FRONTEND_TEST_RESULT: ${{ inputs.frontend_test_result }}
+          FRONTEND_BUILD_RESULT: ${{ inputs.frontend_build_result }}
+          MOSAIC_TILE_LINT_RESULT: ${{ inputs.mosaic_tile_lint_result }}
+          MOSAIC_TILE_TEST_RESULT: ${{ inputs.mosaic_tile_test_result }}
+          MOSAIC_TILE_SCHEMA_RESULT: ${{ inputs.mosaic_tile_schema_result }}
+          MOSAIC_TILE_FORMAT_RESULT: ${{ inputs.mosaic_tile_format_result }}
+          MOSAIC_VENDING_LINT_RESULT: ${{ inputs.mosaic_vending_lint_result }}
+          MOSAIC_VENDING_TEST_RESULT: ${{ inputs.mosaic_vending_test_result }}
+          MOSAIC_VENDING_SCHEMA_RESULT: ${{ inputs.mosaic_vending_schema_result }}
+          MOSAIC_VENDING_FORMAT_RESULT: ${{ inputs.mosaic_vending_format_result }}
+          MOSAIC_TILE_DEPLOY_RESULT: ${{ inputs.mosaic_tile_deploy_result }}
+          MOSAIC_VENDING_DEPLOY_RESULT: ${{ inputs.mosaic_vending_deploy_result }}
+          MOSAIC_TILE_E2E_RESULT: ${{ inputs.mosaic_tile_e2e_result }}
+          MOSAIC_VENDING_E2E_RESULT: ${{ inputs.mosaic_vending_e2e_result }}
+          FULL_E2E_RESULT: ${{ inputs.full_e2e_result }}
+        run: |
+          npm run notify
+          echo "Generated Discord message:"
+          cat discord_message.txt
+
+      - name: Send Discord Message
+        uses: tsickert/discord-webhook@v5.3.0
+        with:
+          webhook-url: ${{ secrets.DISCORD_WEBHOOK }}
+          filename: discord_message.txt
+          working-directory: .github/workflow-scripts
+
+      - name: Update Gist Status
         working-directory: .github/workflow-scripts
         env:
           EXECUTION_PLAN: ${{ inputs.execution_plan }}
@@ -104,13 +136,10 @@ jobs:
           FULL_E2E_RESULT: ${{ inputs.full_e2e_result }}
           GIST_SECRET: ${{ secrets.GIST_SECRET }}
           GIST_ID: ${{ inputs.gist_id }}
-          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
-        run: |
-          npm run notify
-          mv discord_message.txt ${{ github.workspace }}/
+        run: npm run update-status
 
-      - name: Send Discord notification
-        uses: tsickert/discord-webhook@v5.3.0
-        with:
-          webhook-url: ${{ secrets.DISCORD_WEBHOOK }}
-          filename: discord_message.txt
+
+      
+
+
+
