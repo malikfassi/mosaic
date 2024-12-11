@@ -22,17 +22,34 @@ GIST_TOKEN=dummy-token-for-testing
 EOL
 fi
 
+# Create artifact directory if it doesn't exist
+mkdir -p /tmp/artifacts
+
 # Run specific workflow or all workflows
 if [ -n "$2" ]; then
-    WORKFLOW="--workflow $2"
+    WORKFLOW="-W $2"
 else
     WORKFLOW=""
 fi
+
+# Set default platform
+PLATFORM="ubuntu-latest=ghcr.io/catthehacker/ubuntu:act-latest"
+
+# Print debug info
+echo "Event: $EVENT"
+echo "Workflow: $WORKFLOW"
+echo "Platform: $PLATFORM"
+echo "Working directory: $(pwd)"
+echo "Contents of .secrets:"
+cat .secrets
+echo
 
 # Run act with common configuration
 act $EVENT \
     $WORKFLOW \
     --secret-file .secrets \
-    --platform ubuntu-latest=ghcr.io/catthehacker/ubuntu:act-latest \
-    --bind \
+    --platform $PLATFORM \
+    --artifact-server-path /tmp/artifacts \
+    --env GITHUB_REPOSITORY="malikfassifihri/mosaic" \
+    --env GITHUB_REF="refs/heads/main" \
     -v
