@@ -22,4 +22,8 @@ schemars = "0.8.15"
 serde = { version = "1.0.188", features = ["derive"] }
 thiserror = "1.0.48"
 anyhow = "1.0.75"
-cw-multi-test = "0.16.5" 
+cw-multi-test = "0.16.5"
+sg721 = "2.4.0"
+sg721-base = { version = "2.4.0", features = ["library"] }
+sg-std = "2.4.0"
+cw-utils = "1.0.3" 
