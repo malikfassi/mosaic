@@ -126,7 +126,7 @@ jobs:
         id: set-result
         if: always()
         run: |
-          if [[ "${{ inputs.needs_run }}" != "true" ]]; then
+          if [[ "${{ inputs.needs_run }}" == "false" ]]; then
             echo "result=skipped" >> $GITHUB_OUTPUT
           else
             echo "result=${{ job.status }}" >> $GITHUB_OUTPUT
@@ -176,7 +176,7 @@ jobs:
         id: set-result
         if: always()
         run: |
-          if [[ "${{ inputs.needs_run }}" != "true" ]]; then
+          if [[ "${{ inputs.needs_run }}" == "false" ]]; then
             echo "result=skipped" >> $GITHUB_OUTPUT
           else
             echo "result=${{ job.status }}" >> $GITHUB_OUTPUT
@@ -227,7 +227,7 @@ jobs:
         id: set-result
         if: always()
         run: |
-          if [[ "${{ inputs.needs_run }}" != "true" ]]; then
+          if [[ "${{ inputs.needs_run }}" == "false" ]]; then
             echo "result=skipped" >> $GITHUB_OUTPUT
           else
             echo "result=${{ job.status }}" >> $GITHUB_OUTPUT
