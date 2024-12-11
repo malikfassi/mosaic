@@ -18,9 +18,16 @@ on:
 
 jobs:
   format:
-    if: inputs.needs_run == 'true'
     runs-on: ubuntu-latest
     steps:
+      - name: Check if job needs to run
+        id: check
+        run: |
+          if [[ "${{ inputs.needs_run }}" != "true" ]]; then
+            echo "Job can be skipped - reusing previous successful run"
+            exit 0
+          fi
+
       - uses: actions/checkout@v3
       - uses: actions-rs/toolchain@v1
         with:
@@ -34,9 +41,16 @@ jobs:
           cargo fmt -- --check
 
   lint:
-    if: inputs.needs_run == 'true'
     runs-on: ubuntu-latest
     steps:
+      - name: Check if job needs to run
+        id: check
+        run: |
+          if [[ "${{ inputs.needs_run }}" != "true" ]]; then
+            echo "Job can be skipped - reusing previous successful run"
+            exit 0
+          fi
+
       - uses: actions/checkout@v3
       - uses: actions-rs/toolchain@v1
         with:
@@ -50,9 +64,16 @@ jobs:
           cargo clippy -- -D warnings
 
   test:
-    if: inputs.needs_run == 'true'
     runs-on: ubuntu-latest
     steps:
+      - name: Check if job needs to run
+        id: check
+        run: |
+          if [[ "${{ inputs.needs_run }}" != "true" ]]; then
+            echo "Job can be skipped - reusing previous successful run"
+            exit 0
+          fi
+
       - uses: actions/checkout@v3
       - uses: actions-rs/toolchain@v1
         with:
@@ -65,10 +86,17 @@ jobs:
           cargo test
 
   schema:
-    if: inputs.needs_run == 'true'
     needs: [format, lint, test]
     runs-on: ubuntu-latest
     steps:
+      - name: Check if job needs to run
+        id: check
+        run: |
+          if [[ "${{ inputs.needs_run }}" != "true" ]]; then
+            echo "Job can be skipped - reusing previous successful run"
+            exit 0
+          fi
+
       - uses: actions/checkout@v3
       - uses: actions-rs/toolchain@v1
         with:

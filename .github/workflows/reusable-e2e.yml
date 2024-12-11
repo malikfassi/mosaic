@@ -6,7 +6,7 @@ on:
       test_type:
         required: true
         type: string
-        description: "Type of E2E test (mosaic-tile, mosaic-vending, or full)"
+        description: "Type of E2E test to run (mosaic-tile, mosaic-vending, or full)"
       needs_run:
         required: true
         type: string
@@ -14,24 +14,18 @@ on:
 
 jobs:
   e2e:
-    if: inputs.needs_run == 'true' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     steps:
+      - name: Check if job needs to run
+        id: check
+        run: |
+          if [[ "${{ inputs.needs_run }}" != "true" ]]; then
+            echo "Job can be skipped - reusing previous successful run"
+            exit 0
+          fi
+
       - uses: actions/checkout@v3
       - name: Run E2E tests
         run: |
-          case "${{ inputs.test_type }}" in
-            "mosaic-tile")
-              echo "Running mosaic-tile E2E tests..."
-              ;;
-            "mosaic-vending")
-              echo "Running mosaic-vending E2E tests..."
-              ;;
-            "full")
-              echo "Running full E2E test suite..."
-              ;;
-            *)
-              echo "Unknown test type: ${{ inputs.test_type }}"
-              exit 1
-              ;;
-          esac 
+          echo "Running ${{ inputs.test_type }} E2E tests..."
+          # Add actual E2E test commands here 

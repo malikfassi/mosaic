@@ -14,47 +14,77 @@ on:
 
 jobs:
   lint:
-    if: inputs.needs_run == 'true'
     runs-on: ubuntu-latest
     steps:
+      - name: Check if job needs to run
+        id: check
+        run: |
+          if [[ "${{ inputs.needs_run }}" != "true" ]]; then
+            echo "Job can be skipped - reusing previous successful run"
+            exit 0
+          fi
+
       - uses: actions/checkout@v3
       - uses: actions/setup-node@v3
         with:
           node-version: '18'
           cache: 'npm'
-          cache-dependency-path: frontend/package-lock.json
       - name: Install dependencies
-        run: cd frontend && npm ci
+        run: |
+          cd frontend
+          npm ci
       - name: Run linting
-        run: cd frontend && npm run lint
+        run: |
+          cd frontend
+          npm run lint
 
   test:
-    if: inputs.needs_run == 'true'
     runs-on: ubuntu-latest
     steps:
+      - name: Check if job needs to run
+        id: check
+        run: |
+          if [[ "${{ inputs.needs_run }}" != "true" ]]; then
+            echo "Job can be skipped - reusing previous successful run"
+            exit 0
+          fi
+
       - uses: actions/checkout@v3
       - uses: actions/setup-node@v3
         with:
           node-version: '18'
           cache: 'npm'
-          cache-dependency-path: frontend/package-lock.json
       - name: Install dependencies
-        run: cd frontend && npm ci
+        run: |
+          cd frontend
+          npm ci
       - name: Run tests
-        run: cd frontend && npm test
+        run: |
+          cd frontend
+          npm test
 
   build:
-    if: inputs.needs_run == 'true'
     needs: [lint, test]
     runs-on: ubuntu-latest
     steps:
+      - name: Check if job needs to run
+        id: check
+        run: |
+          if [[ "${{ inputs.needs_run }}" != "true" ]]; then
+            echo "Job can be skipped - reusing previous successful run"
+            exit 0
+          fi
+
       - uses: actions/checkout@v3
       - uses: actions/setup-node@v3
         with:
           node-version: '18'
           cache: 'npm'
-          cache-dependency-path: frontend/package-lock.json
       - name: Install dependencies
-        run: cd frontend && npm ci
+        run: |
+          cd frontend
+          npm ci
       - name: Build
-        run: cd frontend && npm run build 
+        run: |
+          cd frontend
+          npm run build 
