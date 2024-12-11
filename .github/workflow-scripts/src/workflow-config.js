@@ -1,57 +1,82 @@
+// Job name definitions
+export const JOBS = {
+  // Frontend jobs
+  FRONTEND_LINT: 'frontend-ci-lint',
+  FRONTEND_TEST: 'frontend-ci-test',
+  FRONTEND_BUILD: 'frontend-ci-build',
+
+  // Mosaic Tile jobs
+  MOSAIC_TILE_FORMAT: 'mosaic-tile-ci-format',
+  MOSAIC_TILE_LINT: 'mosaic-tile-ci-lint',
+  MOSAIC_TILE_TEST: 'mosaic-tile-ci-test',
+  MOSAIC_TILE_SCHEMA: 'mosaic-tile-ci-schema',
+  MOSAIC_TILE_DEPLOY: 'deploy-mosaic-tile',
+  MOSAIC_TILE_E2E: 'mosaic-tile-e2e',
+
+  // Mosaic Vending jobs
+  MOSAIC_VENDING_FORMAT: 'mosaic-vending-ci-format',
+  MOSAIC_VENDING_LINT: 'mosaic-vending-ci-lint',
+  MOSAIC_VENDING_TEST: 'mosaic-vending-ci-test',
+  MOSAIC_VENDING_SCHEMA: 'mosaic-vending-ci-schema',
+  MOSAIC_VENDING_DEPLOY: 'deploy-mosaic-vending',
+  MOSAIC_VENDING_E2E: 'mosaic-vending-e2e',
+
+  // Integration jobs
+  FULL_E2E: 'full-e2e'
+};
+
 // Component definitions with their file paths
 export const COMPONENTS = {
   frontend: {
     paths: ['frontend/**/*'],
-    jobs: {
-      'frontend-ci-lint': { type: 'ci' },
-      'frontend-ci-test': { type: 'ci', needs: ['frontend-ci-lint'] },
-      'frontend-ci-build': { type: 'ci', needs: ['frontend-ci-lint', 'frontend-ci-test'] }
-    }
+    jobs: [
+      JOBS.FRONTEND_LINT,
+      JOBS.FRONTEND_TEST,
+      JOBS.FRONTEND_BUILD
+    ]
   },
   mosaic_tile: {
     paths: ['contracts/mosaic-tile-nft/**/*', 'contracts/Cargo.toml'],
-    jobs: {
-      'mosaic-tile-ci-format': { type: 'ci' },
-      'mosaic-tile-ci-lint': { type: 'ci' },
-      'mosaic-tile-ci-test': { type: 'ci' },
-      'mosaic-tile-ci-schema': { type: 'ci', needs: ['mosaic-tile-ci-format', 'mosaic-tile-ci-lint', 'mosaic-tile-ci-test'] },
-      'deploy-mosaic-tile': { type: 'deploy', needs: ['mosaic-tile-ci-schema'], always_run: true },
-      'mosaic-tile-e2e': { type: 'e2e', needs: ['deploy-mosaic-tile'] }
-    }
+    jobs: [
+      JOBS.MOSAIC_TILE_FORMAT,
+      JOBS.MOSAIC_TILE_LINT,
+      JOBS.MOSAIC_TILE_TEST,
+      JOBS.MOSAIC_TILE_SCHEMA,
+      JOBS.MOSAIC_TILE_DEPLOY,
+      JOBS.MOSAIC_TILE_E2E
+    ]
   },
   mosaic_vending: {
     paths: ['contracts/mosaic-vending-minter/**/*', 'contracts/Cargo.toml'],
-    jobs: {
-      'mosaic-vending-ci-format': { type: 'ci' },
-      'mosaic-vending-ci-lint': { type: 'ci' },
-      'mosaic-vending-ci-test': { type: 'ci' },
-      'mosaic-vending-ci-schema': { type: 'ci', needs: ['mosaic-vending-ci-format', 'mosaic-vending-ci-lint', 'mosaic-vending-ci-test'] },
-      'deploy-mosaic-vending': { type: 'deploy', needs: ['mosaic-vending-ci-schema'], always_run: true },
-      'mosaic-vending-e2e': { type: 'e2e', needs: ['deploy-mosaic-vending'] }
-    }
-  }
-};
-
-// Integration jobs that depend on multiple components
-export const INTEGRATION_JOBS = {
-  'full-e2e': {
-    type: 'e2e',
-    needs: [
-      'frontend-ci-build',
-      'mosaic-tile-e2e',
-      'mosaic-vending-e2e'
+    jobs: [
+      JOBS.MOSAIC_VENDING_FORMAT,
+      JOBS.MOSAIC_VENDING_LINT,
+      JOBS.MOSAIC_VENDING_TEST,
+      JOBS.MOSAIC_VENDING_SCHEMA,
+      JOBS.MOSAIC_VENDING_DEPLOY,
+      JOBS.MOSAIC_VENDING_E2E
     ]
   }
 };
 
+// Jobs that use commit hash in their filenames
+export const HASH_JOBS = [
+  JOBS.MOSAIC_TILE_E2E,
+  JOBS.MOSAIC_VENDING_E2E,
+  JOBS.FULL_E2E
+];
+
 export function getAllFileNames(componentHashes) {
-    alljobs = getAllJobs()
-    return alljobs.flatMap((jobName, jobConfig) => {return jobName + componentsHashes[jobConfig.component] + ".json";});
+  const allJobs = getAllJobs();
+  return Object.entries(allJobs).map(([jobName, jobConfig]) => {
+    const hash = componentHashes[jobConfig.component];
+    return HASH_JOBS.includes(jobName) ? `${jobName}.${hash}.json` : `${jobName}.json`;
+  });
 }
 
 // Helper to get all jobs for a component
 export function getComponentJobs(component) {
-  return COMPONENTS[component]?.jobs || {};
+  return COMPONENTS[component]?.jobs || [];
 }
 
 // Helper to get all jobs including integration jobs
@@ -59,37 +84,14 @@ export function getAllJobs() {
   const jobs = {};
   
   // Add component jobs
-  Object.values(COMPONENTS).forEach((componentName, component) => {
-    Object.entries(component.jobs).forEach(([jobName, jobConfig]) => {
-      jobConfig['component'] = componentName
-      jobs[jobName] = jobConfig;
+  Object.entries(COMPONENTS).forEach(([componentName, component]) => {
+    component.jobs.forEach(jobName => {
+      jobs[jobName] = { component: componentName };
     });
   });
   
   // Add integration jobs
-  Object.entries(INTEGRATION_JOBS).forEach(([name, config]) => {
-    config['component'] = 'integration'
-    jobs[name] = config;
-  });
+  jobs[JOBS.FULL_E2E] = { component: 'integration' };
   
   return jobs;
-}
-
-// Helper to check if a job should run based on dependencies
-export function shouldJobRun(jobName, jobResults) {
-  const allJobs = getAllJobs();
-  const job = allJobs[jobName];
-  
-  if (!job) return false;
-  
-  // Always run deploy jobs if their dependencies pass
-  if (job.always_run) {
-    return job.needs?.every(need => jobResults[need]?.success) ?? true;
-  }
-  
-  // For other jobs, check if any dependencies need to run or failed
-  return job.needs?.some(need => {
-    const needResult = jobResults[need];
-    return !needResult?.exists || !needResult?.success;
-  }) ?? true;
 } 
