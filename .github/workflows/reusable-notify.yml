@@ -58,6 +58,11 @@ on:
       gist_id:
         required: true
         type: string
+    secrets:
+      GIST_SECRET:
+        required: true
+      DISCORD_WEBHOOK:
+        required: true
 
 jobs:
   notify:
