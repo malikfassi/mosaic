@@ -80,10 +80,6 @@ async function generateExecutionPlan() {
     throw new Error('Missing required environment variables');
   }
 
-  // Log current directory for debugging
-  console.log('Current directory:', process.cwd());
-  console.log('Directory contents:', globSync('*', { dot: true }));
-
   // Calculate component hashes first
   const componentHashes = {};
   Object.keys(COMPONENTS).forEach(componentName => {
@@ -92,11 +88,9 @@ async function generateExecutionPlan() {
 
   // Get all possible filenames with hashes
   const allFileNames = getAllFileNames(componentHashes, commitSha);
-  console.log('Looking for gist files:', allFileNames);
 
   // Get all gist files
   const gistFiles = await getGistFiles(gistId, token);
-  console.log('Found gist files:', Object.keys(gistFiles));
 
   // Generate plan
   const plan = {
