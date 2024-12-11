@@ -8,48 +8,48 @@ on:
 
 jobs:
   changes:
-    uses: ./.github/workflows/components/changes.yml
+    uses: ./.github/workflows/reusable-changes.yml
 
   rust-setup:
-    uses: ./.github/workflows/components/rust-setup.yml
+    uses: ./.github/workflows/reusable-rust-setup.yml
 
   frontend-ci:
     needs: changes
-    uses: ./.github/workflows/components/frontend.yml
+    uses: ./.github/workflows/reusable-frontend.yml
     with:
       needs_run: ${{ needs.changes.outputs.frontend_needs_run }}
 
   mosaic-tile-ci:
     needs: [changes, rust-setup]
-    uses: ./.github/workflows/components/contracts.yml
+    uses: ./.github/workflows/reusable-contracts.yml
     with:
       contract_name: mosaic-tile
       needs_run: ${{ needs.changes.outputs.mosaic_tile_needs_run }}
 
   mosaic-vending-ci:
     needs: [changes, rust-setup]
-    uses: ./.github/workflows/components/contracts.yml
+    uses: ./.github/workflows/reusable-contracts.yml
     with:
       contract_name: mosaic-vending
       needs_run: ${{ needs.changes.outputs.mosaic_vending_needs_run }}
 
   mosaic-tile-e2e:
     needs: [mosaic-tile-ci]
-    uses: ./.github/workflows/components/e2e.yml
+    uses: ./.github/workflows/reusable-e2e.yml
     with:
       test_type: mosaic-tile
       needs_run: ${{ needs.changes.outputs.mosaic_tile_needs_run }}
 
   mosaic-vending-e2e:
     needs: [mosaic-vending-ci]
-    uses: ./.github/workflows/components/e2e.yml
+    uses: ./.github/workflows/reusable-e2e.yml
     with:
       test_type: mosaic-vending
       needs_run: ${{ needs.changes.outputs.mosaic_vending_needs_run }}
 
   full-e2e:
     needs: [frontend-ci, mosaic-tile-e2e, mosaic-vending-e2e]
-    uses: ./.github/workflows/components/e2e.yml
+    uses: ./.github/workflows/reusable-e2e.yml
     with:
       test_type: full
       needs_run: ${{ needs.changes.outputs.full_e2e_needs_run }}
@@ -57,7 +57,7 @@ jobs:
   notify:
     needs: [frontend-ci, mosaic-tile-ci, mosaic-vending-ci, mosaic-tile-e2e, mosaic-vending-e2e, full-e2e]
     if: always()
-    uses: ./.github/workflows/components/notify.yml
+    uses: ./.github/workflows/reusable-notify.yml
     with:
       frontend_ci_result: ${{ needs.frontend-ci.result }}
       mosaic_tile_ci_result: ${{ needs.mosaic-tile-ci.result }}
