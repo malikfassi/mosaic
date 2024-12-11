@@ -60,7 +60,7 @@ jobs:
       needs_run: ${{ needs.changes.outputs.full_e2e_needs_run }}
 
   notify:
-    needs: [frontend-ci, mosaic-tile-ci, mosaic-vending-ci, mosaic-tile-e2e, mosaic-vending-e2e, full-e2e]
+    needs: [changes, frontend-ci, mosaic-tile-ci, mosaic-vending-ci, mosaic-tile-e2e, mosaic-vending-e2e, full-e2e]
     if: always()
     uses: ./.github/workflows/reusable-notify.yml
     with:
@@ -70,6 +70,9 @@ jobs:
       mosaic_tile_e2e_result: ${{ needs.mosaic-tile-e2e.result }}
       mosaic_vending_e2e_result: ${{ needs.mosaic-vending-e2e.result }}
       full_e2e_result: ${{ needs.full-e2e.result }}
+      frontend_files_changed: ${{ needs.changes.outputs.frontend_files_changed }}
+      mosaic_tile_files_changed: ${{ needs.changes.outputs.mosaic_tile_files_changed }}
+      mosaic_vending_files_changed: ${{ needs.changes.outputs.mosaic_vending_files_changed }}
     secrets:
       DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
       GIST_TOKEN: ${{ secrets.GIST_TOKEN }}
