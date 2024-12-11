@@ -77,12 +77,12 @@ jobs:
     uses: ./.github/workflows/reusable-notify.yml
     with:
       frontend_ci_result: ${{ needs.frontend-ci.result }}
-      mosaic_tile_ci_result: ${{ fromJSON('{"mosaic-tile":"' + needs.contracts-ci.result + '"}')[matrix.contract] }}
-      mosaic_vending_ci_result: ${{ fromJSON('{"mosaic-vending":"' + needs.contracts-ci.result + '"}')[matrix.contract] }}
-      mosaic_tile_deploy_result: ${{ fromJSON('{"mosaic-tile":"' + needs.deploy.result + '"}')[matrix.contract] }}
-      mosaic_vending_deploy_result: ${{ fromJSON('{"mosaic-vending":"' + needs.deploy.result + '"}')[matrix.contract] }}
-      mosaic_tile_e2e_result: ${{ fromJSON('{"mosaic-tile":"' + needs.component-e2e.result + '"}')[matrix.component] }}
-      mosaic_vending_e2e_result: ${{ fromJSON('{"mosaic-vending":"' + needs.component-e2e.result + '"}')[matrix.component] }}
+      mosaic_tile_ci_result: ${{ needs.contracts-ci.result }}
+      mosaic_vending_ci_result: ${{ needs.contracts-ci.result }}
+      mosaic_tile_deploy_result: ${{ needs.deploy.result }}
+      mosaic_vending_deploy_result: ${{ needs.deploy.result }}
+      mosaic_tile_e2e_result: ${{ needs.component-e2e.result }}
+      mosaic_vending_e2e_result: ${{ needs.component-e2e.result }}
       full_e2e_result: ${{ needs.full-e2e.result }}
       frontend_hash: ${{ needs.changes.outputs.frontend_hash }}
       mosaic_tile_hash: ${{ needs.changes.outputs.mosaic_tile_hash }}
