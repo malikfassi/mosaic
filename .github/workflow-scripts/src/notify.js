@@ -19,8 +19,36 @@ function generateComponentStatus(name, jobs, results) {
   const lines = [];
   lines.push(`**${name}**`);
   
+  // Map job names to their result keys
+  const jobResultMap = {
+    'frontend-ci-lint': 'frontend_lint_result',
+    'frontend-ci-test': 'frontend_test_result',
+    'frontend-ci-build': 'frontend_build_result',
+    
+    'mosaic-tile-ci-format': 'mosaic_tile_format_result',
+    'mosaic-tile-ci-lint': 'mosaic_tile_lint_result',
+    'mosaic-tile-ci-test': 'mosaic_tile_test_result',
+    'mosaic-tile-ci-schema': 'mosaic_tile_schema_result',
+    'deploy-mosaic-tile': 'mosaic_tile_deploy_result',
+    'mosaic-tile-e2e': 'mosaic_tile_e2e_result',
+    
+    'mosaic-vending-ci-format': 'mosaic_vending_format_result',
+    'mosaic-vending-ci-lint': 'mosaic_vending_lint_result',
+    'mosaic-vending-ci-test': 'mosaic_vending_test_result',
+    'mosaic-vending-ci-schema': 'mosaic_vending_schema_result',
+    'deploy-mosaic-vending': 'mosaic_vending_deploy_result',
+    'mosaic-vending-e2e': 'mosaic_vending_e2e_result',
+    
+    'full-e2e': 'full_e2e_result'
+  };
+  
   for (const jobName of jobs) {
-    const result = results[jobName.toLowerCase().replace(/-/g, '_')];
+    const resultKey = jobResultMap[jobName];
+    if (!resultKey) {
+      console.warn(`No result mapping found for job: ${jobName}`);
+      continue;
+    }
+    const result = results[resultKey];
     lines.push(`- ${jobName}: ${formatJobResult(result)}`);
   }
   
