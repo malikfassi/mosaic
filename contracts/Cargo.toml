@@ -1,5 +1,5 @@
 [workspace]
-members = ["contracts/*"]
+members = ["mosaic-tile-nft", "mosaic-vending-minter"]
 resolver = "2"
 
 [workspace.dependencies]
