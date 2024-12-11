@@ -9,12 +9,12 @@ on:
         description: "Type of E2E test (mosaic-tile, mosaic-vending, or full)"
       needs_run:
         required: true
-        type: boolean
-        description: "Whether this workflow needs to run"
+        type: string
+        description: "Whether this workflow needs to run ('true' or 'false')"
 
 jobs:
   e2e:
-    if: inputs.needs_run && github.ref == 'refs/heads/main'
+    if: inputs.needs_run == 'true' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3

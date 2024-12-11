@@ -9,12 +9,12 @@ on:
         description: "Name of the contract (mosaic-tile or mosaic-vending)"
       needs_run:
         required: true
-        type: boolean
-        description: "Whether this workflow needs to run"
+        type: string
+        description: "Whether this workflow needs to run ('true' or 'false')"
 
 jobs:
   contract-ci:
-    if: inputs.needs_run
+    if: inputs.needs_run == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
