@@ -49,4 +49,4 @@ jobs:
           GITHUB_TOKEN: ${{ github.token }}
         run: |
           npm run execution-plan
-          setoutput name=plan,value=${{ steps.plan.outputs.plan }}
+          echo "plan=$(cat execution-plan.json)" >> $GITHUB_OUTPUT
