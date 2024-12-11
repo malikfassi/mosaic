@@ -10,6 +10,7 @@ permissions:
   pull-requests: read  # Required for the execution plan job
   contents: read      # Required for checkout and git operations
   actions: read      # Required to read workflow runs
+  gists: write       # Required for gist operations
 
 jobs:
   # Initial setup jobs
