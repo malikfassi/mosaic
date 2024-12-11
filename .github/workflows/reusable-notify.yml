@@ -59,32 +59,21 @@ jobs:
             local previous_run=$(echo "$component" | jq -r '.previous_run')
             local has_previous=$(echo "$previous_run" | jq -r '.found')
             
-            # Get list of changed files
+            # Get changed files directly from the execution plan
             local changed_files=""
             if [[ "$files_changed" == "true" ]]; then
-              case "$name" in
-                "frontend")
-                  changed_files=$(git diff --name-only HEAD^ HEAD frontend/)
-                  ;;
-                "mosaic_tile")
-                  changed_files=$(git diff --name-only HEAD^ HEAD contracts/mosaic-tile-nft/)
-                  ;;
-                "mosaic_vending")
-                  changed_files=$(git diff --name-only HEAD^ HEAD contracts/mosaic-vending-minter/)
-                  ;;
-              esac
-              
-              # Format changed files list
+              changed_files=$(echo "$component" | jq -r '.changed_files | .[] | "  - " + . + "\n"')
               if [[ -n "$changed_files" ]]; then
-                changed_files="\nChanged files:\n\`\`\`\n$changed_files\n\`\`\`"
+                changed_files="\nChanged files:\n\`\`\`\n$changed_files\`\`\`"
               fi
             fi
             
             if [[ "$files_changed" == "true" ]]; then
               echo "🔄 Changes detected$changed_files"
             elif [[ "$has_previous" == "true" ]]; then
-              local run_url=$(echo "$previous_run" | jq -r '.url')
-              local created_at=$(echo "$previous_run" | jq -r '.created_at')
+              local run=$(echo "$previous_run" | jq -r '.run')
+              local run_url=$(echo "$run" | jq -r '.url')
+              local created_at=$(echo "$run" | jq -r '.created_at')
               echo "✅ No changes (last success: $created_at - $run_url)"
             else
               echo "🆕 First run with this hash"
@@ -93,14 +82,48 @@ jobs:
           
           # Function to format job result
           format_job_result() {
-            local result=$1
-            case "$result" in
-              "success") echo "✅";;
-              "failure") echo "❌";;
-              "cancelled") echo "⚪";;
-              "skipped") echo "⏭️";;
-              *) echo "❓";;
+            local job_name=$1
+            local current_result=$2
+            
+            # Get job info from execution plan
+            local job=$(echo "$plan" | jq -r ".jobs[\"$job_name\"]")
+            local needs_run=$(echo "$job" | jq -r '.needs_run')
+            local previous_result=$(echo "$job" | jq -r '.previous_result')
+            local previous_deps=$(echo "$job" | jq -r '.previous_dependency_results')
+            
+            # Format current result
+            local result_emoji
+            case "$current_result" in
+              "success") result_emoji="✅";;
+              "failure") result_emoji="❌";;
+              "cancelled") result_emoji="⚪";;
+              "skipped") result_emoji="⏭️";;
+              *) result_emoji="❓";;
             esac
+            
+            # Add previous result info if available
+            local result_text="$result_emoji"
+            if [[ "$needs_run" == "false" && "$previous_result" != "null" ]]; then
+              result_text+=" (previous: "
+              case "$previous_result" in
+                "success") result_text+="✅";;
+                "failure") result_text+="❌";;
+                "cancelled") result_text+="⚪";;
+                "skipped") result_text+="⏭️";;
+                *) result_text+="❓";;
+              esac
+              result_text+=")"
+            fi
+            
+            # Add dependency results if any failed
+            if [[ "$previous_deps" != "{}" ]]; then
+              local failed_deps=$(echo "$previous_deps" | jq -r 'to_entries | map(select(.value != "success")) | map(.key) | join(", ")')
+              if [[ -n "$failed_deps" ]]; then
+                result_text+="\n⚠️ Previous run had failed dependencies: $failed_deps"
+              fi
+            fi
+            
+            echo "$result_text"
           }
           
           # Generate component sections
@@ -109,19 +132,17 @@ jobs:
           mosaic_vending_status=$(format_component_status "mosaic_vending")
           
           # Generate job results
-          frontend_result=$(format_job_result "${{ inputs.frontend_ci_result }}")
-          mosaic_tile_result=$(format_job_result "${{ inputs.mosaic_tile_ci_result }}")
-          mosaic_vending_result=$(format_job_result "${{ inputs.mosaic_vending_ci_result }}")
-          mosaic_tile_deploy_result=$(format_job_result "${{ inputs.mosaic_tile_deploy_result }}")
-          mosaic_vending_deploy_result=$(format_job_result "${{ inputs.mosaic_vending_deploy_result }}")
-          mosaic_tile_e2e_result=$(format_job_result "${{ inputs.mosaic_tile_e2e_result }}")
-          mosaic_vending_e2e_result=$(format_job_result "${{ inputs.mosaic_vending_e2e_result }}")
-          full_e2e_result=$(format_job_result "${{ inputs.full_e2e_result }}")
+          frontend_result=$(format_job_result "frontend-ci" "${{ inputs.frontend_ci_result }}")
+          mosaic_tile_result=$(format_job_result "mosaic-tile-ci" "${{ inputs.mosaic_tile_ci_result }}")
+          mosaic_vending_result=$(format_job_result "mosaic-vending-ci" "${{ inputs.mosaic_vending_ci_result }}")
+          mosaic_tile_deploy_result=$(format_job_result "deploy-mosaic-tile" "${{ inputs.mosaic_tile_deploy_result }}")
+          mosaic_vending_deploy_result=$(format_job_result "deploy-mosaic-vending" "${{ inputs.mosaic_vending_deploy_result }}")
+          mosaic_tile_e2e_result=$(format_job_result "mosaic-tile-e2e" "${{ inputs.mosaic_tile_e2e_result }}")
+          mosaic_vending_e2e_result=$(format_job_result "mosaic-vending-e2e" "${{ inputs.mosaic_vending_e2e_result }}")
+          full_e2e_result=$(format_job_result "full-e2e" "${{ inputs.full_e2e_result }}")
           
           # Create message
-          message="🚀 **Workflow Run Report**
-          
-          **Frontend**
+          message=" **Frontend**
           Status: $frontend_status
           CI: $frontend_result
           

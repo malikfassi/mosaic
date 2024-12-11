@@ -107,19 +107,26 @@ jobs:
           check_previous_runs() {
             local component=$1
             local component_hash=$2
+            local job_prefix=$3
             
-            # Look for successful runs with this hash
+            # Look for runs with this hash
             local last_runs=$(gh run list \
               --workflow mosaic.yml \
-              --json conclusion,databaseId,createdAt,url,headSha \
-              --jq ".[] | select(.conclusion == \"success\")" \
-              --limit 10)
+              --json jobs,databaseId,createdAt,url,headSha \
+              --limit 10 | jq -c '.[]')
             
-            # Check each run for matching hash
+            local latest_success_run=""
+            local latest_success_time=""
+            local latest_job_results="{}"
+            
+            # Check each run for matching hash and job success
             if [[ -n "$last_runs" ]]; then
               while read -r run; do
                 local run_id=$(echo "$run" | jq -r '.databaseId')
                 local run_sha=$(echo "$run" | jq -r '.headSha')
+                local jobs_json=$(echo "$run" | jq -r '.jobs')
+                local created_at=$(echo "$run" | jq -r '.createdAt')
+                local run_url=$(echo "$run" | jq -r '.url')
                 
                 # Get the execution plan from the run artifacts
                 local plan_url="https://api.github.com/repos/${{ github.repository }}/actions/runs/$run_id/artifacts"
@@ -129,24 +136,33 @@ jobs:
                   local plan_content=$(curl -H "Authorization: token $GH_TOKEN" -L "$plan_json" | jq -r ".components.$component.hash")
                   
                   if [[ "$plan_content" == "${!component_hash}" ]]; then
-                    # Found matching run
-                    local created_at=$(echo "$run" | jq -r '.createdAt')
-                    local run_url=$(echo "$run" | jq -r '.url')
-                    echo "{\"found\":true,\"run_id\":\"$run_id\",\"created_at\":\"$created_at\",\"url\":\"$run_url\"}"
-                    return
+                    # Get results for all jobs with this prefix
+                    local job_results=$(echo "$jobs_json" | jq -c "[.[] | select(.name | startswith(\"$job_prefix\")) | {name: .name, conclusion: .conclusion}]")
+                    
+                    # Update latest success info if this is more recent
+                    if [[ -z "$latest_success_time" || "$created_at" > "$latest_success_time" ]]; then
+                      latest_success_time="$created_at"
+                      latest_success_run="{\"run_id\":\"$run_id\",\"created_at\":\"$created_at\",\"url\":\"$run_url\"}"
+                      latest_job_results="$job_results"
+                    fi
                   fi
                 fi
               done <<< "$last_runs"
             fi
             
-            # No matching run found
-            echo "{\"found\":false}"
+            # Return results
+            if [[ -n "$latest_success_time" ]]; then
+              local run_info=$(echo "$latest_success_run" | jq -c .)
+              echo "{\"found\":true,\"job_results\":$latest_job_results,\"run\":$run_info}"
+            else
+              echo "{\"found\":false,\"job_results\":[]}"
+            fi
           }
 
-          # Check each component and build JSON
-          frontend_run=$(check_previous_runs "frontend" "FRONTEND_HASH")
-          mosaic_tile_run=$(check_previous_runs "mosaic_tile" "MOSAIC_TILE_HASH")
-          mosaic_vending_run=$(check_previous_runs "mosaic_vending" "MOSAIC_VENDING_HASH")
+          # Check each component with its job prefix
+          frontend_run=$(check_previous_runs "frontend" "FRONTEND_HASH" "frontend-ci")
+          mosaic_tile_run=$(check_previous_runs "mosaic_tile" "MOSAIC_TILE_HASH" "mosaic-tile")
+          mosaic_vending_run=$(check_previous_runs "mosaic_vending" "MOSAIC_VENDING_HASH" "mosaic-vending")
           
           # Combine into final JSON
           echo "previous_runs={\"frontend\":$frontend_run,\"mosaic_tile\":$mosaic_tile_run,\"mosaic_vending\":$mosaic_vending_run}" >> $GITHUB_OUTPUT
@@ -203,49 +219,92 @@ jobs:
             --argjson frontend_changes ${{ needs.detect-changes.outputs.frontend_changes }} \
             --argjson mosaic_tile_changes ${{ needs.detect-changes.outputs.mosaic_tile_changes }} \
             --argjson mosaic_vending_changes ${{ needs.detect-changes.outputs.mosaic_vending_changes }} \
+            --argjson frontend_files '${{ needs.detect-changes.outputs.frontend_files }}' \
+            --argjson mosaic_tile_files '${{ needs.detect-changes.outputs.mosaic_tile_files }}' \
+            --argjson mosaic_vending_files '${{ needs.detect-changes.outputs.mosaic_vending_files }}' \
             --argjson previous_runs '${{ needs.check-previous-runs.outputs.previous_runs }}' \
             '{
               "frontend-ci": {
                 "component": "frontend",
-                "needs_run": ($frontend_changes or ($previous_runs.frontend.found == false)),
-                "dependencies": ["changes"]
+                "needs_run": $frontend_changes,
+                "previous_result": ($previous_runs.frontend.job_results | map(select(.name == "frontend-ci"))[0].conclusion),
+                "changed_files": (if $frontend_changes then $frontend_files else [] end),
+                "dependencies": ["changes"],
+                "previous_dependency_results": {}
               },
               "mosaic-tile-ci": {
                 "component": "mosaic_tile",
-                "needs_run": ($mosaic_tile_changes or ($previous_runs.mosaic_tile.found == false)),
-                "dependencies": ["changes", "rust-setup"]
+                "needs_run": $mosaic_tile_changes,
+                "previous_result": ($previous_runs.mosaic_tile.job_results | map(select(.name == "mosaic-tile-ci"))[0].conclusion),
+                "changed_files": (if $mosaic_tile_changes then $mosaic_tile_files else [] end),
+                "dependencies": ["changes", "rust-setup"],
+                "previous_dependency_results": {}
               },
               "mosaic-vending-ci": {
                 "component": "mosaic_vending",
-                "needs_run": ($mosaic_vending_changes or ($previous_runs.mosaic_vending.found == false)),
-                "dependencies": ["changes", "rust-setup"]
+                "needs_run": $mosaic_vending_changes,
+                "previous_result": ($previous_runs.mosaic_vending.job_results | map(select(.name == "mosaic-vending-ci"))[0].conclusion),
+                "changed_files": (if $mosaic_vending_changes then $mosaic_vending_files else [] end),
+                "dependencies": ["changes", "rust-setup"],
+                "previous_dependency_results": {}
               },
               "deploy-mosaic-tile": {
                 "component": "mosaic_tile",
-                "needs_run": true,
+                "needs_run": $mosaic_tile_changes,
+                "previous_result": ($previous_runs.mosaic_tile.job_results | map(select(.name == "deploy-mosaic-tile"))[0].conclusion),
+                "changed_files": (if $mosaic_tile_changes then $mosaic_tile_files else [] end),
                 "dependencies": ["mosaic-tile-ci"],
-                "condition": "needs.mosaic-tile-ci.result == '\''success'\''"
+                "condition": "needs.mosaic-tile-ci.result == '\''success'\''",
+                "previous_dependency_results": {
+                  "mosaic-tile-ci": ($previous_runs.mosaic_tile.job_results | map(select(.name == "mosaic-tile-ci"))[0].conclusion)
+                }
               },
               "deploy-mosaic-vending": {
                 "component": "mosaic_vending",
-                "needs_run": true,
+                "needs_run": $mosaic_vending_changes,
+                "previous_result": ($previous_runs.mosaic_vending.job_results | map(select(.name == "deploy-mosaic-vending"))[0].conclusion),
+                "changed_files": (if $mosaic_vending_changes then $mosaic_vending_files else [] end),
                 "dependencies": ["mosaic-vending-ci"],
-                "condition": "needs.mosaic-vending-ci.result == '\''success'\''"
+                "condition": "needs.mosaic-vending-ci.result == '\''success'\''",
+                "previous_dependency_results": {
+                  "mosaic-vending-ci": ($previous_runs.mosaic_vending.job_results | map(select(.name == "mosaic-vending-ci"))[0].conclusion)
+                }
               },
               "mosaic-tile-e2e": {
                 "component": "mosaic_tile",
-                "needs_run": true,
-                "dependencies": ["deploy-mosaic-tile"]
+                "needs_run": $mosaic_tile_changes,
+                "previous_result": ($previous_runs.mosaic_tile.job_results | map(select(.name == "mosaic-tile-e2e"))[0].conclusion),
+                "changed_files": (if $mosaic_tile_changes then $mosaic_tile_files else [] end),
+                "dependencies": ["deploy-mosaic-tile"],
+                "previous_dependency_results": {
+                  "deploy-mosaic-tile": ($previous_runs.mosaic_tile.job_results | map(select(.name == "deploy-mosaic-tile"))[0].conclusion)
+                }
               },
               "mosaic-vending-e2e": {
                 "component": "mosaic_vending",
-                "needs_run": true,
-                "dependencies": ["deploy-mosaic-vending"]
+                "needs_run": $mosaic_vending_changes,
+                "previous_result": ($previous_runs.mosaic_vending.job_results | map(select(.name == "mosaic-vending-e2e"))[0].conclusion),
+                "changed_files": (if $mosaic_vending_changes then $mosaic_vending_files else [] end),
+                "dependencies": ["deploy-mosaic-vending"],
+                "previous_dependency_results": {
+                  "deploy-mosaic-vending": ($previous_runs.mosaic_vending.job_results | map(select(.name == "deploy-mosaic-vending"))[0].conclusion)
+                }
               },
               "full-e2e": {
                 "component": null,
                 "needs_run": ($frontend_changes or $mosaic_tile_changes or $mosaic_vending_changes),
-                "dependencies": ["frontend-ci", "mosaic-tile-e2e", "mosaic-vending-e2e"]
+                "previous_result": ($previous_runs.frontend.job_results + $previous_runs.mosaic_tile.job_results + $previous_runs.mosaic_vending.job_results | map(select(.name == "full-e2e"))[0].conclusion),
+                "changed_files": (
+                  if $frontend_changes then $frontend_files else [] end +
+                  if $mosaic_tile_changes then $mosaic_tile_files else [] end +
+                  if $mosaic_vending_changes then $mosaic_vending_files else [] end
+                ),
+                "dependencies": ["frontend-ci", "mosaic-tile-e2e", "mosaic-vending-e2e"],
+                "previous_dependency_results": {
+                  "frontend-ci": ($previous_runs.frontend.job_results | map(select(.name == "frontend-ci"))[0].conclusion),
+                  "mosaic-tile-e2e": ($previous_runs.mosaic_tile.job_results | map(select(.name == "mosaic-tile-e2e"))[0].conclusion),
+                  "mosaic-vending-e2e": ($previous_runs.mosaic_vending.job_results | map(select(.name == "mosaic-vending-e2e"))[0].conclusion)
+                }
               }
             }')
 
