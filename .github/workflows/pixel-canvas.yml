@@ -12,83 +12,77 @@ permissions:
   actions: read      # Required to read workflow runs
 
 jobs:
+  # Initial setup jobs
   changes:
     uses: ./.github/workflows/reusable-changes.yml
 
   rust-setup:
     uses: ./.github/workflows/reusable-rust-setup.yml
 
+  # CI jobs
   frontend-ci:
     needs: changes
     uses: ./.github/workflows/reusable-frontend.yml
     with:
       needs_run: ${{ needs.changes.outputs.frontend_needs_run }}
 
-  mosaic-tile-ci:
+  contracts-ci:
     needs: [changes, rust-setup]
     uses: ./.github/workflows/reusable-contracts.yml
+    strategy:
+      matrix:
+        contract: [mosaic-tile, mosaic-vending]
+      fail-fast: false
     with:
-      contract_name: mosaic-tile
-      needs_run: ${{ needs.changes.outputs.mosaic_tile_needs_run }}
+      contract_name: ${{ matrix.contract }}
+      needs_run: ${{ matrix.contract == 'mosaic-tile' && needs.changes.outputs.mosaic_tile_needs_run || needs.changes.outputs.mosaic_vending_needs_run }}
 
-  mosaic-vending-ci:
-    needs: [changes, rust-setup]
-    uses: ./.github/workflows/reusable-contracts.yml
-    with:
-      contract_name: mosaic-vending
-      needs_run: ${{ needs.changes.outputs.mosaic_vending_needs_run }}
-
-  deploy-mosaic-tile:
-    needs: [mosaic-tile-ci]
-    if: needs.mosaic-tile-ci.result == 'success'
+  # Deployment jobs
+  deploy:
+    needs: contracts-ci
+    strategy:
+      matrix:
+        contract: [mosaic-tile, mosaic-vending]
+      fail-fast: false
+    if: needs.contracts-ci.result == 'success'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-      - name: Deploy mosaic-tile contract
-        run: echo "Deploying mosaic-tile contract..."
+      - name: Deploy ${{ matrix.contract }} contract
+        run: echo "Deploying ${{ matrix.contract }} contract..."
 
-  deploy-mosaic-vending:
-    needs: [mosaic-vending-ci]
-    if: needs.mosaic-vending-ci.result == 'success'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      - name: Deploy mosaic-vending contract
-        run: echo "Deploying mosaic-vending contract..."
-
-  mosaic-tile-e2e:
-    needs: [deploy-mosaic-tile]
+  # E2E test jobs
+  component-e2e:
+    needs: deploy
     uses: ./.github/workflows/reusable-e2e.yml
+    strategy:
+      matrix:
+        component: [mosaic-tile, mosaic-vending]
+      fail-fast: false
     with:
-      test_type: mosaic-tile
-      needs_run: ${{ needs.changes.outputs.mosaic_tile_needs_run }}
-
-  mosaic-vending-e2e:
-    needs: [deploy-mosaic-vending]
-    uses: ./.github/workflows/reusable-e2e.yml
-    with:
-      test_type: mosaic-vending
-      needs_run: ${{ needs.changes.outputs.mosaic_vending_needs_run }}
+      test_type: ${{ matrix.component }}
+      needs_run: ${{ matrix.component == 'mosaic-tile' && needs.changes.outputs.mosaic_tile_needs_run || needs.changes.outputs.mosaic_vending_needs_run }}
 
   full-e2e:
-    needs: [frontend-ci, mosaic-tile-e2e, mosaic-vending-e2e]
+    needs: [frontend-ci, component-e2e]
     uses: ./.github/workflows/reusable-e2e.yml
     with:
       test_type: full
       needs_run: ${{ needs.changes.outputs.full_e2e_needs_run }}
 
+  # Final notification
   notify:
-    needs: [changes, frontend-ci, mosaic-tile-ci, mosaic-vending-ci, deploy-mosaic-tile, deploy-mosaic-vending, mosaic-tile-e2e, mosaic-vending-e2e, full-e2e]
+    needs: [changes, frontend-ci, contracts-ci, deploy, component-e2e, full-e2e]
     if: always()
     uses: ./.github/workflows/reusable-notify.yml
     with:
       frontend_ci_result: ${{ needs.frontend-ci.result }}
-      mosaic_tile_ci_result: ${{ needs.mosaic-tile-ci.result }}
-      mosaic_vending_ci_result: ${{ needs.mosaic-vending-ci.result }}
-      mosaic_tile_deploy_result: ${{ needs.deploy-mosaic-tile.result }}
-      mosaic_vending_deploy_result: ${{ needs.deploy-mosaic-vending.result }}
-      mosaic_tile_e2e_result: ${{ needs.mosaic-tile-e2e.result }}
-      mosaic_vending_e2e_result: ${{ needs.mosaic-vending-e2e.result }}
+      mosaic_tile_ci_result: ${{ fromJSON('{"mosaic-tile":"' + needs.contracts-ci.result + '"}')[matrix.contract] }}
+      mosaic_vending_ci_result: ${{ fromJSON('{"mosaic-vending":"' + needs.contracts-ci.result + '"}')[matrix.contract] }}
+      mosaic_tile_deploy_result: ${{ fromJSON('{"mosaic-tile":"' + needs.deploy.result + '"}')[matrix.contract] }}
+      mosaic_vending_deploy_result: ${{ fromJSON('{"mosaic-vending":"' + needs.deploy.result + '"}')[matrix.contract] }}
+      mosaic_tile_e2e_result: ${{ fromJSON('{"mosaic-tile":"' + needs.component-e2e.result + '"}')[matrix.component] }}
+      mosaic_vending_e2e_result: ${{ fromJSON('{"mosaic-vending":"' + needs.component-e2e.result + '"}')[matrix.component] }}
       full_e2e_result: ${{ needs.full-e2e.result }}
       frontend_hash: ${{ needs.changes.outputs.frontend_hash }}
       mosaic_tile_hash: ${{ needs.changes.outputs.mosaic_tile_hash }}
