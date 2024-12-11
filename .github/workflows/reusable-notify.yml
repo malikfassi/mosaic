@@ -170,89 +170,101 @@ jobs:
           # Create message
           message="# 🚀 Workflow Run Report
 
-          ## 📋 Overview
-          \`$(echo "$plan" | jq -r '.metadata.commit_sha')\` • $(echo "$plan" | jq -r '.metadata.event_type') • \`main\`
-          [View Workflow Run](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
-          
-          Overall Status: $(if [[ "${{ inputs.frontend_ci_result }}" == "success" && "${{ inputs.mosaic_tile_ci_result }}" == "success" && "${{ inputs.mosaic_vending_ci_result }}" == "success" && "${{ inputs.full_e2e_result }}" == "success" ]]; then echo "✅ Success"; else echo "❌ Failed"; fi)
+          \`$(echo "$plan" | jq -r '.metadata.commit_sha')\` • $(echo "$plan" | jq -r '.metadata.event_type') • \`main\` • [View Run](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
+          $(if [[ "${{ inputs.frontend_ci_result }}" == "success" && "${{ inputs.mosaic_tile_ci_result }}" == "success" && "${{ inputs.mosaic_vending_ci_result }}" == "success" && "${{ inputs.full_e2e_result }}" == "success" ]]; then echo "✅"; else echo "❌"; fi) Overall Status
 
           ## 🔍 Components
 
-          ### 🎨 Frontend
-          \`$(echo "$plan" | jq -r '.components.frontend.hash')\` $(if [[ "$(echo "$plan" | jq -r '.components.frontend.previous_run.found')" != "true" ]]; then echo "🆕"; fi)
-          
+          ### 🎨 Frontend (\`$(echo "$plan" | jq -r '.components.frontend.hash')\`)
           $(if [[ "$(echo "$plan" | jq -r '.components.frontend.files_changed')" == "true" ]]; then
-            echo "📝 **Changes Detected:**"
+            echo "📝 Changes:"
             echo "$plan" | jq -r '.components.frontend.changed_files | map("- " + .) | join("\n")'
           else
-            echo "✨ **No Changes** _(using previous run)_"
+            previous_run=$(echo "$plan" | jq -r '.components.frontend.previous_run')
+            if [[ "$(echo "$previous_run" | jq -r '.found')" == "true" ]]; then
+              echo "✨ No changes _(using $(echo "$previous_run.run" | jq -r '.created_at' | cut -d'T' -f1) [run]($(echo "$previous_run.run" | jq -r '.url')))_"
+            else
+              echo "🆕 First run"
+            fi
           fi)
 
-          **Jobs:**
-          • CI: $frontend_result $(if [[ "$(echo "$plan" | jq -r '.jobs.frontend-ci.needs_run')" == "false" ]]; then
-            echo "_(reusing $(echo "$plan" | jq -r '.components.frontend.previous_run.run.created_at' | cut -d'T' -f1) [run]($(echo "$plan" | jq -r '.components.frontend.previous_run.run.url')))_"
+          **Pipeline:** $(if [[ "$(echo "$plan" | jq -r '.jobs.frontend-ci.needs_run')" == "false" ]]; then
+            echo "✅ CI _(reused)_"
+          else
+            echo "CI: $frontend_result"
           fi)
 
-          ### 🧩 Mosaic Tile
-          \`$(echo "$plan" | jq -r '.components.mosaic_tile.hash')\` $(if [[ "$(echo "$plan" | jq -r '.components.mosaic_tile.previous_run.found')" != "true" ]]; then echo "🆕"; fi)
-          
+          ### 🧩 Mosaic Tile (\`$(echo "$plan" | jq -r '.components.mosaic_tile.hash')\`)
           $(if [[ "$(echo "$plan" | jq -r '.components.mosaic_tile.files_changed')" == "true" ]]; then
-            echo "📝 **Changes Detected:**"
+            echo "📝 Changes:"
             echo "$plan" | jq -r '.components.mosaic_tile.changed_files | map("- " + .) | join("\n")'
           else
-            echo "✨ **No Changes** _(using previous run)_"
+            previous_run=$(echo "$plan" | jq -r '.components.mosaic_tile.previous_run')
+            if [[ "$(echo "$previous_run" | jq -r '.found')" == "true" ]]; then
+              echo "✨ No changes _(using $(echo "$previous_run.run" | jq -r '.created_at' | cut -d'T' -f1) [run]($(echo "$previous_run.run" | jq -r '.url')))_"
+            else
+              echo "🆕 First run"
+            fi
           fi)
 
-          **Jobs:**
-          • CI: $mosaic_tile_result $(if [[ "$(echo "$plan" | jq -r '.jobs.mosaic-tile-ci.needs_run')" == "false" ]]; then
-            echo "_(reusing $(echo "$plan" | jq -r '.components.mosaic_tile.previous_run.run.created_at' | cut -d'T' -f1) [run]($(echo "$plan" | jq -r '.components.mosaic_tile.previous_run.run.url')))_"
-          fi)
-          • Deploy: $mosaic_tile_deploy_result $(if [[ "$(echo "$plan" | jq -r '.jobs.deploy-mosaic-tile.needs_run')" == "false" ]]; then
-            echo "_(reusing $(echo "$plan" | jq -r '.components.mosaic_tile.previous_run.run.created_at' | cut -d'T' -f1) [run]($(echo "$plan" | jq -r '.components.mosaic_tile.previous_run.run.url')))_"
+          **Pipeline:** $(if [[ "$(echo "$plan" | jq -r '.jobs.mosaic-tile-ci.needs_run')" == "false" ]]; then
+            echo "✅ CI _(reused)_ → "
+          else
+            echo "CI: $mosaic_tile_result → "
+          fi)$(if [[ "$(echo "$plan" | jq -r '.jobs.deploy-mosaic-tile.needs_run')" == "false" ]]; then
+            echo "✅ Deploy _(reused)_ → "
+          else
+            echo "Deploy: $mosaic_tile_deploy_result → "
+          fi)$(if [[ "$(echo "$plan" | jq -r '.jobs.mosaic-tile-e2e.needs_run')" == "false" ]]; then
+            echo "✅ E2E _(reused)_"
+          else
+            echo "E2E: $mosaic_tile_e2e_result"
           fi)
           $(if [[ -n "$(echo "$plan" | jq -r '.jobs.deploy-mosaic-tile.previous_dependency_results | to_entries | map(select(.value != "success")) | .[].key')" ]]; then
-            echo "  ⚠️ _Previous run had failed dependencies: $(echo "$plan" | jq -r '.jobs.deploy-mosaic-tile.previous_dependency_results | to_entries | map(select(.value != "success")) | map(.key) | join(", ")')_"
-          fi)
-          • E2E: $mosaic_tile_e2e_result $(if [[ "$(echo "$plan" | jq -r '.jobs.mosaic-tile-e2e.needs_run')" == "false" ]]; then
-            echo "_(reusing $(echo "$plan" | jq -r '.components.mosaic_tile.previous_run.run.created_at' | cut -d'T' -f1) [run]($(echo "$plan" | jq -r '.components.mosaic_tile.previous_run.run.url')))_"
-          fi)
-          $(if [[ -n "$(echo "$plan" | jq -r '.jobs.mosaic-tile-e2e.previous_dependency_results | to_entries | map(select(.value != "success")) | .[].key')" ]]; then
-            echo "  ⚠️ _Previous run had failed dependencies: $(echo "$plan" | jq -r '.jobs.mosaic-tile-e2e.previous_dependency_results | to_entries | map(select(.value != "success")) | map(.key) | join(", ")')_"
+            echo "⚠️ _Previous deploy had failed dependencies: $(echo "$plan" | jq -r '.jobs.deploy-mosaic-tile.previous_dependency_results | to_entries | map(select(.value != "success")) | map(.key) | join(", ")')_"
+          fi)$(if [[ -n "$(echo "$plan" | jq -r '.jobs.mosaic-tile-e2e.previous_dependency_results | to_entries | map(select(.value != "success")) | .[].key')" ]]; then
+            echo "⚠️ _Previous E2E had failed dependencies: $(echo "$plan" | jq -r '.jobs.mosaic-tile-e2e.previous_dependency_results | to_entries | map(select(.value != "success")) | map(.key) | join(", ")')_"
           fi)
 
-          ### 🎲 Mosaic Vending
-          \`$(echo "$plan" | jq -r '.components.mosaic_vending.hash')\` $(if [[ "$(echo "$plan" | jq -r '.components.mosaic_vending.previous_run.found')" != "true" ]]; then echo "🆕"; fi)
-          
+          ### 🎲 Mosaic Vending (\`$(echo "$plan" | jq -r '.components.mosaic_vending.hash')\`)
           $(if [[ "$(echo "$plan" | jq -r '.components.mosaic_vending.files_changed')" == "true" ]]; then
-            echo "📝 **Changes Detected:**"
+            echo "📝 Changes:"
             echo "$plan" | jq -r '.components.mosaic_vending.changed_files | map("- " + .) | join("\n")'
           else
-            echo "✨ **No Changes** _(using previous run)_"
+            previous_run=$(echo "$plan" | jq -r '.components.mosaic_vending.previous_run')
+            if [[ "$(echo "$previous_run" | jq -r '.found')" == "true" ]]; then
+              echo "✨ No changes _(using $(echo "$previous_run.run" | jq -r '.created_at' | cut -d'T' -f1) [run]($(echo "$previous_run.run" | jq -r '.url')))_"
+            else
+              echo "🆕 First run"
+            fi
           fi)
 
-          **Jobs:**
-          • CI: $mosaic_vending_result $(if [[ "$(echo "$plan" | jq -r '.jobs.mosaic-vending-ci.needs_run')" == "false" ]]; then
-            echo "_(reusing $(echo "$plan" | jq -r '.components.mosaic_vending.previous_run.run.created_at' | cut -d'T' -f1) [run]($(echo "$plan" | jq -r '.components.mosaic_vending.previous_run.run.url')))_"
-          fi)
-          • Deploy: $mosaic_vending_deploy_result $(if [[ "$(echo "$plan" | jq -r '.jobs.deploy-mosaic-vending.needs_run')" == "false" ]]; then
-            echo "_(reusing $(echo "$plan" | jq -r '.components.mosaic_vending.previous_run.run.created_at' | cut -d'T' -f1) [run]($(echo "$plan" | jq -r '.components.mosaic_vending.previous_run.run.url')))_"
+          **Pipeline:** $(if [[ "$(echo "$plan" | jq -r '.jobs.mosaic-vending-ci.needs_run')" == "false" ]]; then
+            echo "✅ CI _(reused)_ → "
+          else
+            echo "CI: $mosaic_vending_result → "
+          fi)$(if [[ "$(echo "$plan" | jq -r '.jobs.deploy-mosaic-vending.needs_run')" == "false" ]]; then
+            echo "✅ Deploy _(reused)_ → "
+          else
+            echo "Deploy: $mosaic_vending_deploy_result → "
+          fi)$(if [[ "$(echo "$plan" | jq -r '.jobs.mosaic-vending-e2e.needs_run')" == "false" ]]; then
+            echo "✅ E2E _(reused)_"
+          else
+            echo "E2E: $mosaic_vending_e2e_result"
           fi)
           $(if [[ -n "$(echo "$plan" | jq -r '.jobs.deploy-mosaic-vending.previous_dependency_results | to_entries | map(select(.value != "success")) | .[].key')" ]]; then
-            echo "  ⚠️ _Previous run had failed dependencies: $(echo "$plan" | jq -r '.jobs.deploy-mosaic-vending.previous_dependency_results | to_entries | map(select(.value != "success")) | map(.key) | join(", ")')_"
-          fi)
-          • E2E: $mosaic_vending_e2e_result $(if [[ "$(echo "$plan" | jq -r '.jobs.mosaic-vending-e2e.needs_run')" == "false" ]]; then
-            echo "_(reusing $(echo "$plan" | jq -r '.components.mosaic_vending.previous_run.run.created_at' | cut -d'T' -f1) [run]($(echo "$plan" | jq -r '.components.mosaic_vending.previous_run.run.url')))_"
-          fi)
-          $(if [[ -n "$(echo "$plan" | jq -r '.jobs.mosaic-vending-e2e.previous_dependency_results | to_entries | map(select(.value != "success")) | .[].key')" ]]; then
-            echo "  ⚠️ _Previous run had failed dependencies: $(echo "$plan" | jq -r '.jobs.mosaic-vending-e2e.previous_dependency_results | to_entries | map(select(.value != "success")) | map(.key) | join(", ")')_"
+            echo "⚠️ _Previous deploy had failed dependencies: $(echo "$plan" | jq -r '.jobs.deploy-mosaic-vending.previous_dependency_results | to_entries | map(select(.value != "success")) | map(.key) | join(", ")')_"
+          fi)$(if [[ -n "$(echo "$plan" | jq -r '.jobs.mosaic-vending-e2e.previous_dependency_results | to_entries | map(select(.value != "success")) | .[].key')" ]]; then
+            echo "⚠️ _Previous E2E had failed dependencies: $(echo "$plan" | jq -r '.jobs.mosaic-vending-e2e.previous_dependency_results | to_entries | map(select(.value != "success")) | map(.key) | join(", ")')_"
           fi)
 
           ### 🔄 Integration
-          • Full E2E: $full_e2e_result $(if [[ "$(echo "$plan" | jq -r '.jobs.full-e2e.needs_run')" == "false" ]]; then
-            echo "_(skipped - no component changes)_"
-          fi)
-          $(if [[ -n "$(echo "$plan" | jq -r '.jobs.full-e2e.previous_dependency_results | to_entries | map(select(.value != "success")) | .[].key')" ]]; then
-            echo "  ⚠️ _Previous run had failed dependencies: $(echo "$plan" | jq -r '.jobs.full-e2e.previous_dependency_results | to_entries | map(select(.value != "success")) | map(.key) | join(", ")')_"
+          **Full E2E:** $(if [[ "$(echo "$plan" | jq -r '.jobs.full-e2e.needs_run')" == "false" ]]; then
+            echo "✅ _(no changes)_"
+          else
+            echo "$full_e2e_result"
+          fi)$(if [[ -n "$(echo "$plan" | jq -r '.jobs.full-e2e.previous_dependency_results | to_entries | map(select(.value != "success")) | .[].key')" ]]; then
+            echo "\n⚠️ _Previous run had failed dependencies: $(echo "$plan" | jq -r '.jobs.full-e2e.previous_dependency_results | to_entries | map(select(.value != "success")) | map(.key) | join(", ")')_"
           fi)"
           
           # Save message
