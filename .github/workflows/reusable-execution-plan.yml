@@ -2,365 +2,77 @@ name: Generate Execution Plan
 
 on:
   workflow_call:
+    inputs:
+      gist_id:
+        required: true
+        type: string
+    secrets:
+      GIST_TOKEN:
+        required: true
     outputs:
       plan:
         description: "Complete execution plan for all jobs"
         value: ${{ jobs.create-plan.outputs.plan }}
 
+permissions:
+  contents: read
+  actions: read
+
 jobs:
-  detect-changes:
+  create-plan:
     runs-on: ubuntu-latest
-    permissions:
-      pull-requests: read
     outputs:
-      frontend_changes: ${{ steps.filter.outputs.frontend }}
-      mosaic_tile_changes: ${{ steps.filter.outputs.mosaic_tile }}
-      mosaic_vending_changes: ${{ steps.filter.outputs.mosaic_vending }}
-      frontend_files: ${{ steps.changed-files.outputs.frontend_files }}
-      mosaic_tile_files: ${{ steps.changed-files.outputs.mosaic_tile_files }}
-      mosaic_vending_files: ${{ steps.changed-files.outputs.mosaic_vending_files }}
+      plan: ${{ steps.plan.outputs.plan }}
     steps:
       - uses: actions/checkout@v3
         with:
           fetch-depth: 0
-      
-      - uses: dorny/paths-filter@v2
-        id: filter
+
+      - uses: actions/setup-node@v3
         with:
-          filters: |
-            frontend:
-              - 'frontend/**'
-            mosaic_tile:
-              - 'contracts/mosaic-tile-nft/**'
-              - 'contracts/Cargo.toml'
-            mosaic_vending:
-              - 'contracts/mosaic-vending-minter/**'
-              - 'contracts/Cargo.toml'
-      
-      - name: Get changed files
-        id: changed-files
-        run: |
-          # Get list of changed files for each component
-          frontend_files=$(git diff --name-only ${{ github.event.before }} ${{ github.sha }} -- frontend/ | jq -R -s -c 'split("\n")[:-1]')
-          mosaic_tile_files=$(git diff --name-only ${{ github.event.before }} ${{ github.sha }} -- contracts/mosaic-tile-nft/ contracts/Cargo.toml | jq -R -s -c 'split("\n")[:-1]')
-          mosaic_vending_files=$(git diff --name-only ${{ github.event.before }} ${{ github.sha }} -- contracts/mosaic-vending-minter/ contracts/Cargo.toml | jq -R -s -c 'split("\n")[:-1]')
-          
-          echo "frontend_files=$frontend_files" >> $GITHUB_OUTPUT
-          echo "mosaic_tile_files=$mosaic_tile_files" >> $GITHUB_OUTPUT
-          echo "mosaic_vending_files=$mosaic_vending_files" >> $GITHUB_OUTPUT
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: .github/workflow-scripts/package.json
 
-  calculate-hashes:
-    runs-on: ubuntu-latest
-    needs: detect-changes
-    outputs:
-      frontend_hash: ${{ steps.hashes.outputs.frontend_hash }}
-      mosaic_tile_hash: ${{ steps.hashes.outputs.mosaic_tile_hash }}
-      mosaic_vending_hash: ${{ steps.hashes.outputs.mosaic_vending_hash }}
-    steps:
-      - uses: actions/checkout@v3
-      - name: Generate component hashes
-        id: hashes
-        run: |
-          # Frontend hash
-          if [[ -d "frontend" ]]; then
-            frontend_hash=$(find frontend -type f -exec sha256sum {} \; | sort | sha256sum | cut -d' ' -f1)
-          else
-            frontend_hash="empty_directory"
-          fi
-          echo "frontend_hash=$frontend_hash" >> $GITHUB_OUTPUT
+      # Cache node_modules
+      - name: Cache node_modules
+        uses: actions/cache@v3
+        with:
+          path: |
+            .github/workflow-scripts/node_modules
+          key: node-modules-${{ hashFiles('.github/workflow-scripts/package-lock.json') }}
+          restore-keys: |
+            node-modules-
 
-          # Mosaic tile hash
-          if [[ -d "contracts/mosaic-tile-nft" ]]; then
-            mosaic_tile_hash=$(find contracts/mosaic-tile-nft -type f -exec sha256sum {} \; | sort | sha256sum | cut -d' ' -f1)
-          else
-            mosaic_tile_hash="empty_directory"
-          fi
-          echo "mosaic_tile_hash=$mosaic_tile_hash" >> $GITHUB_OUTPUT
+      # Cache gist data between runs
+      - name: Cache gist data
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cache/gist-data
+          key: gist-data-${{ inputs.gist_id }}-${{ github.sha }}
+          restore-keys: |
+            gist-data-${{ inputs.gist_id }}-
+            gist-data-
 
-          # Mosaic vending hash
-          if [[ -d "contracts/mosaic-vending-minter" ]]; then
-            mosaic_vending_hash=$(find contracts/mosaic-vending-minter -type f -exec sha256sum {} \; | sort | sha256sum | cut -d' ' -f1)
-          else
-            mosaic_vending_hash="empty_directory"
-          fi
-          echo "mosaic_vending_hash=$mosaic_vending_hash" >> $GITHUB_OUTPUT
+      - name: Install dependencies
+        working-directory: .github/workflow-scripts
+        run: npm ci
 
-  check-previous-runs:
-    runs-on: ubuntu-latest
-    needs: [detect-changes, calculate-hashes]
-    permissions:
-      actions: read
-    outputs:
-      previous_runs: ${{ steps.check-runs.outputs.previous_runs }}
-    steps:
-      - uses: actions/checkout@v3
-      
-      - name: Check previous runs
-        id: check-runs
+      - name: Generate execution plan
+        id: plan
+        working-directory: .github/workflow-scripts
         env:
-          GH_TOKEN: ${{ github.token }}
-          FRONTEND_HASH: ${{ needs.calculate-hashes.outputs.frontend_hash }}
-          MOSAIC_TILE_HASH: ${{ needs.calculate-hashes.outputs.mosaic_tile_hash }}
-          MOSAIC_VENDING_HASH: ${{ needs.calculate-hashes.outputs.mosaic_vending_hash }}
-        run: |
-          # Function to check previous runs
-          check_previous_runs() {
-            local component=$1
-            local component_hash=$2
-            local job_prefix=$3
-            
-            # Look for successful runs
-            local last_runs=$(gh run list \
-              --workflow mosaic.yml \
-              --json conclusion,databaseId,createdAt,url,headSha \
-              --limit 20 \
-              --status completed | jq -c '.[]')
-            
-            local latest_success_run=""
-            local latest_success_time=""
-            local latest_job_results="{}"
-            
-            # Check each run for matching hash and job success
-            if [[ -n "$last_runs" ]]; then
-              while read -r run; do
-                local run_id=$(echo "$run" | jq -r '.databaseId')
-                local run_sha=$(echo "$run" | jq -r '.headSha')
-                local created_at=$(echo "$run" | jq -r '.createdAt')
-                local run_url=$(echo "$run" | jq -r '.url')
-                local conclusion=$(echo "$run" | jq -r '.conclusion')
-                
-                # Only check successful runs
-                if [[ "$conclusion" == "success" ]]; then
-                  # Get detailed job information
-                  local run_details=$(gh run view "$run_id" --json jobs | jq -c .)
-                  local job_results=$(echo "$run_details" | jq -c "[.jobs[] | select(.name | startswith(\"$job_prefix\")) | {name: .name, conclusion: .conclusion}]")
-                  
-                  # Create temp dir for artifact
-                  local temp_dir=$(mktemp -d)
-                  cd "$temp_dir"
-                  
-                  # Try to download execution plan
-                  if gh run download "$run_id" --name execution-plan --dir . >/dev/null 2>&1; then
-                    if [ -f "execution_plan.json" ]; then
-                      local plan_hash=$(jq -r ".components.$component.hash" execution_plan.json)
-                      
-                      if [[ "$plan_hash" == "${!component_hash}" ]]; then
-                        # Update latest success info if this is more recent
-                        if [[ -z "$latest_success_time" || "$created_at" > "$latest_success_time" ]]; then
-                          latest_success_time="$created_at"
-                          latest_success_run="{\"run_id\":\"$run_id\",\"created_at\":\"$created_at\",\"url\":\"$run_url\"}"
-                          latest_job_results="$job_results"
-                        fi
-                      fi
-                    fi
-                  fi
-                  
-                  # Clean up
-                  cd - >/dev/null
-                  rm -rf "$temp_dir"
-                fi
-              done <<< "$last_runs"
-            fi
-            
-            # Return results
-            if [[ -n "$latest_success_time" ]]; then
-              local run_info=$(echo "$latest_success_run" | jq -c .)
-              echo "{\"found\":true,\"job_results\":$latest_job_results,\"run\":$run_info}"
-            else
-              echo "{\"found\":false,\"job_results\":[]}"
-            fi
-          }
-          
-          # Check each component
-          frontend_runs=$(check_previous_runs "frontend" "FRONTEND_HASH" "frontend-ci")
-          mosaic_tile_runs=$(check_previous_runs "mosaic_tile" "MOSAIC_TILE_HASH" "mosaic-tile")
-          mosaic_vending_runs=$(check_previous_runs "mosaic_vending" "MOSAIC_VENDING_HASH" "mosaic-vending")
-          
-          # Combine results
-          echo "previous_runs<<EOF" >> $GITHUB_OUTPUT
-          echo "{
-            \"frontend\": $frontend_runs,
-            \"mosaic_tile\": $mosaic_tile_runs,
-            \"mosaic_vending\": $mosaic_vending_runs
-          }" >> $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
-
-  create-plan:
-    runs-on: ubuntu-latest
-    needs: [detect-changes, calculate-hashes, check-previous-runs]
-    outputs:
-      plan: ${{ steps.create-plan.outputs.plan }}
-    steps:
-      - name: Create execution plan
-        id: create-plan
-        run: |
-          # Build each section of the plan using jq
-          components=$(jq -n \
-            --arg frontend_hash "${{ needs.calculate-hashes.outputs.frontend_hash }}" \
-            --arg mosaic_tile_hash "${{ needs.calculate-hashes.outputs.mosaic_tile_hash }}" \
-            --arg mosaic_vending_hash "${{ needs.calculate-hashes.outputs.mosaic_vending_hash }}" \
-            --argjson frontend_changes ${{ needs.detect-changes.outputs.frontend_changes }} \
-            --argjson mosaic_tile_changes ${{ needs.detect-changes.outputs.mosaic_tile_changes }} \
-            --argjson mosaic_vending_changes ${{ needs.detect-changes.outputs.mosaic_vending_changes }} \
-            --argjson frontend_files '${{ needs.detect-changes.outputs.frontend_files }}' \
-            --argjson mosaic_tile_files '${{ needs.detect-changes.outputs.mosaic_tile_files }}' \
-            --argjson mosaic_vending_files '${{ needs.detect-changes.outputs.mosaic_vending_files }}' \
-            --argjson previous_runs '${{ needs.check-previous-runs.outputs.previous_runs }}' \
-            '{
-              "frontend": {
-                "name": "frontend",
-                "hash": $frontend_hash,
-                "files_changed": $frontend_changes,
-                "changed_files": $frontend_files,
-                "previous_run": $previous_runs.frontend,
-                "dependencies": []
-              },
-              "mosaic_tile": {
-                "name": "mosaic-tile",
-                "hash": $mosaic_tile_hash,
-                "files_changed": $mosaic_tile_changes,
-                "changed_files": $mosaic_tile_files,
-                "previous_run": $previous_runs.mosaic_tile,
-                "dependencies": ["rust-setup"]
-              },
-              "mosaic_vending": {
-                "name": "mosaic-vending",
-                "hash": $mosaic_vending_hash,
-                "files_changed": $mosaic_vending_changes,
-                "changed_files": $mosaic_vending_files,
-                "previous_run": $previous_runs.mosaic_vending,
-                "dependencies": ["rust-setup"]
-              }
-            }')
-
-          jobs=$(jq -n \
-            --argjson frontend_changes ${{ needs.detect-changes.outputs.frontend_changes }} \
-            --argjson mosaic_tile_changes ${{ needs.detect-changes.outputs.mosaic_tile_changes }} \
-            --argjson mosaic_vending_changes ${{ needs.detect-changes.outputs.mosaic_vending_changes }} \
-            --argjson frontend_files '${{ needs.detect-changes.outputs.frontend_files }}' \
-            --argjson mosaic_tile_files '${{ needs.detect-changes.outputs.mosaic_tile_files }}' \
-            --argjson mosaic_vending_files '${{ needs.detect-changes.outputs.mosaic_vending_files }}' \
-            --argjson previous_runs '${{ needs.check-previous-runs.outputs.previous_runs }}' \
-            '{
-              "frontend-ci": {
-                "component": "frontend",
-                "needs_run": $frontend_changes,
-                "previous_result": ($previous_runs.frontend.job_results | map(select(.name == "frontend-ci"))[0].conclusion),
-                "changed_files": (if $frontend_changes then $frontend_files else [] end),
-                "dependencies": ["changes"],
-                "previous_dependency_results": {}
-              },
-              "mosaic-tile-ci": {
-                "component": "mosaic_tile",
-                "needs_run": $mosaic_tile_changes,
-                "previous_result": ($previous_runs.mosaic_tile.job_results | map(select(.name == "mosaic-tile-ci"))[0].conclusion),
-                "changed_files": (if $mosaic_tile_changes then $mosaic_tile_files else [] end),
-                "dependencies": ["changes", "rust-setup"],
-                "previous_dependency_results": {}
-              },
-              "mosaic-vending-ci": {
-                "component": "mosaic_vending",
-                "needs_run": $mosaic_vending_changes,
-                "previous_result": ($previous_runs.mosaic_vending.job_results | map(select(.name == "mosaic-vending-ci"))[0].conclusion),
-                "changed_files": (if $mosaic_vending_changes then $mosaic_vending_files else [] end),
-                "dependencies": ["changes", "rust-setup"],
-                "previous_dependency_results": {}
-              },
-              "deploy-mosaic-tile": {
-                "component": "mosaic_tile",
-                "needs_run": $mosaic_tile_changes,
-                "previous_result": ($previous_runs.mosaic_tile.job_results | map(select(.name == "deploy-mosaic-tile"))[0].conclusion),
-                "changed_files": (if $mosaic_tile_changes then $mosaic_tile_files else [] end),
-                "dependencies": ["mosaic-tile-ci"],
-                "condition": "needs.mosaic-tile-ci.result == '\''success'\''",
-                "previous_dependency_results": {
-                  "mosaic-tile-ci": ($previous_runs.mosaic_tile.job_results | map(select(.name == "mosaic-tile-ci"))[0].conclusion)
-                }
-              },
-              "deploy-mosaic-vending": {
-                "component": "mosaic_vending",
-                "needs_run": $mosaic_vending_changes,
-                "previous_result": ($previous_runs.mosaic_vending.job_results | map(select(.name == "deploy-mosaic-vending"))[0].conclusion),
-                "changed_files": (if $mosaic_vending_changes then $mosaic_vending_files else [] end),
-                "dependencies": ["mosaic-vending-ci"],
-                "condition": "needs.mosaic-vending-ci.result == '\''success'\''",
-                "previous_dependency_results": {
-                  "mosaic-vending-ci": ($previous_runs.mosaic_vending.job_results | map(select(.name == "mosaic-vending-ci"))[0].conclusion)
-                }
-              },
-              "mosaic-tile-e2e": {
-                "component": "mosaic_tile",
-                "needs_run": $mosaic_tile_changes,
-                "previous_result": ($previous_runs.mosaic_tile.job_results | map(select(.name == "mosaic-tile-e2e"))[0].conclusion),
-                "changed_files": (if $mosaic_tile_changes then $mosaic_tile_files else [] end),
-                "dependencies": ["deploy-mosaic-tile"],
-                "previous_dependency_results": {
-                  "deploy-mosaic-tile": ($previous_runs.mosaic_tile.job_results | map(select(.name == "deploy-mosaic-tile"))[0].conclusion)
-                }
-              },
-              "mosaic-vending-e2e": {
-                "component": "mosaic_vending",
-                "needs_run": $mosaic_vending_changes,
-                "previous_result": ($previous_runs.mosaic_vending.job_results | map(select(.name == "mosaic-vending-e2e"))[0].conclusion),
-                "changed_files": (if $mosaic_vending_changes then $mosaic_vending_files else [] end),
-                "dependencies": ["deploy-mosaic-vending"],
-                "previous_dependency_results": {
-                  "deploy-mosaic-vending": ($previous_runs.mosaic_vending.job_results | map(select(.name == "deploy-mosaic-vending"))[0].conclusion)
-                }
-              },
-              "full-e2e": {
-                "component": null,
-                "needs_run": ($frontend_changes or $mosaic_tile_changes or $mosaic_vending_changes),
-                "previous_result": ($previous_runs.frontend.job_results + $previous_runs.mosaic_tile.job_results + $previous_runs.mosaic_vending.job_results | map(select(.name == "full-e2e"))[0].conclusion),
-                "changed_files": (
-                  if $frontend_changes then $frontend_files else [] end +
-                  if $mosaic_tile_changes then $mosaic_tile_files else [] end +
-                  if $mosaic_vending_changes then $mosaic_vending_files else [] end
-                ),
-                "dependencies": ["frontend-ci", "mosaic-tile-e2e", "mosaic-vending-e2e"],
-                "previous_dependency_results": {
-                  "frontend-ci": ($previous_runs.frontend.job_results | map(select(.name == "frontend-ci"))[0].conclusion),
-                  "mosaic-tile-e2e": ($previous_runs.mosaic_tile.job_results | map(select(.name == "mosaic-tile-e2e"))[0].conclusion),
-                  "mosaic-vending-e2e": ($previous_runs.mosaic_vending.job_results | map(select(.name == "mosaic-vending-e2e"))[0].conclusion)
-                }
-              }
-            }')
-
-          metadata=$(jq -n \
-            --arg sha "${{ github.sha }}" \
-            --arg workflow_id "${{ github.run_id }}" \
-            --arg created_at "$(date -u +"%Y-%m-%dT%H:%M:%SZ")" \
-            --arg event_type "${{ github.event_name }}" \
-            '{
-              "commit_sha": $sha,
-              "workflow_id": $workflow_id,
-              "created_at": $created_at,
-              "event_type": $event_type
-            }')
-
-          # Combine all sections into final plan
-          plan=$(jq -n \
-            --argjson components "$components" \
-            --argjson jobs "$jobs" \
-            --argjson metadata "$metadata" \
-            '{
-              "components": $components,
-              "jobs": $jobs,
-              "metadata": $metadata
-            }' | jq -c .)
-
-          # Save plan to output using the new multiline syntax
-          {
-            echo "plan<<EOF"
-            echo "$plan"
-            echo "EOF"
-          } >> $GITHUB_OUTPUT
-
-          # Also save plan to artifact
-          echo "$plan" > execution_plan.json
+          GIST_TOKEN: ${{ secrets.GIST_TOKEN }}
+          GIST_ID: ${{ inputs.gist_id }}
+          GITHUB_TOKEN: ${{ github.token }}
+          RUNNER_TEMP: ${{ runner.temp }}
+          CACHE_PATH: ~/.cache/gist-data
+        run: npm run execution-plan
 
       - name: Upload execution plan
         uses: actions/upload-artifact@v3
         with:
           name: execution-plan
           path: execution_plan.json
+          retention-days: 1  # Only keep for 1 day since it's just for debugging

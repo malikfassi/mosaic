@@ -1,21 +1,28 @@
 [workspace]
-members = ["mosaic-tile-nft", "mosaic-vending-minter"]
-resolver = "2"
+members = [
+    "mosaic-tile-nft",
+    "mosaic-vending-minter"
+]
+
+[workspace.package]
+version = "0.1.0"
+authors = ["Mosaic Team"]
+edition = "2021"
+rust-version = "1.70.0"
 
 [workspace.dependencies]
-cosmwasm-schema = "1.5.0"
-cosmwasm-std = "1.5.0"
-cw-storage-plus = "1.2.0"
-cw-utils = "1.0.3"
-cw2 = "1.1.2"
+cosmwasm-schema = "1.4.0"
+cosmwasm-std = "1.4.0"
+cosmwasm-storage = "1.4.0"
+cw-storage-plus = "1.1.0"
+cw2 = "1.1.0"
 cw721 = "0.18.0"
-schemars = "0.8.15"
-serde = { version = "1.0.193", default-features = false, features = ["derive"] }
-thiserror = "1.0.50"
 cw721-base = { version = "0.18.0", features = ["library"] }
-sg1 = "2.4.0"
-sg721 = "2.4.0"
-sg721-base = { version = "2.4.0", features = ["library"] }
-sg-std = "2.4.0"
-semver = "1.0.20"
-cw-multi-test = "0.18.0" 
+schemars = "0.8.15"
+serde = { version = "1.0.188", features = ["derive"] }
+thiserror = "1.0.48"
+
+# Dev dependencies shared across all contracts
+[workspace.dev-dependencies]
+cw-multi-test = "0.16.5"
+anyhow = "1.0.75" 

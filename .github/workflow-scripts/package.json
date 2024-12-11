@@ -1,0 +1,19 @@
+{
+  "dependencies": {
+    "@actions/cache": "^3.2.2",
+    "@actions/core": "^1.10.1",
+    "@actions/github": "^6.0.0",
+    "@octokit/rest": "^20.0.2",
+    "glob": "^10.3.10",
+    "ignore": "^5.3.0"
+  },
+  "description": "Scripts for Mosaic CI/CD workflows",
+  "name": "mosaic-workflow-scripts",
+  "scripts": {
+    "execution-plan": "node src/execution-plan.js",
+    "notify": "node src/notify.js",
+    "status": "node src/status.js"
+  },
+  "type": "module",
+  "version": "1.0.0"
+}

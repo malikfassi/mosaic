@@ -6,7 +6,7 @@ on:
       contract_name:
         required: true
         type: string
-        description: "Name of the contract (mosaic-tile or mosaic-vending)"
+        description: "Name of the contract (mosaic-tile-nft or mosaic-vending-minter)"
       needs_run:
         required: true
         type: string
@@ -29,15 +29,31 @@ jobs:
           fi
 
       - uses: actions/checkout@v3
+
+      # Cache Rust toolchain and target directory
+      - name: Cache Rust
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            contracts/target/
+          key: ${{ runner.os }}-cargo-${{ inputs.component_hash }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-
+
       - uses: actions-rs/toolchain@v1
         with:
           profile: minimal
           toolchain: stable
           override: true
           components: rustfmt
+
       - name: Check formatting
         run: |
-          cd contracts/${{ inputs.contract_name }}-nft
+          cd contracts/${{ inputs.contract_name }}
           cargo fmt -- --check
 
   lint:
@@ -52,15 +68,31 @@ jobs:
           fi
 
       - uses: actions/checkout@v3
+
+      # Cache Rust toolchain and target directory
+      - name: Cache Rust
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            contracts/target/
+          key: ${{ runner.os }}-cargo-${{ inputs.component_hash }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-
+
       - uses: actions-rs/toolchain@v1
         with:
           profile: minimal
           toolchain: stable
           override: true
           components: clippy
+
       - name: Run clippy
         run: |
-          cd contracts/${{ inputs.contract_name }}-nft
+          cd contracts/${{ inputs.contract_name }}
           cargo clippy -- -D warnings
 
   test:
@@ -75,14 +107,30 @@ jobs:
           fi
 
       - uses: actions/checkout@v3
+
+      # Cache Rust toolchain and target directory
+      - name: Cache Rust
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            contracts/target/
+          key: ${{ runner.os }}-cargo-${{ inputs.component_hash }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-
+
       - uses: actions-rs/toolchain@v1
         with:
           profile: minimal
           toolchain: stable
           override: true
+
       - name: Run unit tests
         run: |
-          cd contracts/${{ inputs.contract_name }}-nft
+          cd contracts/${{ inputs.contract_name }}
           cargo test
 
   schema:
@@ -98,12 +146,28 @@ jobs:
           fi
 
       - uses: actions/checkout@v3
+
+      # Cache Rust toolchain and target directory
+      - name: Cache Rust
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            contracts/target/
+          key: ${{ runner.os }}-cargo-${{ inputs.component_hash }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-
+
       - uses: actions-rs/toolchain@v1
         with:
           profile: minimal
           toolchain: stable
           override: true
+
       - name: Check schema generation
         run: |
-          cd contracts/${{ inputs.contract_name }}-nft
+          cd contracts/${{ inputs.contract_name }}
           cargo run --example schema

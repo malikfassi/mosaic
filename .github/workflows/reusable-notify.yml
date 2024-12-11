@@ -32,7 +32,7 @@ on:
         required: true
         type: string
       gist_id:
-        required: false
+        required: true
         type: string
     secrets:
       DISCORD_WEBHOOK:
@@ -45,14 +45,22 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-        with:
-          fetch-depth: 0
 
-      - name: Generate Status Message
-        id: status
-        shell: bash
+      - uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: .github/workflow-scripts/package.json
+
+      - name: Install dependencies
+        working-directory: .github/workflow-scripts
+        run: npm ci
+
+      - name: Generate notification
+        id: notify
+        working-directory: .github/workflow-scripts
         env:
-          PLAN: ${{ inputs.execution_plan }}
+          EXECUTION_PLAN: ${{ inputs.execution_plan }}
           FRONTEND_CI_RESULT: ${{ inputs.frontend_ci_result }}
           MOSAIC_TILE_CI_RESULT: ${{ inputs.mosaic_tile_ci_result }}
           MOSAIC_VENDING_CI_RESULT: ${{ inputs.mosaic_vending_ci_result }}
@@ -61,197 +69,19 @@ jobs:
           MOSAIC_TILE_E2E_RESULT: ${{ inputs.mosaic_tile_e2e_result }}
           MOSAIC_VENDING_E2E_RESULT: ${{ inputs.mosaic_vending_e2e_result }}
           FULL_E2E_RESULT: ${{ inputs.full_e2e_result }}
-          GITHUB_REPOSITORY: ${{ github.repository }}
-          GITHUB_RUN_ID: ${{ github.run_id }}
-        run: |
-          # Function to format job result
-          format_job_result() {
-            local job_name=$1
-            local current_result=$2
-            
-            # Get job info from execution plan
-            local job=$(echo "$PLAN" | jq -r ".jobs[\"$job_name\"]")
-            local needs_run=$(echo "$job" | jq -r '.needs_run')
-            local previous_result=$(echo "$job" | jq -r '.previous_result')
-            local previous_deps=$(echo "$job" | jq -r '.previous_dependency_results')
-            
-            # Format current result
-            local result_emoji
-            case "$current_result" in
-              "success") result_emoji="✅";;
-              "failure") result_emoji="❌";;
-              "cancelled") result_emoji="⚪";;
-              "skipped") result_emoji="⏭️";;
-              *) result_emoji="❓";;
-            esac
-            
-            # Add previous result info if available
-            local result_text="$result_emoji"
-            if [[ "$needs_run" == "false" && "$previous_result" != "null" ]]; then
-              # Get previous run info
-              local component_name=$(echo "$job" | jq -r '.component')
-              if [[ "$component_name" != "null" ]]; then
-                local previous_run=$(echo "$PLAN" | jq -r ".components.$component_name.previous_run.run")
-                if [[ "$previous_run" != "null" ]]; then
-                  local run_url=$(echo "$previous_run" | jq -r '.url')
-                  local run_date=$(echo "$previous_run" | jq -r '.created_at' | cut -d'T' -f1)
-                  result_text+=" (reusing $run_date [run]($run_url))"
-                fi
-              fi
-            fi
-            
-            echo "$result_text"
-          }
-          
-          # Prepare template variables
-          export COMMIT_SHA=$(echo "$PLAN" | jq -r '.metadata.commit_sha')
-          export EVENT_TYPE=$(echo "$PLAN" | jq -r '.metadata.event_type')
-          export RUN_URL="https://github.com/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
-          
-          # Overall status
-          if [[ "$FRONTEND_CI_RESULT" == "success" && "$MOSAIC_TILE_CI_RESULT" == "success" && \
-                "$MOSAIC_VENDING_CI_RESULT" == "success" && "$FULL_E2E_RESULT" == "success" ]]; then
-            export OVERALL_STATUS="✅"
-          else
-            export OVERALL_STATUS="❌"
-          fi
-          
-          # Component hashes
-          export FRONTEND_HASH=$(echo "$PLAN" | jq -r '.components.frontend.hash')
-          export MOSAIC_TILE_HASH=$(echo "$PLAN" | jq -r '.components.mosaic_tile.hash')
-          export MOSAIC_VENDING_HASH=$(echo "$PLAN" | jq -r '.components.mosaic_vending.hash')
-          
-          # Frontend changes
-          if [[ "$(echo "$PLAN" | jq -r '.components.frontend.files_changed')" == "true" ]]; then
-            export FRONTEND_CHANGES="📝 Changes:\n$(echo "$PLAN" | jq -r '.components.frontend.changed_files | map("- " + .) | join("\n")')"
-          else
-            previous_run=$(echo "$PLAN" | jq -r '.components.frontend.previous_run')
-            if [[ "$(echo "$previous_run" | jq -r '.found')" == "true" ]]; then
-              run_date=$(echo "$previous_run.run" | jq -r '.created_at' | cut -d'T' -f1)
-              run_url=$(echo "$previous_run.run" | jq -r '.url')
-              export FRONTEND_CHANGES="✨ No changes _(using $run_date [run]($run_url))_"
-            else
-              export FRONTEND_CHANGES="🆕 First run"
-            fi
-          fi
-          
-          # Frontend pipeline
-          if [[ "$(echo "$PLAN" | jq -r '.jobs.frontend-ci.needs_run')" == "false" ]]; then
-            export FRONTEND_PIPELINE="✅ CI _(reused)_"
-          else
-            export FRONTEND_PIPELINE="CI: $(format_job_result "frontend-ci" "$FRONTEND_CI_RESULT")"
-          fi
-          
-          # Mosaic Tile changes
-          if [[ "$(echo "$PLAN" | jq -r '.components.mosaic_tile.files_changed')" == "true" ]]; then
-            export MOSAIC_TILE_CHANGES="📝 Changes:\n$(echo "$PLAN" | jq -r '.components.mosaic_tile.changed_files | map("- " + .) | join("\n")')"
-          else
-            previous_run=$(echo "$PLAN" | jq -r '.components.mosaic_tile.previous_run')
-            if [[ "$(echo "$previous_run" | jq -r '.found')" == "true" ]]; then
-              run_date=$(echo "$previous_run.run" | jq -r '.created_at' | cut -d'T' -f1)
-              run_url=$(echo "$previous_run.run" | jq -r '.url')
-              export MOSAIC_TILE_CHANGES="✨ No changes _(using $run_date [run]($run_url))_"
-            else
-              export MOSAIC_TILE_CHANGES="🆕 First run"
-            fi
-          fi
-          
-          # Mosaic Tile pipeline
-          pipeline=""
-          if [[ "$(echo "$PLAN" | jq -r '.jobs.mosaic-tile-ci.needs_run')" == "false" ]]; then
-            pipeline="✅ CI _(reused)_ → "
-          else
-            pipeline="CI: $(format_job_result "mosaic-tile-ci" "$MOSAIC_TILE_CI_RESULT") → "
-          fi
-          if [[ "$(echo "$PLAN" | jq -r '.jobs.deploy-mosaic-tile.needs_run')" == "false" ]]; then
-            pipeline+="✅ Deploy _(reused)_ → "
-          else
-            pipeline+="Deploy: $(format_job_result "deploy-mosaic-tile" "$MOSAIC_TILE_DEPLOY_RESULT") → "
-          fi
-          if [[ "$(echo "$PLAN" | jq -r '.jobs.mosaic-tile-e2e.needs_run')" == "false" ]]; then
-            pipeline+="✅ E2E _(reused)_"
-          else
-            pipeline+="E2E: $(format_job_result "mosaic-tile-e2e" "$MOSAIC_TILE_E2E_RESULT")"
-          fi
-          export MOSAIC_TILE_PIPELINE="$pipeline"
-          
-          # Mosaic Vending changes
-          if [[ "$(echo "$PLAN" | jq -r '.components.mosaic_vending.files_changed')" == "true" ]]; then
-            export MOSAIC_VENDING_CHANGES="📝 Changes:\n$(echo "$PLAN" | jq -r '.components.mosaic_vending.changed_files | map("- " + .) | join("\n")')"
-          else
-            previous_run=$(echo "$PLAN" | jq -r '.components.mosaic_vending.previous_run')
-            if [[ "$(echo "$previous_run" | jq -r '.found')" == "true" ]]; then
-              run_date=$(echo "$previous_run.run" | jq -r '.created_at' | cut -d'T' -f1)
-              run_url=$(echo "$previous_run.run" | jq -r '.url')
-              export MOSAIC_VENDING_CHANGES="✨ No changes _(using $run_date [run]($run_url))_"
-            else
-              export MOSAIC_VENDING_CHANGES="🆕 First run"
-            fi
-          fi
-          
-          # Mosaic Vending pipeline
-          pipeline=""
-          if [[ "$(echo "$PLAN" | jq -r '.jobs.mosaic-vending-ci.needs_run')" == "false" ]]; then
-            pipeline="✅ CI _(reused)_ → "
-          else
-            pipeline="CI: $(format_job_result "mosaic-vending-ci" "$MOSAIC_VENDING_CI_RESULT") → "
-          fi
-          if [[ "$(echo "$PLAN" | jq -r '.jobs.deploy-mosaic-vending.needs_run')" == "false" ]]; then
-            pipeline+="✅ Deploy _(reused)_ → "
-          else
-            pipeline+="Deploy: $(format_job_result "deploy-mosaic-vending" "$MOSAIC_VENDING_DEPLOY_RESULT") → "
-          fi
-          if [[ "$(echo "$PLAN" | jq -r '.jobs.mosaic-vending-e2e.needs_run')" == "false" ]]; then
-            pipeline+="✅ E2E _(reused)_"
-          else
-            pipeline+="E2E: $(format_job_result "mosaic-vending-e2e" "$MOSAIC_VENDING_E2E_RESULT")"
-          fi
-          export MOSAIC_VENDING_PIPELINE="$pipeline"
-          
-          # Full E2E status
-          if [[ "$(echo "$PLAN" | jq -r '.jobs.full-e2e.needs_run')" == "false" ]]; then
-            export FULL_E2E_STATUS="✅ _(no changes)_"
-          else
-            export FULL_E2E_STATUS="$(format_job_result "full-e2e" "$FULL_E2E_RESULT")"
-          fi
-          
-          # Execution plan URL
-          export EXECUTION_PLAN_URL="https://gist.github.com/${{ inputs.gist_id }}/raw/execution_plan.json"
-          
-          # Generate message using template
-          envsubst < .github/templates/status-template.md > status.md
-          
-          # Save message to output
-          {
-            echo 'message<<EOF'
-            cat status.md
-            echo 'EOF'
-          } >> $GITHUB_OUTPUT
+        run: npm run notify
 
-      - name: Send Discord Notification
-        if: always()
-        shell: bash
-        env:
-          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
-        run: |
-          # Send file to Discord webhook
-          curl -F "file=@status.md" "$DISCORD_WEBHOOK"
-
-      - name: Update Status Gist
-        if: inputs.gist_id != ''
-        uses: fjogeleit/http-request-action@v1
+      - name: Send Discord notification
+        uses: tsickert/discord-webhook@v5.3.0
         with:
-          url: https://api.github.com/gists/${{ inputs.gist_id }}
-          method: 'PATCH'
-          bearerToken: ${{ secrets.GIST_TOKEN }}
-          data: |
-            {
-              "files": {
-                "status.md": {
-                  "content": "${{ steps.status.outputs.message }}"
-                },
-                "execution_plan.json": {
-                  "content": ${{ inputs.execution_plan }}
-                }
-              }
-            }
+          webhook-url: ${{ secrets.DISCORD_WEBHOOK }}
+          filename: discord_message.txt
+
+      - name: Update status gist
+        uses: ./.github/workflows/reusable-status.yml
+        with:
+          action: update
+          execution_plan: ${{ inputs.execution_plan }}
+          gist_id: ${{ inputs.gist_id }}
+        secrets:
+          GIST_TOKEN: ${{ secrets.GIST_TOKEN }}
