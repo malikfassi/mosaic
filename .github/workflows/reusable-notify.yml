@@ -127,10 +127,35 @@ jobs:
             echo "$result_text"
           }
           
+          # Function to format component hash info
+          format_hash_info() {
+            local name=$1
+            local component=$(echo "$plan" | jq -r ".components.$name")
+            local current_hash=$(echo "$component" | jq -r '.hash')
+            local previous_run=$(echo "$component" | jq -r '.previous_run')
+            local has_previous=$(echo "$previous_run" | jq -r '.found')
+            
+            if [[ "$has_previous" == "true" ]]; then
+              local previous_hash=$(curl -H "Authorization: token ${{ github.token }}" -L "$(echo "$previous_run" | jq -r '.run.url')" | jq -r ".components.$name.hash")
+              if [[ "$current_hash" != "$previous_hash" ]]; then
+                echo "\`$current_hash\` _(changed from \`$previous_hash\`)_"
+              else
+                echo "\`$current_hash\`"
+              fi
+            else
+              echo "\`$current_hash\` _(new)_"
+            fi
+          }
+          
           # Generate component sections
           frontend_status=$(format_component_status "frontend")
           mosaic_tile_status=$(format_component_status "mosaic_tile")
           mosaic_vending_status=$(format_component_status "mosaic_vending")
+          
+          # Generate hash info
+          frontend_hash=$(format_hash_info "frontend")
+          mosaic_tile_hash=$(format_hash_info "mosaic_tile")
+          mosaic_vending_hash=$(format_hash_info "mosaic_vending")
           
           # Generate job results
           frontend_result=$(format_job_result "frontend-ci" "${{ inputs.frontend_ci_result }}")
@@ -145,19 +170,35 @@ jobs:
           # Create message
           message="🚀 **Workflow Run Report**
           
+          **Components**
+          
           **Frontend**
           Status: $frontend_status
-          CI: $frontend_result
+          Hash: $frontend_hash
           
           **Mosaic Tile**
           Status: $mosaic_tile_status
-          CI: $mosaic_tile_result | Deploy: $mosaic_tile_deploy_result | E2E: $mosaic_tile_e2e_result
+          Hash: $mosaic_tile_hash
           
           **Mosaic Vending**
           Status: $mosaic_vending_status
-          CI: $mosaic_vending_result | Deploy: $mosaic_vending_deploy_result | E2E: $mosaic_vending_e2e_result
+          Hash: $mosaic_vending_hash
           
-          **Full E2E Tests**: $full_e2e_result
+          **Jobs**
+          
+          **CI Jobs**
+          Frontend CI: $frontend_result
+          Mosaic Tile CI: $mosaic_tile_result
+          Mosaic Vending CI: $mosaic_vending_result
+          
+          **Deploy Jobs**
+          Mosaic Tile Deploy: $mosaic_tile_deploy_result
+          Mosaic Vending Deploy: $mosaic_vending_deploy_result
+          
+          **E2E Jobs**
+          Mosaic Tile E2E: $mosaic_tile_e2e_result
+          Mosaic Vending E2E: $mosaic_vending_e2e_result
+          Full E2E: $full_e2e_result
           
           **Run Details**
           Commit: \`$(echo "$plan" | jq -r '.metadata.commit_sha')\`
