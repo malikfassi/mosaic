@@ -81,10 +81,38 @@ async function main() {
     // Save Discord message
     await writeFile('discord_message.txt', message);
 
+    // Update gist with data from results (only update if successful)
+    const octokit = getOctokit(process.env.GIST_SECRET);
+    await octokit.rest.gists.update({
+      gist_id: process.env.GIST_ID,
+      // for all successful jobs, filename must be jobname and hash
+      // content must be the metadata from the job and the previous job
+      
+      files: Object.entries(results).filter(([_, result]) => result === 'success').reduce((acc, [key, _]) => {
+        const job = plan.jobs[key];
+        const previousRun = job.previous_run || {};
+        const content = {
+          success: true,
+          timestamp: new Date().toISOString(),
+          run_id: plan.metadata.run_id,
+          hash: job.hash,
+          previous_run: {
+            success: previousRun.success,
+            timestamp: previousRun.timestamp,
+            run_id: previousRun.run_id,
+            hash: previousRun.hash
+          }
+        };
+        acc[`${key}.${job.hash}.json`] = { content: JSON.stringify(content, null, 2) };
+        return acc;
+      }, {})
+    });
+
   } catch (error) {
     console.error('Error in notify:', error);
     process.exit(1);
   }
+
 }
 
-main();
+await main();

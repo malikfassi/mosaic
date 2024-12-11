@@ -7,28 +7,49 @@ on:
       execution_plan:
         required: true
         type: string
-      frontend_ci_result:
+      frontend_lint_result:
         required: true
         type: string
-      mosaic_tile_ci_result:
+      frontend_test_result:
         required: true
         type: string
-      mosaic_vending_ci_result:
+      frontend_build_result:
+        required: true
+        type: string
+      mosaic_tile_lint_result:
+        required: true
+        type: string
+      mosaic_tile_test_result:
+        required: true
+        type: string
+      mosaic_tile_schema_result:
+        required: true
+        type: string
+      mosaic_tile_format_result:
         required: true
         type: string
       mosaic_tile_deploy_result:
         required: true
         type: string
-      mosaic_vending_deploy_result:
-        required: true
-        type: string
       mosaic_tile_e2e_result:
         required: true
         type: string
-      mosaic_vending_e2e_result:
+      mosaic_vending_format_result:
         required: true
         type: string
-      full_e2e_result:
+      mosaic_vending_schema_result:
+        required: true
+        type: string
+      mosaic_vending_lint_result:
+        required: true
+        type: string
+      mosaic_vending_test_result:
+        required: true
+        type: string
+      mosaic_vending_deploy_result:
+        required: true
+        type: string
+      mosaic_vending_e2e_result:
         required: true
         type: string
       gist_id:
@@ -56,9 +77,17 @@ jobs:
         working-directory: .github/workflow-scripts
         env:
           EXECUTION_PLAN: ${{ inputs.execution_plan }}
-          FRONTEND_CI_RESULT: ${{ inputs.frontend_ci_result }}
-          MOSAIC_TILE_CI_RESULT: ${{ inputs.mosaic_tile_ci_result }}
-          MOSAIC_VENDING_CI_RESULT: ${{ inputs.mosaic_vending_ci_result }}
+          FRONTEND_LINT_RESULT: ${{ inputs.frontend_lint_result }}  
+          FRONTEND_TEST_RESULT: ${{ inputs.frontend_test_result }}
+          FRONTEND_BUILD_RESULT: ${{ inputs.frontend_build_result }}
+          MOSAIC_TILE_LINT_RESULT: ${{ inputs.mosaic_tile_lint_result }}
+          MOSAIC_TILE_TEST_RESULT: ${{ inputs.mosaic_tile_test_result }}
+          MOSAIC_TILE_SCHEMA_RESULT: ${{ inputs.mosaic_tile_schema_result }}
+          MOSAIC_TILE_FORMAT_RESULT: ${{ inputs.mosaic_tile_format_result }}
+          MOSAIC_VENDING_LINT_RESULT: ${{ inputs.mosaic_vending_lint_result }}
+          MOSAIC_VENDING_TEST_RESULT: ${{ inputs.mosaic_vending_test_result }}
+          MOSAIC_VENDING_SCHEMA_RESULT: ${{ inputs.mosaic_vending_schema_result }}
+          MOSAIC_VENDING_FORMAT_RESULT: ${{ inputs.mosaic_vending_format_result }}
           MOSAIC_TILE_DEPLOY_RESULT: ${{ inputs.mosaic_tile_deploy_result }}
           MOSAIC_VENDING_DEPLOY_RESULT: ${{ inputs.mosaic_vending_deploy_result }}
           MOSAIC_TILE_E2E_RESULT: ${{ inputs.mosaic_tile_e2e_result }}

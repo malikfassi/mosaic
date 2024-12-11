@@ -98,12 +98,31 @@ jobs:
     uses: ./.github/workflows/reusable-notify.yml
     with:
       execution_plan: ${{ needs.execution-plan.outputs.plan }}
-      frontend_ci_result: ${{ needs.frontend-ci.result }}
-      mosaic_tile_ci_result: ${{ needs.mosaic-tile-ci.result }}
-      mosaic_vending_ci_result: ${{ needs.mosaic-vending-ci.result }}
+      #every single jobs results
+
+      ## frontend result
+      frontend_lint_result: ${{ needs.frontend-ci.outputs.lint_result }}
+      frontend_test_result: ${{ needs.frontend-ci.outputs.test_result }}  
+      frontend_build_result: ${{ needs.frontend-ci.outputs.build_result }}
+    
+
+      ## mosaic tile result 
+      mosaic_tile_lint_result: ${{ needs.mosaic-tile-ci.outputs.lint_result }}
+      mosaic_tile_test_result: ${{ needs.mosaic-tile-ci.outputs.test_result }}
+      mosaic_tile_schema_result: ${{ needs.mosaic-tile-ci.outputs.schema_result }}
+      mosaic_tile_format_result: ${{ needs.mosaic-tile-ci.outputs.format_result }}
       mosaic_tile_deploy_result: ${{ needs.deploy-mosaic-tile.result }}
-      mosaic_vending_deploy_result: ${{ needs.deploy-mosaic-vending.result }}
       mosaic_tile_e2e_result: ${{ needs.mosaic-tile-e2e.result }}
+
+      ## mosaic vending result   
+      mosaic_vending_lint_result: ${{ needs.mosaic-vending-ci.outputs.lint_result }}
+      mosaic_vending_test_result: ${{ needs.mosaic-vending-ci.outputs.test_result }}
+      mosaic_vending_schema_result: ${{ needs.mosaic-vending-ci.outputs.schema_result }}
+      mosaic_vending_format_result: ${{ needs.mosaic-vending-ci.outputs.format_result }}
+      mosaic_vending_deploy_result: ${{ needs.deploy-mosaic-vending.result }}
       mosaic_vending_e2e_result: ${{ needs.mosaic-vending-e2e.result }}
+
+      ## full e2e result
       full_e2e_result: ${{ needs.full-e2e.result }}
+
       gist_id: ${{ vars.GIST_ID }}

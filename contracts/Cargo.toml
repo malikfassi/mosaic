@@ -22,7 +22,4 @@ schemars = "0.8.15"
 serde = { version = "1.0.188", features = ["derive"] }
 thiserror = "1.0.48"
 anyhow = "1.0.75"
-
-# Dev dependencies shared across all contracts
-[workspace.dev-dependencies]
 cw-multi-test = "0.16.5" 

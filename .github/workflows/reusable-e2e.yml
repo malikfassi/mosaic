@@ -11,10 +11,16 @@ on:
         required: true
         type: string
         description: "Whether this workflow needs to run ('true' or 'false')"
+    outputs:
+      e2e_result:
+        description: "Result of the E2E test job"
+        value: ${{ jobs.e2e.outputs.result }}
 
 jobs:
   e2e:
     runs-on: ubuntu-latest
+    outputs:
+      result: ${{ steps.set-result.outputs.result }}
     steps:
       - name: Check if job needs to run
         id: check
@@ -28,4 +34,14 @@ jobs:
       - name: Run E2E tests
         run: |
           echo "Running ${{ inputs.test_type }} E2E tests..."
-          # Add actual E2E test commands here 
+          # Add actual E2E test commands here
+
+      - name: Set result
+        id: set-result
+        if: always()
+        run: |
+          if [[ "${{ inputs.needs_run }}" != "true" ]]; then
+            echo "result=skipped" >> $GITHUB_OUTPUT
+          else
+            echo "result=${{ job.status }}" >> $GITHUB_OUTPUT
+          fi

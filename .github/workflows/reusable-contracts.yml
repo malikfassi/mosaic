@@ -15,10 +15,25 @@ on:
         required: true
         type: string
         description: "Hash of the contract component state"
+    outputs:
+      format_result:
+        description: "Result of the format job"
+        value: ${{ jobs.format.outputs.result }}
+      lint_result:
+        description: "Result of the lint job"
+        value: ${{ jobs.lint.outputs.result }}
+      test_result:
+        description: "Result of the test job"
+        value: ${{ jobs.test.outputs.result }}
+      schema_result:
+        description: "Result of the schema job"
+        value: ${{ jobs.schema.outputs.result }}
 
 jobs:
   format:
     runs-on: ubuntu-latest
+    outputs:
+      result: ${{ steps.set-result.outputs.result }}
     steps:
       - name: Check if job needs to run
         id: check
@@ -56,8 +71,20 @@ jobs:
           cd contracts/${{ inputs.contract_name }}
           cargo fmt -- --check
 
+      - name: Set result
+        id: set-result
+        if: always()
+        run: |
+          if [[ "${{ inputs.needs_run }}" != "true" ]]; then
+            echo "result=skipped" >> $GITHUB_OUTPUT
+          else
+            echo "result=${{ job.status }}" >> $GITHUB_OUTPUT
+          fi
+
   lint:
     runs-on: ubuntu-latest
+    outputs:
+      result: ${{ steps.set-result.outputs.result }}
     steps:
       - name: Check if job needs to run
         id: check
@@ -95,8 +122,20 @@ jobs:
           cd contracts/${{ inputs.contract_name }}
           cargo clippy -- -D warnings
 
+      - name: Set result
+        id: set-result
+        if: always()
+        run: |
+          if [[ "${{ inputs.needs_run }}" != "true" ]]; then
+            echo "result=skipped" >> $GITHUB_OUTPUT
+          else
+            echo "result=${{ job.status }}" >> $GITHUB_OUTPUT
+          fi
+
   test:
     runs-on: ubuntu-latest
+    outputs:
+      result: ${{ steps.set-result.outputs.result }}
     steps:
       - name: Check if job needs to run
         id: check
@@ -133,9 +172,21 @@ jobs:
           cd contracts/${{ inputs.contract_name }}
           cargo test
 
+      - name: Set result
+        id: set-result
+        if: always()
+        run: |
+          if [[ "${{ inputs.needs_run }}" != "true" ]]; then
+            echo "result=skipped" >> $GITHUB_OUTPUT
+          else
+            echo "result=${{ job.status }}" >> $GITHUB_OUTPUT
+          fi
+
   schema:
     needs: [format, lint, test]
     runs-on: ubuntu-latest
+    outputs:
+      result: ${{ steps.set-result.outputs.result }}
     steps:
       - name: Check if job needs to run
         id: check
@@ -171,3 +222,13 @@ jobs:
         run: |
           cd contracts/${{ inputs.contract_name }}
           cargo run --example schema
+
+      - name: Set result
+        id: set-result
+        if: always()
+        run: |
+          if [[ "${{ inputs.needs_run }}" != "true" ]]; then
+            echo "result=skipped" >> $GITHUB_OUTPUT
+          else
+            echo "result=${{ job.status }}" >> $GITHUB_OUTPUT
+          fi
