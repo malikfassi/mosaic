@@ -34,11 +34,6 @@ on:
       gist_id:
         required: true
         type: string
-    secrets:
-      DISCORD_WEBHOOK:
-        required: true
-      GIST_SECRET:
-        required: true
 
 jobs:
   notify:
