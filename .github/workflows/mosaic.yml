@@ -99,7 +99,7 @@ jobs:
       mosaic_tile_e2e_result: ${{ needs.mosaic-tile-e2e.result }}
       mosaic_vending_e2e_result: ${{ needs.mosaic-vending-e2e.result }}
       full_e2e_result: ${{ needs.full-e2e.result }}
-      gist_id: ${{ secrets.GIST_ID }}
+      gist_id: ${{ vars.GIST_ID }}
     secrets:
       DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
       GIST_TOKEN: ${{ secrets.GIST_TOKEN }}

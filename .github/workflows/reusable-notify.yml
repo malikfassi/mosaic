@@ -211,7 +211,7 @@ jobs:
           args: ${{ steps.status.outputs.message }}
 
       - name: Update Status Gist
-        if: always()
+        if: inputs.gist_id != ''
         uses: fjogeleit/http-request-action@v1
         with:
           url: https://api.github.com/gists/${{ inputs.gist_id }}
