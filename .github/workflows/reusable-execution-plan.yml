@@ -46,14 +46,13 @@ jobs:
 
       - name: Generate execution plan
         id: plan
-        working-directory: .github/workflow-scripts
         env:
           GIST_SECRET: ${{ secrets.GIST_SECRET }}
           GIST_ID: ${{ inputs.GIST_ID }}
-          GITHUB_TOKEN: ${{ github.token }}
+          GITHUB_SHA: ${{ inputs.GITHUB_SHA }}
         run: |
+          cd .github/workflow-scripts
           npm run execution-plan
-          # Escape the JSON for GitHub Actions output
-          echo "plan<<PLAN_EOF" >> $GITHUB_OUTPUT
-          cat execution-plan.json >> $GITHUB_OUTPUT
-          echo "PLAN_EOF" >> $GITHUB_OUTPUT
+          # Escape newlines and quotes
+          PLAN=$(cat execution-plan.json | jq -c .)
+          echo "plan=${PLAN}" >> $GITHUB_OUTPUT
