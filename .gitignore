@@ -6,6 +6,7 @@ Cargo.lock
 
 # CosmWasm
 contracts/*/target/
+contracts/target/
 
 # Node.js
 node_modules/
