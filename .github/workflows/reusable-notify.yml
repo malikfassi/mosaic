@@ -69,20 +69,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-
-      - uses: actions/setup-node@v3
         with:
-          node-version: '18'
-          cache: 'npm'
-          cache-dependency-path: .github/workflow-scripts/package.json
+          fetch-depth: 0
 
-      - name: Install dependencies
-        working-directory: .github/workflow-scripts
-        run: npm ci
-
-      - name: Generate notification
-        id: notify
-        working-directory: .github/workflow-scripts
+      - name: Generate Status Message
+        id: status
+        shell: bash
         env:
           EXECUTION_PLAN: ${{ inputs.execution_plan }}
           FRONTEND_LINT_RESULT: ${{ inputs.frontend_lint_result }}  
@@ -103,8 +95,10 @@ jobs:
           FULL_E2E_RESULT: ${{ inputs.full_e2e_result }}
           GIST_SECRET: ${{ secrets.GIST_SECRET }}
           GIST_ID: ${{ inputs.gist_id }}
+          GITHUB_WORKSPACE: ${{ github.workspace }}
         run: |
           npm run notify
+          mv discord_message.txt $GITHUB_WORKSPACE/
 
       - name: Send Discord notification
         uses: tsickert/discord-webhook@v5.3.0
