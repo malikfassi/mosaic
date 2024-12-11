@@ -85,28 +85,36 @@ jobs:
         run: |
           # Function to check previous runs
           check_previous_runs() {
-            local job_name=$1
+            local component=$1
             local component_hash=$2
             
             # Look for successful runs with this hash
-            local last_runs=$(gh run list --workflow mosaic.yml \
-              --json conclusion,jobs,databaseId,createdAt,url \
-              --jq ".[] | select(.jobs[].name == \"$job_name\" and .conclusion == \"success\")" \
+            local last_runs=$(gh run list \
+              --workflow mosaic.yml \
+              --json conclusion,databaseId,createdAt,url,headSha \
+              --jq ".[] | select(.conclusion == \"success\")" \
               --limit 10)
             
             # Check each run for matching hash
             if [[ -n "$last_runs" ]]; then
               while read -r run; do
                 local run_id=$(echo "$run" | jq -r '.databaseId')
-                local run_hash=$(gh api "/repos/${{ github.repository }}/actions/runs/$run_id/jobs" \
-                  --jq ".jobs[] | select(.name == \"check-needs-run\").steps[] | select(.name == \"Check if jobs need to run\").outputs.${component_hash}")
+                local run_sha=$(echo "$run" | jq -r '.headSha')
                 
-                if [[ "$run_hash" == "${!component_hash}" ]]; then
-                  # Found matching run
-                  local created_at=$(echo "$run" | jq -r '.createdAt')
-                  local run_url=$(echo "$run" | jq -r '.url')
-                  echo "{\"found\": true, \"run_id\": \"$run_id\", \"created_at\": \"$created_at\", \"url\": \"$run_url\"}"
-                  return
+                # Get the execution plan from the run artifacts
+                local plan_url="https://api.github.com/repos/${{ github.repository }}/actions/runs/$run_id/artifacts"
+                local plan_json=$(curl -H "Authorization: token $GH_TOKEN" "$plan_url" | jq -r '.artifacts[] | select(.name == "execution-plan").url')
+                
+                if [[ -n "$plan_json" ]]; then
+                  local plan_content=$(curl -H "Authorization: token $GH_TOKEN" -L "$plan_json" | jq -r ".components.$component.hash")
+                  
+                  if [[ "$plan_content" == "${!component_hash}" ]]; then
+                    # Found matching run
+                    local created_at=$(echo "$run" | jq -r '.createdAt')
+                    local run_url=$(echo "$run" | jq -r '.url')
+                    echo "{\"found\": true, \"run_id\": \"$run_id\", \"created_at\": \"$created_at\", \"url\": \"$run_url\"}"
+                    return
+                  fi
                 fi
               done <<< "$last_runs"
             fi
@@ -118,13 +126,14 @@ jobs:
           # Check each component
           previous_runs=$(cat << EOF
           {
-            "frontend": $(check_previous_runs "frontend-ci" "FRONTEND_HASH"),
-            "mosaic_tile": $(check_previous_runs "mosaic-tile-ci" "MOSAIC_TILE_HASH"),
-            "mosaic_vending": $(check_previous_runs "mosaic-vending-ci" "MOSAIC_VENDING_HASH")
+            "frontend": $(check_previous_runs "frontend" "FRONTEND_HASH"),
+            "mosaic_tile": $(check_previous_runs "mosaic_tile" "MOSAIC_TILE_HASH"),
+            "mosaic_vending": $(check_previous_runs "mosaic_vending" "MOSAIC_VENDING_HASH")
           }
           EOF
           )
 
+          # Save previous runs to output
           echo "previous_runs=$previous_runs" >> $GITHUB_OUTPUT
 
   create-plan:
@@ -219,5 +228,11 @@ jobs:
           # Save plan to output
           echo "plan=$plan" >> $GITHUB_OUTPUT
 
-          # Also save plan to artifact for debugging
+          # Also save plan to artifact
           echo "$plan" > execution_plan.json
+
+      - name: Upload execution plan
+        uses: actions/upload-artifact@v3
+        with:
+          name: execution-plan
+          path: execution_plan.json
