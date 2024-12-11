@@ -2,15 +2,6 @@ name: Generate Execution Plan
 
 on:
   workflow_call:
-    inputs:
-      gist_id:
-        required: true
-        type: string
-        description: "Gist ID for storing job results"
-    secrets:
-      GIST_SECRET:
-        required: true
-        description: "Token for gist access"
     outputs:
       plan:
         description: "Complete execution plan for all jobs"
@@ -45,6 +36,6 @@ jobs:
         working-directory: .github/workflow-scripts
         env:
           GIST_SECRET: ${{ secrets.GIST_SECRET }}
-          GIST_ID: ${{ inputs.gist_id }}
+          GIST_ID: ${{ vars.GIST_ID }}
           GITHUB_TOKEN: ${{ github.token }}
         run: npm run execution-plan

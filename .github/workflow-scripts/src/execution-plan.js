@@ -1,4 +1,4 @@
-import { getInput, setOutput, setFailed } from '@actions/core';
+import { setOutput, setFailed } from '@actions/core';
 import { context, getOctokit } from '@actions/github';
 import { globSync } from 'glob';
 import { createHash } from 'crypto';
