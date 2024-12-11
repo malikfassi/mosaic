@@ -104,15 +104,16 @@ jobs:
             # Add previous result info if available
             local result_text="$result_emoji"
             if [[ "$needs_run" == "false" && "$previous_result" != "null" ]]; then
-              result_text+=" (previous: "
-              case "$previous_result" in
-                "success") result_text+="✅";;
-                "failure") result_text+="❌";;
-                "cancelled") result_text+="⚪";;
-                "skipped") result_text+="⏭️";;
-                *) result_text+="❓";;
-              esac
-              result_text+=")"
+              # Get previous run info
+              local component_name=$(echo "$job" | jq -r '.component')
+              if [[ "$component_name" != "null" ]]; then
+                local previous_run=$(echo "$plan" | jq -r ".components.$component_name.previous_run.run")
+                if [[ "$previous_run" != "null" ]]; then
+                  local run_url=$(echo "$previous_run" | jq -r '.url')
+                  local run_date=$(echo "$previous_run" | jq -r '.created_at' | cut -d'T' -f1)
+                  result_text+=" (reusing $run_date [run]($run_url))"
+                fi
+              fi
             fi
             
             # Add dependency results if any failed
@@ -142,7 +143,9 @@ jobs:
           full_e2e_result=$(format_job_result "full-e2e" "${{ inputs.full_e2e_result }}")
           
           # Create message
-          message=" **Frontend**
+          message="🚀 **Workflow Run Report**
+          
+          **Frontend**
           Status: $frontend_status
           CI: $frontend_result
           
