@@ -110,14 +110,4 @@ async function getStatus() {
   }
 }
 
-// Run if called directly
-if (require.main === module) {
-  getStatus()
-    .then(statuses => console.log(JSON.stringify(statuses, null, 2)))
-    .catch(error => {
-      console.error(error);
-      process.exit(1);
-    });
-}
-
 export { getStatus, getComponentStatus }; 

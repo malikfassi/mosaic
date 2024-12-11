@@ -14,6 +14,10 @@ permissions:
 jobs:
   execution-plan:
     uses: ./.github/workflows/reusable-execution-plan.yml
+    with:
+      GIST_ID: ${{ vars.GIST_ID }}
+    secrets:
+      GIST_SECRET: ${{ secrets.GIST_SECRET }}
 
 
   rust-setup:
