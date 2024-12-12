@@ -179,6 +179,7 @@ jobs:
       mosaic_vending_e2e,
       full_e2e
     ]
+    if: always()
     uses: ./.github/workflows/gather-results.yml
     with:
       execution_plan: ${{ needs.generate_execution_plan.outputs.execution_plan }}
