@@ -28,22 +28,13 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
-      - name: Check previous run
-        id: check
-        uses: ./.github/actions/check-previous-run
-        with:
-          execution_plan: ${{ inputs.execution_plan }}
-          job_name: ${{ inputs.contract_name }}_compile
-
       - uses: dtolnay/rust-toolchain@stable
-        if: steps.check.outputs.result != 'skipped'
         with:
           toolchain: stable
           components: rustfmt, clippy
           targets: wasm32-unknown-unknown
 
       - name: Cache Rust dependencies
-        if: steps.check.outputs.result != 'skipped'
         uses: actions/cache@v3
         with:
           path: |
@@ -54,7 +45,6 @@ jobs:
 
       - name: Compile contract
         id: compile
-        if: steps.check.outputs.result != 'skipped'
         working-directory: contracts
         run: |
           cargo build --target wasm32-unknown-unknown --release --package ${{ inputs.contract_name }}
@@ -66,20 +56,30 @@ jobs:
           cp target/wasm32-unknown-unknown/release/${{ inputs.contract_name }}.wasm ${{ inputs.contract_name }}/artifacts/
           echo "wasm_path=${{ inputs.contract_name }}/artifacts/${{ inputs.contract_name }}.wasm" >> $GITHUB_OUTPUT
 
+      - name: Parse JSON and set the name
+        id: set-name
+        run: |
+          # Parse the JSON into a variable
+          EXECUTION_PLAN_JSON='${{ inputs.execution_plan }}'
+
+          # Use jq to extract the required value
+          COMPONENT_HASH=$(echo "$EXECUTION_PLAN_JSON" | jq -r ".\"${{ inputs.contract_name }}_compile\".component.hash")
+
+          # Export the value for use in subsequent steps
+          echo "name=${COMPONENT_HASH}-wasm" >> $GITHUB_ENV
+
       - name: Upload WASM artifact
-        if: steps.check.outputs.result != 'skipped'
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
-          name: ${{ inputs.contract_name }}-wasm
+          name: ${{ env.name }}
           path: contracts/${{ inputs.contract_name }}/artifacts/${{ inputs.contract_name }}.wasm
-          retention-days: 1
       
       - name: Set result
         id: set-result
         if: always()
         uses: ./.github/actions/set-result
         with:
-          previous_run_result: ${{ steps.check.outputs.result }}
-          previous_run_data: ${{ steps.check.outputs.data }}
+          previous_run_result: ${{ '{}' }}
+          previous_run_data: ${{ '{}' }}
           job_status: ${{ job.status }}
           job_data: ${{ '{}' }}

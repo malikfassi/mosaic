@@ -79,7 +79,7 @@ jobs:
       contract_name: mosaic_tile_nft
       execution_plan: ${{ needs.generate_execution_plan.outputs.execution_plan }}
     secrets:
-      DEPLOYMENT_WALLET_MNEMONIC: ${{ secrets.DEPLOYMENT_WALLET_ADDRESS }}
+      DEPLOYMENT_WALLET_MNEMONIC: ${{ secrets.DEPLOYMENT_WALLET_MNEMONIC }}
 
   # Mosaic Vending Contract
   mosaic_vending_minter_clippy:
