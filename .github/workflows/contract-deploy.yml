@@ -55,6 +55,7 @@ jobs:
       - name: Deploy contract
         id: deploy
         if: steps.check.outputs.result != 'skipped'
+        working-directory: contracts/${{ inputs.contract_name }}
         env:
           STARSD_MNEMONIC: ${{ secrets.STARSD_MNEMONIC }}
         run: |
