@@ -12,7 +12,7 @@ on:
         type: string
         description: "JSON string containing the execution plan"
     secrets:
-      STARSD_MNEMONIC:
+      DEPLOYMENT_WALLET_MNEMONIC:
         required: true
         description: "Mnemonic for the deployment wallet"
     outputs:
@@ -44,7 +44,7 @@ jobs:
         uses: ./.github/actions/setup-starsd
         with:
           branch: main
-          mnemonic: ${{ secrets.STARSD_MNEMONIC }}
+          mnemonic: ${{ secrets.DEPLOYMENT_WALLET_MNEMONIC }}
 
       - name: Download WASM artifact
         if: steps.check.outputs.result != 'skipped'
