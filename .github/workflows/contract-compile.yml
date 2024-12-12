@@ -67,7 +67,7 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: ${{ inputs.contract_name }}-wasm
-          path: artifacts/${{ inputs.contract_name }}.wasm
+          path: contracts/${{ inputs.contract_name }}/artifacts/${{ inputs.contract_name }}.wasm
           retention-days: 1
       
       - name: Set result
