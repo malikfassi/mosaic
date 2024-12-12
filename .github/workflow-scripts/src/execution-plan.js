@@ -17,7 +17,7 @@ function calculateComponentHash(componentConfig) {
   const ig = ignore();
   
   // Add root .gitignore if exists
-  root_ignore_file = join(process.env.GITHUB_WORKSPACE, '.gitignore');
+  const root_ignore_file = join(process.env.GITHUB_WORKSPACE, '.gitignore');
   if (existsSync(root_ignore_file)) {
     ig.add(readFileSync(root_ignore_file, 'utf8'));
   }
