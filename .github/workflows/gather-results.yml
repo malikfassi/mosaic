@@ -1,4 +1,4 @@
-name: Gather Plan Results
+name: Gather Results
 
 on:
   workflow_call:
@@ -7,116 +7,6 @@ on:
         required: true
         type: string
         description: "JSON string containing the execution plan"
-      # Frontend results
-      frontend_lint_result:
-        required: true
-        type: string
-      frontend_test_result:
-        required: true
-        type: string
-      frontend_build_result:
-        required: true
-        type: string
-      frontend_lint_outputs:
-        required: true
-        type: string
-      frontend_test_outputs:
-        required: true
-        type: string
-      frontend_build_outputs:
-        required: true
-        type: string
-      # Mosaic Tile results
-      mosaic_tile_clippy_result:
-        required: true
-        type: string
-      mosaic_tile_clippy_outputs:
-        required: true
-        type: string
-      mosaic_tile_fmt_result:
-        required: true
-        type: string
-      mosaic_tile_fmt_outputs:
-        required: true
-        type: string
-      mosaic_tile_test_result:
-        required: true
-        type: string
-      mosaic_tile_test_outputs:
-        required: true
-        type: string
-      mosaic_tile_compile_result:
-        required: true
-        type: string
-      mosaic_tile_compile_outputs:
-        required: true
-        type: string
-      mosaic_tile_deploy_result:
-        required: false
-        type: string
-        default: ''
-      mosaic_tile_deploy_outputs:
-        required: false
-        type: string
-        default: '{}'
-      # Mosaic Vending results
-      mosaic_vending_clippy_result:
-        required: true
-        type: string
-      mosaic_vending_clippy_outputs:
-        required: true
-        type: string
-      mosaic_vending_fmt_result:
-        required: true
-        type: string
-      mosaic_vending_fmt_outputs:
-        required: true
-        type: string
-      mosaic_vending_test_result:
-        required: true
-        type: string
-      mosaic_vending_test_outputs:
-        required: true
-        type: string
-      mosaic_vending_compile_result:
-        required: true
-        type: string
-      mosaic_vending_compile_outputs:
-        required: true
-        type: string
-      mosaic_vending_deploy_result:
-        required: false
-        type: string
-        default: ''
-      mosaic_vending_deploy_outputs:
-        required: false
-        type: string
-        default: '{}'
-      # E2E results
-      mosaic_tile_e2e_result:
-        required: false
-        type: string
-        default: ''
-      mosaic_tile_e2e_outputs:
-        required: false
-        type: string
-        default: '{}'
-      mosaic_vending_e2e_result:
-        required: false
-        type: string
-        default: ''
-      mosaic_vending_e2e_outputs:
-        required: false
-        type: string
-        default: '{}'
-      full_e2e_result:
-        required: false
-        type: string
-        default: ''
-      full_e2e_outputs:
-        required: false
-        type: string
-        default: '{}'
     outputs:
       plan_results:
         description: "JSON string containing all job results"
@@ -129,7 +19,7 @@ jobs:
       plan_results: ${{ steps.gather.outputs.plan_results }}
     steps:
       - uses: actions/checkout@v3
-      
+
       - uses: actions/setup-node@v3
         with:
           node-version: '18'
@@ -141,48 +31,11 @@ jobs:
         run: npm ci
 
       - name: Gather results
-        working-directory: .github/workflow-scripts
         id: gather
+        working-directory: .github/workflow-scripts
         env:
           EXECUTION_PLAN: ${{ inputs.execution_plan }}
-          # Frontend results
-          FRONTEND_LINT_RESULT: ${{ inputs.frontend_lint_result }}
-          FRONTEND_TEST_RESULT: ${{ inputs.frontend_test_result }}
-          FRONTEND_BUILD_RESULT: ${{ inputs.frontend_build_result }}
-          FRONTEND_LINT_OUTPUTS: ${{ inputs.frontend_lint_outputs }}
-          FRONTEND_TEST_OUTPUTS: ${{ inputs.frontend_test_outputs }}
-          FRONTEND_BUILD_OUTPUTS: ${{ inputs.frontend_build_outputs }}
-          # Mosaic Tile results
-          MOSAIC_TILE_CLIPPY_RESULT: ${{ inputs.mosaic_tile_clippy_result }}
-          MOSAIC_TILE_CLIPPY_OUTPUTS: ${{ inputs.mosaic_tile_clippy_outputs }}
-          MOSAIC_TILE_FMT_RESULT: ${{ inputs.mosaic_tile_fmt_result }}
-          MOSAIC_TILE_FMT_OUTPUTS: ${{ inputs.mosaic_tile_fmt_outputs }}
-          MOSAIC_TILE_TEST_RESULT: ${{ inputs.mosaic_tile_test_result }}
-          MOSAIC_TILE_TEST_OUTPUTS: ${{ inputs.mosaic_tile_test_outputs }}
-          MOSAIC_TILE_COMPILE_RESULT: ${{ inputs.mosaic_tile_compile_result }}
-          MOSAIC_TILE_COMPILE_OUTPUTS: ${{ inputs.mosaic_tile_compile_outputs }}
-          MOSAIC_TILE_DEPLOY_RESULT: ${{ inputs.mosaic_tile_deploy_result }}
-          MOSAIC_TILE_DEPLOY_OUTPUTS: ${{ inputs.mosaic_tile_deploy_outputs }}
-          # Mosaic Vending results
-          MOSAIC_VENDING_CLIPPY_RESULT: ${{ inputs.mosaic_vending_clippy_result }}
-          MOSAIC_VENDING_CLIPPY_OUTPUTS: ${{ inputs.mosaic_vending_clippy_outputs }}
-          MOSAIC_VENDING_FMT_RESULT: ${{ inputs.mosaic_vending_fmt_result }}
-          MOSAIC_VENDING_FMT_OUTPUTS: ${{ inputs.mosaic_vending_fmt_outputs }}
-          MOSAIC_VENDING_TEST_RESULT: ${{ inputs.mosaic_vending_test_result }}
-          MOSAIC_VENDING_TEST_OUTPUTS: ${{ inputs.mosaic_vending_test_outputs }}
-          MOSAIC_VENDING_COMPILE_RESULT: ${{ inputs.mosaic_vending_compile_result }}
-          MOSAIC_VENDING_COMPILE_OUTPUTS: ${{ inputs.mosaic_vending_compile_outputs }}
-          MOSAIC_VENDING_DEPLOY_RESULT: ${{ inputs.mosaic_vending_deploy_result }}
-          MOSAIC_VENDING_DEPLOY_OUTPUTS: ${{ inputs.mosaic_vending_deploy_outputs }}
-          # E2E results
-          MOSAIC_TILE_E2E_RESULT: ${{ inputs.mosaic_tile_e2e_result }}
-          MOSAIC_TILE_E2E_OUTPUTS: ${{ inputs.mosaic_tile_e2e_outputs }}
-          MOSAIC_VENDING_E2E_RESULT: ${{ inputs.mosaic_vending_e2e_result }}
-          MOSAIC_VENDING_E2E_OUTPUTS: ${{ inputs.mosaic_vending_e2e_outputs }}
-          FULL_E2E_RESULT: ${{ inputs.full_e2e_result }}
-          FULL_E2E_OUTPUTS: ${{ inputs.full_e2e_outputs }}
         run: |
-          ls -la
-          npm run gather-plan-status
+          npm run gather-results
           RESULTS=$(cat plan-results.json | jq -c .)
           echo "plan_results=${RESULTS}" >> $GITHUB_OUTPUT

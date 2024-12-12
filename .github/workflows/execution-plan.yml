@@ -21,8 +21,6 @@ jobs:
       execution_plan: ${{ steps.plan.outputs.execution_plan }}
     steps:
       - uses: actions/checkout@v3
-        with:
-          fetch-depth: 0
 
       - uses: actions/setup-node@v3
         with:
@@ -36,12 +34,12 @@ jobs:
 
       - name: Generate execution plan
         id: plan
+        working-directory: .github/workflow-scripts
         env:
           GITHUB_SHA: ${{ inputs.GITHUB_SHA }}
           GIST_SECRET: ${{ secrets.GIST_SECRET }}
           GIST_ID: ${{ vars.GIST_ID }}
         run: |
-          cd .github/workflow-scripts
           npm run execution-plan
           PLAN=$(cat execution-plan.json | jq -c .)
           echo "execution_plan=${PLAN}" >> $GITHUB_OUTPUT 

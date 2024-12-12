@@ -35,14 +35,22 @@ jobs:
           execution_plan: ${{ inputs.execution_plan }}
           job_name: compile_${{ inputs.contract_name }}
 
-      - name: Setup environment
+      - uses: dtolnay/rust-toolchain@stable
         if: steps.check.outputs.result != 'skipped'
-        uses: ./.github/actions/setup-env
         with:
-          rust-version: stable
-          rust-workspace-path: contracts/Cargo.toml
-          rust-package-path: contracts/${{ inputs.contract_name }}/Cargo.toml
-          setup-wasm32: true
+          toolchain: stable
+          components: rustfmt, clippy
+          targets: wasm32-unknown-unknown
+
+      - name: Cache Rust dependencies
+        if: steps.check.outputs.result != 'skipped'
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('contracts/Cargo.toml') }}-${{ hashFiles(format('contracts/{0}/Cargo.toml', inputs.contract_name)) }}
 
       - name: Compile contract
         id: compile
@@ -50,6 +58,17 @@ jobs:
         run: |
           cd contracts/${{ inputs.contract_name }}
           cargo build --target wasm32-unknown-unknown --release
+          mkdir -p artifacts
+          cp target/wasm32-unknown-unknown/release/*.wasm artifacts/
+          echo "wasm_path=artifacts/$(ls artifacts)" >> $GITHUB_OUTPUT
+
+      - name: Upload WASM artifact
+        if: steps.check.outputs.result != 'skipped'
+        uses: actions/upload-artifact@v3
+        with:
+          name: ${{ inputs.contract_name }}-wasm
+          path: contracts/${{ inputs.contract_name }}/${{ steps.compile.outputs.wasm_path }}
+          retention-days: 1
 
       - name: Set result
         id: set-result

@@ -39,28 +39,18 @@ jobs:
           execution_plan: ${{ inputs.execution_plan }}
           job_name: deploy_${{ inputs.contract_name }}
 
-      - name: Setup Rust
-        if: steps.check.outputs.result != 'skipped'
-        uses: ./.github/workflows/setup-rust
-        with:
-          rust-version: stable
-          workspace-path: contracts/Cargo.toml
-          package-path: contracts/${{ inputs.contract_name }}/Cargo.toml
-          setup-wasm32: true
-
       - name: Setup starsd
         if: steps.check.outputs.result != 'skipped'
-        uses: ./.github/workflows/setup-starsd
+        uses: ./.github/workflows/setup-starsd.yml
         with:
           branch: main
 
-      - name: Compile contract
-        id: compile
+      - name: Download WASM artifact
         if: steps.check.outputs.result != 'skipped'
-        run: |
-          cd contracts/${{ inputs.contract_name }}
-          cargo build --target wasm32-unknown-unknown --release
-          echo "wasm_path=$(realpath target/wasm32-unknown-unknown/release/*.wasm)" >> $GITHUB_OUTPUT
+        uses: actions/download-artifact@v3
+        with:
+          name: ${{ inputs.contract_name }}-wasm
+          path: artifacts
 
       - name: Deploy contract
         id: deploy
@@ -68,8 +58,8 @@ jobs:
         env:
           STARSD_MNEMONIC: ${{ secrets.STARSD_MNEMONIC }}
         run: |
-          cd contracts/${{ inputs.contract_name }}
-          CODE_ID=$(starsd tx wasm store ${{ steps.compile.outputs.wasm_path }} --from deployer -y | jq -r '.logs[0].events[1].attributes[0].value')
+          WASM_FILE=$(ls artifacts/*.wasm)
+          CODE_ID=$(starsd tx wasm store $WASM_FILE --from deployer -y | jq -r '.logs[0].events[1].attributes[0].value')
           CONTRACT_ADDR=$(starsd tx wasm instantiate $CODE_ID '{}' --from deployer --label "${{ inputs.contract_name }}" -y | jq -r '.logs[0].events[0].attributes[0].value')
           echo "data={\"code_id\": \"$CODE_ID\", \"contract_address\": \"$CONTRACT_ADDR\"}" >> $GITHUB_OUTPUT
 

@@ -35,12 +35,21 @@ jobs:
           execution_plan: ${{ inputs.execution_plan }}
           job_name: clippy_${{ inputs.contract_name }}
 
-      - uses: ./.github/workflows/setup-rust.yml
+      - uses: dtolnay/rust-toolchain@stable
         if: steps.check.outputs.result != 'skipped'
         with:
-          rust-version: stable
-          workspace-path: contracts/Cargo.toml
-          package-path: contracts/${{ inputs.contract_name }}/Cargo.toml
+          toolchain: stable
+          components: rustfmt, clippy
+
+      - name: Cache Rust dependencies
+        if: steps.check.outputs.result != 'skipped'
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('contracts/Cargo.toml') }}-${{ hashFiles(format('contracts/{0}/Cargo.toml', inputs.contract_name)) }}
 
       - name: Run clippy
         id: clippy

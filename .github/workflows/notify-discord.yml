@@ -29,7 +29,8 @@ jobs:
         run: npm ci
 
       - name: Send Discord notification
+        working-directory: .github/workflow-scripts
         env:
           DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
           PLAN_RESULTS: ${{ inputs.plan_results }}
-        run: npm run send-discord-message 
+        run: npm run send-discord-message
