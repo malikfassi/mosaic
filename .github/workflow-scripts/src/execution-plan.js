@@ -90,7 +90,7 @@ function getPreviousRun(gistFiles, filename) {
 function generate_hashes() {
   let component_hashes = {};
 
-  Object.entries(COMPONENTS).forEach((componentName, componentConfig) => {
+  Object.entries(COMPONENTS).forEach(([componentName, componentConfig]) => {
     component_hashes[componentName] = calculateComponentHash(componentConfig);
   });
   return component_hashes;
