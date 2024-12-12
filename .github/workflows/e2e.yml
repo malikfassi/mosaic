@@ -35,17 +35,12 @@ jobs:
           execution_plan: ${{ inputs.execution_plan }}
           job_name: e2e_${{ inputs.test_type }}
 
-      - uses: actions/setup-node@v3
+      - name: Setup Node.js environment
         if: steps.check.outputs.result != 'skipped'
+        uses: ./.github/workflows/setup-node
         with:
-          node-version: '18'
-          cache: 'npm'
-          cache-dependency-path: .github/workflow-scripts/package.json
-
-      - name: Install dependencies
-        if: steps.check.outputs.result != 'skipped'
-        working-directory: .github/workflow-scripts
-        run: npm ci
+          working-directory: .github/workflow-scripts
+          node-version: '20'
 
       - name: Mock E2E test
         id: e2e
