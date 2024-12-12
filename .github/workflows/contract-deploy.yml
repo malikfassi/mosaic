@@ -50,7 +50,7 @@ jobs:
         uses: actions/download-artifact@v3
         with:
           name: ${{ inputs.contract_name }}-wasm
-          path: artifacts
+          path: contracts/${{ inputs.contract_name }}/artifacts
 
       - name: Deploy contract
         id: deploy
