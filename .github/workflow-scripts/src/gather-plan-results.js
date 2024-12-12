@@ -1,5 +1,5 @@
 import { writeFile } from 'fs/promises';
-import { tryParseJson } from './utils';
+import { tryParseJson } from './workflow-config.js';
 
 function getJobResults() {
   const executionPlan = tryParseJson(process.env.EXECUTION_PLAN);
