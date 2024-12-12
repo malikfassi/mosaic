@@ -31,47 +31,6 @@ async function updateGistFiles(planResults) {
       };
     }
   }
-  // Process frontend results
-  if (planResults.results.frontend) {
-    const frontendHash = planResults.components.frontend;
-    const frontendResults = planResults.results.frontend;
-
-    // Process each frontend job
-    Object.entries(frontendResults).forEach(([jobType, result]) => {
-      if (result.result === 'success') {
-        const filename = `frontend_ci_${jobType}.${frontendHash}.json`;
-       
-      }
-    });
-  }
-
-  // Process contract results
-  if (planResults.results.contracts) {
-    const contractsHash = planResults.components.contracts;
-    const contractResults = planResults.results.contracts;
-
-    // Process each contract job
-    Object.entries(contractResults).forEach(([jobType, result]) => {
-      if (result.result === 'success') {
-        const filename = `${jobType}_cw721.${contractsHash}.json`;
-        files[filename] = {
-          content: JSON.stringify({
-            success: true,
-            timestamp: new Date().toISOString(),
-            run: {
-              id: planResults.metadata.run_id,
-              job: `${jobType}_cw721`,
-              workflow_id: planResults.metadata.workflow_id,
-              commit_sha: planResults.metadata.commit_sha,
-              repository: planResults.metadata.repository,
-              branch: planResults.metadata.branch
-            },
-            data: result.data || {}
-          }, null, 2)
-        };
-      }
-    });
-  }
 
   // Update gist with all files
   await octokit.rest.gists.update({
