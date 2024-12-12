@@ -31,23 +31,18 @@ jobs:
           execution_plan: ${{ inputs.execution_plan }}
           job_name: frontend_ci_lint
 
-      - name: Setup environment
+      - name: Setup Node.js
         if: steps.check.outputs.result != 'skipped'
-        uses: ./.github/actions/setup-env
+        uses: ./.github/workflows/setup-node
         with:
           node-version: '20'
-          node-cache-path: frontend/package-lock.json
-
-      - name: Install dependencies
-        working-directory: frontend
-        if: steps.check.outputs.result != 'skipped'
-        run: |
-          npm ci
+          cache-path: frontend/package-lock.json
+          working-directory: frontend
 
       - name: Run lint
         id: lint
-        working-directory: frontend
         if: steps.check.outputs.result != 'skipped'
+        working-directory: frontend
         run: |
           npm run lint
 

@@ -35,13 +35,13 @@ jobs:
           execution_plan: ${{ inputs.execution_plan }}
           job_name: clippy_${{ inputs.contract_name }}
 
-      - name: Setup environment
+      - name: Setup Rust
         if: steps.check.outputs.result != 'skipped'
-        uses: ./.github/actions/setup-env
+        uses: ./.github/workflows/setup-rust
         with:
           rust-version: stable
-          rust-workspace-path: contracts/Cargo.toml
-          rust-package-path: contracts/${{ inputs.contract_name }}/Cargo.toml
+          workspace-path: contracts/Cargo.toml
+          package-path: contracts/${{ inputs.contract_name }}/Cargo.toml
 
       - name: Run clippy
         id: clippy

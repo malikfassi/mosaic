@@ -1,0 +1,39 @@
+name: Setup Node.js
+
+on:
+  workflow_call:
+    inputs:
+      node-version:
+        description: "Node.js version to use"
+        required: false
+        default: "20"
+        type: string
+      cache-path:
+        description: "Path to package-lock.json for caching"
+        required: true
+        type: string
+      working-directory:
+        description: "Directory containing package.json"
+        required: true
+        type: string
+
+jobs:
+  setup-node:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ inputs.node-version }}
+          cache: 'npm'
+          cache-dependency-path: ${{ inputs.cache-path }}
+
+      - name: Install dependencies
+        working-directory: ${{ inputs.working-directory }}
+        run: |
+          if [ ! -f "package-lock.json" ]; then
+            echo "No package-lock.json found, running npm install first..."
+            npm install
+          else
+            npm ci
+          fi 

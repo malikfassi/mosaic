@@ -1,0 +1,43 @@
+name: Setup Rust
+
+on:
+  workflow_call:
+    inputs:
+      rust-version:
+        description: "Rust version to use"
+        required: false
+        default: "stable"
+        type: string
+      workspace-path:
+        description: "Path to workspace Cargo.toml for caching"
+        required: false
+        type: string
+      package-path:
+        description: "Path to package Cargo.toml for caching"
+        required: false
+        type: string
+      setup-wasm32:
+        description: "Whether to setup wasm32 target"
+        required: false
+        default: false
+        type: boolean
+
+jobs:
+  setup-rust:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: ${{ inputs.rust-version }}
+          components: rustfmt, clippy
+          targets: ${{ inputs.setup-wasm32 && 'wasm32-unknown-unknown' || '' }}
+
+      - name: Cache Rust dependencies
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-${{ inputs.workspace-path != '' && format('workspace-{0}', hashFiles(inputs.workspace-path)) || '' }}-${{ inputs.package-path != '' && format('package-{0}', hashFiles(inputs.package-path)) || '' }} 

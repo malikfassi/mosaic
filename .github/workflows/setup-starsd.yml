@@ -1,0 +1,69 @@
+name: Build starsd
+
+on:
+  workflow_call:
+    inputs:
+      branch:
+        type: string
+        description: "Branch of Stargaze repository to build from"
+        required: false
+        default: "main"
+    outputs:
+      starsd_path:
+        description: "Path to the built starsd binary"
+        value: ${{ jobs.build-starsd.outputs.starsd_path }}
+
+jobs:
+  build-starsd:
+    runs-on: ubuntu-latest
+    outputs:
+      starsd_path: ${{ steps.get-path.outputs.starsd_path }}
+    steps:
+      - name: Clone Stargaze Repository
+        uses: actions/checkout@v3
+        with:
+          repository: public-awesome/stargaze
+          ref: ${{ inputs.branch }}
+
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.20'
+          cache: true
+
+      - name: Cache Go Modules
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cache/go-build
+            ~/go/pkg/mod
+          key: ${{ runner.os }}-go-mod-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-mod-
+
+      - name: Cache Build Artifacts
+        uses: actions/cache@v3
+        with:
+          path: |
+            ./build
+            ./bin
+          key: ${{ runner.os }}-build-${{ hashFiles('**/*') }}
+          restore-keys: |
+            ${{ runner.os }}-build-
+
+      - name: Build starsd
+        run: |
+          make install
+          mkdir -p build_output
+          mv ~/go/bin/starsd build_output/
+
+      - name: Upload starsd Artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: starsd-binary
+          path: build_output/starsd
+          retention-days: 1
+
+      - name: Get starsd path
+        id: get-path
+        run: echo "starsd_path=build_output/starsd" >> $GITHUB_OUTPUT 
