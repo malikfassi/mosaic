@@ -32,7 +32,7 @@ jobs:
       execution_plan: ${{ needs.generate_execution_plan.outputs.execution_plan }}
 
   frontend_build:
-    needs: [generate_execution_plan]
+    needs: [generate_execution_plan, frontend_lint, frontend_test]
     uses: ./.github/workflows/frontend-build.yml
     with:
       execution_plan: ${{ needs.generate_execution_plan.outputs.execution_plan }}
@@ -131,10 +131,6 @@ jobs:
     needs: [
       generate_execution_plan,
       mosaic_tile_deploy,
-      mosaic_tile_test,
-      mosaic_tile_compile,
-      mosaic_tile_format,
-      mosaic_tile_clippy
     ]
     uses: ./.github/workflows/e2e.yml
     with:
@@ -145,10 +141,6 @@ jobs:
     needs: [
       generate_execution_plan,
       mosaic_vending_deploy,
-      mosaic_vending_test,
-      mosaic_vending_compile,
-      mosaic_vending_format,
-      mosaic_vending_clippy
     ]
     uses: ./.github/workflows/e2e.yml
     with:
@@ -158,21 +150,7 @@ jobs:
   full_e2e:
     needs: [
       generate_execution_plan,
-      mosaic_tile_e2e,
-      mosaic_vending_e2e,
-      frontend_lint,
-      frontend_test,
       frontend_build,
-      mosaic_tile_deploy,
-      mosaic_vending_deploy,
-      mosaic_tile_test,
-      mosaic_vending_test,
-      mosaic_tile_compile,
-      mosaic_vending_compile,
-      mosaic_tile_format,
-      mosaic_vending_format,
-      mosaic_tile_clippy,
-      mosaic_vending_clippy,
       mosaic_tile_e2e,
       mosaic_vending_e2e
     ]
