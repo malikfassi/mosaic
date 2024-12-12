@@ -1,5 +1,5 @@
-{
-  "contract_name": "mosaic-tile-nft",
+
+  "contract_name": "mosaic_tile_nft",
   "contract_version": "0.1.0",
   "idl_version": "1.0.0",
   "instantiate": {

@@ -1,7 +1,7 @@
 [workspace]
 members = [
-    "mosaic-tile-nft",
-    "mosaic-vending-minter"
+    "mosaic_tile_nft",
+    "mosaic_vending_minter"
 ]
 
 [workspace.package]
