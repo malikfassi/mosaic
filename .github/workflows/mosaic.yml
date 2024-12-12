@@ -67,7 +67,13 @@ jobs:
       execution_plan: ${{ needs.generate_execution_plan.outputs.execution_plan }}
 
   mosaic_tile_deploy:
-    needs: [mosaic_tile_compile, generate_execution_plan]
+    needs: [
+      mosaic_tile_clippy,
+      mosaic_tile_format,
+      mosaic_tile_test,
+      mosaic_tile_compile,
+      generate_execution_plan
+    ]
     uses: ./.github/workflows/contract-deploy.yml
     with:
       contract_name: mosaic-tile-nft
@@ -105,7 +111,13 @@ jobs:
       execution_plan: ${{ needs.generate_execution_plan.outputs.execution_plan }}
 
   mosaic_vending_deploy:
-    needs: [generate_execution_plan, mosaic_vending_compile]
+    needs: [
+      mosaic_vending_clippy,
+      mosaic_vending_format,
+      mosaic_vending_test,
+      mosaic_vending_compile,
+      generate_execution_plan
+    ]
     uses: ./.github/workflows/contract-deploy.yml
     with:
       contract_name: mosaic-vending-minter
@@ -116,21 +128,54 @@ jobs:
   # E2E Tests
 
   mosaic_tile_e2e:
-    needs: [generate_execution_plan, mosaic_tile_deploy]
+    needs: [
+      generate_execution_plan,
+      mosaic_tile_deploy,
+      mosaic_tile_test,
+      mosaic_tile_compile,
+      mosaic_tile_format,
+      mosaic_tile_clippy
+    ]
     uses: ./.github/workflows/e2e.yml
     with:
       execution_plan: ${{ needs.generate_execution_plan.outputs.execution_plan }}
       test_type: mosaic-tile
   
   mosaic_vending_e2e:
-    needs: [generate_execution_plan, mosaic_vending_deploy]
+    needs: [
+      generate_execution_plan,
+      mosaic_vending_deploy,
+      mosaic_vending_test,
+      mosaic_vending_compile,
+      mosaic_vending_format,
+      mosaic_vending_clippy
+    ]
     uses: ./.github/workflows/e2e.yml
     with:
       execution_plan: ${{ needs.generate_execution_plan.outputs.execution_plan }}
       test_type: mosaic-vending
 
   full_e2e:
-    needs: [generate_execution_plan, mosaic_tile_e2e, mosaic_vending_e2e]
+    needs: [
+      generate_execution_plan,
+      mosaic_tile_e2e,
+      mosaic_vending_e2e,
+      frontend_lint,
+      frontend_test,
+      frontend_build,
+      mosaic_tile_deploy,
+      mosaic_vending_deploy,
+      mosaic_tile_test,
+      mosaic_vending_test,
+      mosaic_tile_compile,
+      mosaic_vending_compile,
+      mosaic_tile_format,
+      mosaic_vending_format,
+      mosaic_tile_clippy,
+      mosaic_vending_clippy,
+      mosaic_tile_e2e,
+      mosaic_vending_e2e
+    ]
     uses: ./.github/workflows/e2e.yml
     with:
       execution_plan: ${{ needs.generate_execution_plan.outputs.execution_plan }}

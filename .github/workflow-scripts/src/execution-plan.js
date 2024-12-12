@@ -82,7 +82,7 @@ function getPreviousRun(gistFiles, filename) {
 function generate_hashes() {
     let component_hashes = {}
 
-    COMPONENTS.forEach((componentName, componentConfig) => {
+    Object.entries(COMPONENTS).forEach(([componentName, componentConfig]) => {
         component_hashes[componentName] = calculateComponentHash(componentConfig);
     });
     return component_hashes;
@@ -101,8 +101,7 @@ async function generateExecutionPlan() {
   const component_hashes = generate_hashes();
 
   // Calculate component hashes first
-  JOBS.forEach((jobName, jobConfig) => {
-
+  Object.keys(JOBS).forEach((jobName) => {
     JOBS[jobName].component.hash = component_hashes[jobName];
     JOBS[jobName].filename = `${jobName}.${component_hashes[jobName]}.json`;
 
