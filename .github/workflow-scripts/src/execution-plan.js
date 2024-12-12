@@ -69,75 +69,57 @@ async function getGistFiles(gistId, token) {
   return gist.files;
 }
 
-async function generateExecutionPlan() {
-  const gistId = process.env.GIST_ID;
-  const token = process.env.GIST_SECRET;
-  const commitSha = process.env.GITHUB_SHA;
+// Add this function to get previous run data
+async function getPreviousRunData(octokit, owner, repo, jobName) {
+  try {
+    const response = await octokit.rest.actions.listWorkflowRuns({
+      owner,
+      repo,
+      workflow_id: 'mosaic.yml',
+      status: 'completed',
+      per_page: 1
+    });
 
-  if (!gistId || !token || !commitSha) {
-    throw new Error('Missing required environment variables');
-  }
-
-  // Calculate component hashes first
-  const componentHashes = {};
-  Object.keys(COMPONENTS).forEach(componentName => {
-    componentHashes[componentName] = calculateComponentHash(componentName);
-  });
-
-  // Get all possible filenames with hashes
-  const allFileNames = getAllFileNames(componentHashes, commitSha);
-
-  // Get all gist files
-  const gistFiles = await getGistFiles(gistId, token);
-
-  // Generate plan
-  const plan = {
-    components: componentHashes,
-    jobs: {},
-    metadata: {
-      created_at: new Date().toISOString(),
-      commit_sha: commitSha,
-      run_id: process.env.GITHUB_RUN_ID,
-      run_number: process.env.GITHUB_RUN_NUMBER,
-      repository: process.env.GITHUB_REPOSITORY
+    if (response.data.workflow_runs.length > 0) {
+      const previousRun = response.data.workflow_runs[0];
+      return {
+        run_id: previousRun.id,
+        success: previousRun.conclusion === 'success'
+      };
     }
+    return null;
+  } catch (error) {
+    console.warn(`Failed to get previous run data for ${jobName}:`, error);
+    return null;
+  }
+}
+
+// Modify the generateExecutionPlan function
+async function generateExecutionPlan(octokit, owner, repo, componentHashes, commit_sha) {
+  const plan = {
+    metadata: {
+      repository: `${owner}/${repo}`,
+      run_id: process.env.GITHUB_RUN_ID,
+      commit_sha
+    },
+    components: componentHashes,
+    jobs: {}
   };
 
-  // Add all jobs with their previous run data
-  Object.entries(getAllJobs()).forEach(([jobName, jobConfig]) => {
-    // Find matching gist file for this job
-    const filename = allFileNames.find(name => name.startsWith(jobName + '.'));
-    const gistFile = filename ? gistFiles[filename] : null;
+  // Get all jobs
+  const allJobs = getAllJobs();
 
-    let previousRun = null;
-    if (gistFile) {
-      try {
-        const content = JSON.parse(gistFile.content);
-        previousRun = {
-          filename,
-          content,
-          exists: true,
-          success: content.success,
-          timestamp: content.timestamp,
-          run_id: content.run_id,
-          hash: filename.split('.')[1]?.replace('.json', '') || null
-        };
-      } catch (error) {
-        console.warn(`Error parsing ${filename}: ${error.message}`);
-      }
-    }
-
+  // For each job, determine if it needs to run and get previous run data
+  for (const [jobName, jobConfig] of Object.entries(allJobs)) {
+    const previousRun = await getPreviousRunData(octokit, owner, repo, jobName);
+    
     plan.jobs[jobName] = {
+      needs_run: needsToRun(jobName, jobConfig.component, componentHashes),
+      previous_run: previousRun,
       component: jobConfig.component,
-      needs_run: !previousRun?.success,
-      previous_run: previousRun
+      component_hash: componentHashes[jobConfig.component]
     };
-  });
-
-  // Save plan (pretty print for file, compact for output)
-  const planFile = join('.github', 'workflow-scripts', 'execution-plan.json');
-  await writeFile(planFile, JSON.stringify(plan, null, 2));
-  console.log('Generated execution plan:', JSON.stringify(plan));
+  }
 
   return plan;
 }

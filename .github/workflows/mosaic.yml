@@ -56,7 +56,7 @@ jobs:
       contract_address: ${{ needs.mosaic-tile-ci.outputs.contract_address }}
       component_hash: ${{ fromJson(needs.execution_plan.outputs.plan).components.mosaic_tile }}
     secrets:
-      STARSD_MNEMONIC: ${{ secrets.STARSD_MNEMONIC }}
+      STARSD_MNEMONIC: ${{ secrets.DEPLOYMENT_WALLET_MNEMONIC }}
 
   deploy-mosaic-vending:
     needs: [execution_plan, mosaic-vending-ci]
@@ -64,26 +64,28 @@ jobs:
     with:
       contract_name: mosaic-vending-minter
       needs_run: ${{ fromJson(needs.execution_plan.outputs.plan).jobs['deploy-mosaic-vending'].needs_run }}
+      code_id: ${{ needs.mosaic-vending-ci.outputs.code_id }}
+      contract_address: ${{ needs.mosaic-vending-ci.outputs.contract_address }}
       component_hash: ${{ fromJson(needs.execution_plan.outputs.plan).components.mosaic_vending }}
     secrets:
-      STARSD_MNEMONIC: ${{ secrets.STARSD_MNEMONIC }}
+      STARSD_MNEMONIC: ${{ secrets.DEPLOYMENT_WALLET_MNEMONIC }}
 
   mosaic-tile-e2e:
-    needs: deploy-mosaic-tile
+    needs: [execution_plan, deploy-mosaic-tile]
     uses: ./.github/workflows/reusable-e2e.yml
     with:
       test_type: mosaic-tile
       needs_run: ${{ fromJson(needs.execution_plan.outputs.plan).jobs['mosaic-tile-e2e'].needs_run }}
 
   mosaic-vending-e2e:
-    needs: deploy-mosaic-vending
+    needs: [execution_plan, deploy-mosaic-vending]
     uses: ./.github/workflows/reusable-e2e.yml
     with:
       test_type: mosaic-vending
       needs_run: ${{ fromJson(needs.execution_plan.outputs.plan).jobs['mosaic-vending-e2e'].needs_run }}
 
   full-e2e:
-    needs: [frontend-ci, mosaic-tile-e2e, mosaic-vending-e2e]
+    needs: [execution_plan, frontend-ci, mosaic-tile-e2e, mosaic-vending-e2e]
     uses: ./.github/workflows/reusable-e2e.yml
     with:
       test_type: full
