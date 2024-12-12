@@ -42,6 +42,18 @@ jobs:
             ~/.cargo/git
             target
           key: ${{ runner.os }}-cargo-${{ hashFiles('contracts/Cargo.toml') }}-${{ hashFiles(format('contracts/{0}/Cargo.toml', inputs.contract_name)) }}
+      
+      - name: Parse JSON and set the name
+        id: set-name
+        run: |
+          # Parse the JSON into a variable
+            EXECUTION_PLAN_JSON='${{ inputs.execution_plan }}'
+  
+            # Use jq to extract the required value
+            COMPONENT_HASH=$(echo "$EXECUTION_PLAN_JSON" | jq -r ".\"${{ inputs.contract_name }}_compile\".component.hash")
+  
+            # Export the value for use in subsequent steps
+            echo "name=${COMPONENT_HASH}-wasm" >> $GITHUB_OUTPUT
 
       - name: Compile contract
         id: compile
@@ -49,29 +61,13 @@ jobs:
         run: |
           cargo build --target wasm32-unknown-unknown --release --package ${{ inputs.contract_name }}
           mkdir -p ${{ inputs.contract_name }}/artifacts
-          ls -la
-          ls target
-          ls target/wasm32-unknown-unknown/
-          ls target/wasm32-unknown-unknown/release/
           cp target/wasm32-unknown-unknown/release/${{ inputs.contract_name }}.wasm ${{ inputs.contract_name }}/artifacts/
           echo "wasm_path=${{ inputs.contract_name }}/artifacts/${{ inputs.contract_name }}.wasm" >> $GITHUB_OUTPUT
-
-      - name: Parse JSON and set the name
-        id: set-name
-        run: |
-          # Parse the JSON into a variable
-          EXECUTION_PLAN_JSON='${{ inputs.execution_plan }}'
-
-          # Use jq to extract the required value
-          COMPONENT_HASH=$(echo "$EXECUTION_PLAN_JSON" | jq -r ".\"${{ inputs.contract_name }}_compile\".component.hash")
-
-          # Export the value for use in subsequent steps
-          echo "name=${COMPONENT_HASH}-wasm" >> $GITHUB_ENV
 
       - name: Upload WASM artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ env.name }}
+          name: ${{ steps.set-name.outputs.name }}
           path: contracts/${{ inputs.contract_name }}/artifacts/${{ inputs.contract_name }}.wasm
       
       - name: Set result
