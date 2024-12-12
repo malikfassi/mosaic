@@ -72,7 +72,7 @@ jobs:
       - name: Check if job needs to run
         id: check
         run: |
-          if [[ "${{ inputs.needs_run }}" != "true" ]]; then
+          if [[ "${{ inputs.needs_run }}" == "f" ]]; then
             echo "Job can be skipped - reusing previous successful run"
             exit 0
           fi

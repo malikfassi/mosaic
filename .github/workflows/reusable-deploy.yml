@@ -58,8 +58,10 @@ jobs:
           fi
 
       - uses: actions/checkout@v3
+        if: inputs.needs_run == 'true'
 
       - name: Setup Rust
+        if: inputs.needs_run == 'true'
         uses: actions-rs/toolchain@v1
         with:
           profile: minimal
@@ -67,8 +69,8 @@ jobs:
           override: true
           target: wasm32-unknown-unknown
 
-      # Cache Rust dependencies
       - name: Cache Rust
+        if: inputs.needs_run == 'true'
         uses: actions/cache@v3
         with:
           path: |
@@ -81,12 +83,23 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-cargo-
 
+      - name: Cache starsd
+        if: inputs.needs_run == 'true'
+        id: cache-starsd
+        uses: actions/cache@v3
+        with:
+          path: /usr/local/bin/starsd
+          key: ${{ runner.os }}-starsd-7.5.0
+
       - name: Install starsd
+        if: inputs.needs_run == 'true' && steps.cache-starsd.outputs.cache-hit != 'true'
         run: |
           wget https://github.com/public-awesome/stargaze/releases/download/v7.5.0/stargaze_7.5.0_linux_amd64.tar.gz
-          tar -C /usr/local -xvf stargaze_7.5.0_linux_amd64.tar.gz
+          tar -C /usr/local/bin -xvf stargaze_7.5.0_linux_amd64.tar.gz starsd
+          chmod +x /usr/local/bin/starsd
 
       - name: Configure starsd
+        if: inputs.needs_run == 'true'
         env:
           STARSD_MNEMONIC: ${{ secrets.STARSD_MNEMONIC }}
         run: |
@@ -103,11 +116,13 @@ jobs:
           starsd query bank balances $ADDR
 
       - name: Build Contract
+        if: inputs.needs_run == 'true'
         run: |
           cd contracts/${{ inputs.contract_name }}
           cargo build --release --target wasm32-unknown-unknown
 
       - name: Optimize Contract
+        if: inputs.needs_run == 'true'
         run: |
           cd contracts/${{ inputs.contract_name }}
           docker run --rm -v "$(pwd)":/code \
@@ -116,6 +131,7 @@ jobs:
             cosmwasm/rust-optimizer:0.12.6
 
       - name: Deploy Contract
+        if: inputs.needs_run == 'true'
         id: deploy
         run: |
           cd contracts/${{ inputs.contract_name }}
