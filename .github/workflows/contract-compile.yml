@@ -59,7 +59,7 @@ jobs:
           cd contracts/${{ inputs.contract_name }}
           cargo build --target wasm32-unknown-unknown --release
           mkdir -p artifacts
-          cp target/wasm32-unknown-unknown/release/*.wasm artifacts/
+          cp ../../target/wasm32-unknown-unknown/release/*.wasm artifacts/
           echo "wasm_path=artifacts/$(ls artifacts)" >> $GITHUB_OUTPUT
 
       - name: Upload WASM artifact
