@@ -59,6 +59,32 @@ export const COMPONENTS = {
   }
 };
 
+// Add this mapping
+export const JOB_RESULT_MAP = {
+  // Frontend jobs
+  [JOBS.FRONTEND_LINT]: 'frontend_lint_result',
+  [JOBS.FRONTEND_TEST]: 'frontend_test_result',
+  [JOBS.FRONTEND_BUILD]: 'frontend_build_result',
+  
+  // Mosaic Tile jobs
+  [JOBS.MOSAIC_TILE_FORMAT]: 'mosaic_tile_format_result',
+  [JOBS.MOSAIC_TILE_LINT]: 'mosaic_tile_lint_result',
+  [JOBS.MOSAIC_TILE_TEST]: 'mosaic_tile_test_result',
+  [JOBS.MOSAIC_TILE_SCHEMA]: 'mosaic_tile_schema_result',
+  [JOBS.MOSAIC_TILE_DEPLOY]: 'mosaic_tile_deploy_result',
+  [JOBS.MOSAIC_TILE_E2E]: 'mosaic_tile_e2e_result',
+  
+  // Mosaic Vending jobs
+  [JOBS.MOSAIC_VENDING_FORMAT]: 'mosaic_vending_format_result',
+  [JOBS.MOSAIC_VENDING_LINT]: 'mosaic_vending_lint_result',
+  [JOBS.MOSAIC_VENDING_TEST]: 'mosaic_vending_test_result',
+  [JOBS.MOSAIC_VENDING_SCHEMA]: 'mosaic_vending_schema_result',
+  [JOBS.MOSAIC_VENDING_DEPLOY]: 'mosaic_vending_deploy_result',
+  [JOBS.MOSAIC_VENDING_E2E]: 'mosaic_vending_e2e_result',
+
+  // Integration jobs
+  [JOBS.FULL_E2E]: 'full_e2e_result'
+};
 
 export function getAllFileNames(componentHashes, commit_sha) {
   const allJobs = getAllJobs();

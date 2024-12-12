@@ -1,5 +1,5 @@
 import { writeFile } from 'fs/promises';
-import { JOBS, COMPONENTS } from './workflow-config.js';
+import { JOBS, COMPONENTS, JOB_RESULT_MAP } from './workflow-config.js';
 
 function formatJobResult(result, jobName, plan) {
   if (!result) return '⚪️ Not run';
