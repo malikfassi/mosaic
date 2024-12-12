@@ -42,10 +42,14 @@ function calculateComponentHash(componentConfig) {
     console.log(`Found ${files.length} files:`);
   }
 
+  // print current working directory
+  console.log(`Current working directory: ${process.cwd()}`);
+  console.log(`GITHUB_WORKSPACE: ${process.env.GITHUB_WORKSPACE}`);
+
   // Sort files for consistent hashing
   files.sort().forEach((file) => {
     try {
-      const content = readFileSync(file.path, "utf8");
+      const content = readFileSync(file, "utf8");
       hash.update(`${file}:`);
       hash.update(content);
     } catch (error) {
