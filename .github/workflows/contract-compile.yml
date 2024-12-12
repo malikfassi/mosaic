@@ -59,6 +59,8 @@ jobs:
         run: |
           cargo build --target wasm32-unknown-unknown --release --package ${{ inputs.contract_name }}
           mkdir -p ${{ inputs.contract_name }}/artifacts
+          ls -la
+          ls -la ../
           cp target/wasm32-unknown-unknown/release/${{ inputs.contract_name }}.wasm ${{ inputs.contract_name }}/artifacts/
           echo "wasm_path=${{ inputs.contract_name }}/artifacts/${{ inputs.contract_name }}.wasm" >> $GITHUB_OUTPUT
 
