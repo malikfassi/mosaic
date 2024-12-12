@@ -48,7 +48,6 @@ jobs:
         run: |
           cd contracts/${{ inputs.contract_name }}
           cargo fmt --all -- --check
-          echo "fmt_version=$(cargo fmt --version)" >> $GITHUB_OUTPUT
 
       - name: Set result
         id: set-result
@@ -59,7 +58,4 @@ jobs:
             echo "result=skipped" >> $GITHUB_OUTPUT
           else
             echo "result=${{ job.status }}" >> $GITHUB_OUTPUT
-            echo "data=$(jq -n \
-              --arg ver "${{ steps.fmt.outputs.fmt_version }}" \
-              '{fmt_version: $ver}')" >> $GITHUB_OUTPUT
           fi 

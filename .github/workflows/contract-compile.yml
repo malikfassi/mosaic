@@ -50,8 +50,6 @@ jobs:
         run: |
           cd contracts/${{ inputs.contract_name }}
           cargo wasm
-          echo "wasm_size=$(du -sh target/wasm32-unknown-unknown/release/*.wasm | cut -f1)" >> $GITHUB_OUTPUT
-          echo "rust_version=$(rustc --version)" >> $GITHUB_OUTPUT
 
       - name: Set result
         id: set-result
@@ -62,8 +60,4 @@ jobs:
             echo "result=skipped" >> $GITHUB_OUTPUT
           else
             echo "result=${{ job.status }}" >> $GITHUB_OUTPUT
-            echo "data=$(jq -n \
-              --arg size "${{ steps.compile.outputs.wasm_size }}" \
-              --arg ver "${{ steps.compile.outputs.rust_version }}" \
-              '{wasm_size: $size, rust_version: $ver}')" >> $GITHUB_OUTPUT
           fi 

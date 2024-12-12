@@ -49,7 +49,6 @@ jobs:
         run: |
           cd contracts/${{ inputs.contract_name }}
           cargo test
-          echo "test_count=$(find . -name '*test*.rs' | wc -l)" >> $GITHUB_OUTPUT
 
       - name: Set result
         id: set-result
@@ -60,7 +59,4 @@ jobs:
             echo "result=skipped" >> $GITHUB_OUTPUT
           else
             echo "result=${{ job.status }}" >> $GITHUB_OUTPUT
-            echo "data=$(jq -n \
-              --arg count "${{ steps.test.outputs.test_count }}" \
-              '{test_count: $count}')" >> $GITHUB_OUTPUT
           fi 

@@ -49,7 +49,6 @@ jobs:
         run: |
           cd contracts/${{ inputs.contract_name }}
           cargo clippy -- -D warnings
-          echo "clippy_version=$(cargo clippy --version)" >> $GITHUB_OUTPUT
 
       - name: Set result
         id: set-result
@@ -60,7 +59,4 @@ jobs:
             echo "result=skipped" >> $GITHUB_OUTPUT
           else
             echo "result=${{ job.status }}" >> $GITHUB_OUTPUT
-            echo "data=$(jq -n \
-              --arg ver "${{ steps.clippy.outputs.clippy_version }}" \
-              '{clippy_version: $ver}')" >> $GITHUB_OUTPUT
           fi

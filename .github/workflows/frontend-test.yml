@@ -40,7 +40,9 @@ jobs:
 
       - name: Install dependencies
         if: steps.check.outputs.result != 'skipped'
-        run: npm ci
+        run: |
+          cd frontend
+          npm ci
 
       - name: Run tests
         id: test

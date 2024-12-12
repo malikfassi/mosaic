@@ -55,7 +55,6 @@ jobs:
         run: |
           cd contracts/${{ inputs.contract_name }}
           cargo wasm
-          echo "wasm_path=$(realpath target/wasm32-unknown-unknown/release/*.wasm)" >> $GITHUB_OUTPUT
 
       - name: Deploy contract
         id: deploy
@@ -66,8 +65,7 @@ jobs:
           cd contracts/${{ inputs.contract_name }}
           CODE_ID=$(starsd tx wasm store ${{ steps.compile.outputs.wasm_path }} --from deployer -y | jq -r '.logs[0].events[1].attributes[0].value')
           CONTRACT_ADDR=$(starsd tx wasm instantiate $CODE_ID '{}' --from deployer --label "${{ inputs.contract_name }}" -y | jq -r '.logs[0].events[0].attributes[0].value')
-          echo "code_id=$CODE_ID" >> $GITHUB_OUTPUT
-          echo "contract_address=$CONTRACT_ADDR" >> $GITHUB_OUTPUT
+          echo "data={\"code_id\": \"$CODE_ID\", \"contract_address\": \"$CONTRACT_ADDR\"}" >> $GITHUB_OUTPUT
 
       - name: Set result
         id: set-result
@@ -78,8 +76,4 @@ jobs:
             echo "result=skipped" >> $GITHUB_OUTPUT
           else
             echo "result=${{ job.status }}" >> $GITHUB_OUTPUT
-            echo "data=$(jq -n \
-              --arg code "${{ steps.deploy.outputs.code_id }}" \
-              --arg addr "${{ steps.deploy.outputs.contract_address }}" \
-              '{code_id: $code, contract_address: $addr}')" >> $GITHUB_OUTPUT
           fi 
