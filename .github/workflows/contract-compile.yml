@@ -49,7 +49,7 @@ jobs:
         if: steps.check.outputs.result != 'skipped'
         run: |
           cd contracts/${{ inputs.contract_name }}
-          cargo wasm
+          cargo build --target wasm32-unknown-unknown --release
 
       - name: Set result
         id: set-result
