@@ -114,7 +114,7 @@ async function generateExecutionPlan(octokit, owner, repo, componentHashes, comm
     const previousRun = await getPreviousRunData(octokit, owner, repo, jobName);
     
     plan.jobs[jobName] = {
-      needs_run: needsToRun(jobName, jobConfig.component, componentHashes),
+      needs_run: previousRun ? false : true,
       previous_run: previousRun,
       component: jobConfig.component,
       component_hash: componentHashes[jobConfig.component]
@@ -126,7 +126,25 @@ async function generateExecutionPlan(octokit, owner, repo, componentHashes, comm
 
 async function main() {
   try {
-    await generateExecutionPlan();
+    const token = process.env.GIST_SECRET;
+    const owner = process.env.GITHUB_REPOSITORY?.split('/')[0];
+    const repo = process.env.GITHUB_REPOSITORY?.split('/')[1];
+    const commitSha = process.env.GITHUB_SHA;
+
+    if (!token || !owner || !repo || !commitSha) {
+      throw new Error('Missing required environment variables');
+    }
+
+    const octokit = getOctokit(token);
+
+    // Calculate component hashes
+    const componentHashes = {};
+    Object.keys(COMPONENTS).forEach(componentName => {
+      componentHashes[componentName] = calculateComponentHash(componentName);
+    });
+
+    const plan = await generateExecutionPlan(octokit, owner, repo, componentHashes, commitSha);
+    console.log('Generated execution plan:', JSON.stringify(plan));
   } catch (error) {
     console.error('Error generating execution plan:', error);
     process.exit(1);
