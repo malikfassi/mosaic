@@ -39,8 +39,9 @@ jobs:
         if: steps.check.outputs.result != 'skipped'
         uses: ./.github/actions/setup-env
         with:
-          node-version: '20'  # For tooling scripts
           rust-version: stable
+          rust-workspace-path: contracts/Cargo.toml 
+          rust-package-path: contracts/${{ inputs.contract_name }}/Cargo.toml
 
       - name: Run rustfmt
         id: fmt
