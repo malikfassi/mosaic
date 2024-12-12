@@ -33,7 +33,7 @@ jobs:
         uses: ./.github/actions/check-previous-run
         with:
           execution_plan: ${{ inputs.execution_plan }}
-          job_name: e2e_${{ inputs.test_type }}
+          job_name: ${{ inputs.test_type }}_e2e
 
       - name: Setup Node.js environment
         if: steps.check.outputs.result != 'skipped'

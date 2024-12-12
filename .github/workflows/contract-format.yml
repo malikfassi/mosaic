@@ -33,13 +33,13 @@ jobs:
         uses: ./.github/actions/check-previous-run
         with:
           execution_plan: ${{ inputs.execution_plan }}
-          job_name: fmt_${{ inputs.contract_name }}
+          job_name: ${{ inputs.contract_name }}_fmt
 
       - uses: dtolnay/rust-toolchain@stable
         if: steps.check.outputs.result != 'skipped'
         with:
           toolchain: stable
-          components: rustfmt, clippy
+          components: rustfmt
 
       - name: Cache Rust dependencies
         if: steps.check.outputs.result != 'skipped'

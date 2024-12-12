@@ -29,7 +29,7 @@ jobs:
         uses: ./.github/actions/check-previous-run
         with:
           execution_plan: ${{ inputs.execution_plan }}
-          job_name: frontend_ci_lint
+          job_name: frontend_lint
 
       - name: Setup Node.js environment
         if: steps.check.outputs.result != 'skipped'

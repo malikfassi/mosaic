@@ -33,7 +33,7 @@ jobs:
         uses: ./.github/actions/check-previous-run
         with:
           execution_plan: ${{ inputs.execution_plan }}
-          job_name: clippy_${{ inputs.contract_name }}
+          job_name: ${{ inputs.contract_name }}_clippy
 
       - uses: dtolnay/rust-toolchain@stable
         if: steps.check.outputs.result != 'skipped'
