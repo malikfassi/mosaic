@@ -182,6 +182,6 @@ jobs:
           FULL_E2E_RESULT: ${{ inputs.full_e2e_result }}
           FULL_E2E_OUTPUTS: ${{ inputs.full_e2e_outputs }}
         run: |
-          npm run gather-plan-results
+          npm run gather-plan-status
           RESULTS=$(cat plan-results.json | jq -c .)
           echo "plan_results=${RESULTS}" >> $GITHUB_OUTPUT
