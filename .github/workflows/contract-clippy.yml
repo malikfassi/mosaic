@@ -35,13 +35,13 @@ jobs:
           execution_plan: ${{ inputs.execution_plan }}
           job_name: clippy_${{ inputs.contract_name }}
 
-      - uses: actions-rs/toolchain@v1
+      - name: Setup environment
         if: steps.check.outputs.result != 'skipped'
+        uses: ./.github/actions/setup-env
         with:
-          profile: minimal
-          toolchain: stable
-          override: true
-          components: clippy
+          rust-version: stable
+          rust-workspace-path: contracts/Cargo.toml
+          rust-package-path: contracts/${{ inputs.contract_name }}/Cargo.toml
 
       - name: Run clippy
         id: clippy
@@ -60,4 +60,7 @@ jobs:
             echo "result=skipped" >> $GITHUB_OUTPUT
           else
             echo "result=${{ job.status }}" >> $GITHUB_OUTPUT
+            echo "data=$(jq -n \
+              --arg ver "${{ steps.clippy.outputs.clippy_version }}" \
+              '{clippy_version: $ver}')" >> $GITHUB_OUTPUT
           fi

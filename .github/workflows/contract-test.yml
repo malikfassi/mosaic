@@ -35,12 +35,13 @@ jobs:
           execution_plan: ${{ inputs.execution_plan }}
           job_name: test_${{ inputs.contract_name }}
 
-      - uses: actions-rs/toolchain@v1
+      - name: Setup environment
         if: steps.check.outputs.result != 'skipped'
+        uses: ./.github/actions/setup-env
         with:
-          profile: minimal
-          toolchain: stable
-          override: true
+          rust-version: stable
+          rust-workspace-path: contracts/Cargo.toml
+          rust-package-path: contracts/${{ inputs.contract_name }}/Cargo.toml
 
       - name: Run tests
         id: test

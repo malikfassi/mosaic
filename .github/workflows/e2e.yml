@@ -35,6 +35,14 @@ jobs:
           execution_plan: ${{ inputs.execution_plan }}
           job_name: e2e_${{ inputs.test_type }}
 
+      - name: Setup environment
+        if: steps.check.outputs.result != 'skipped'
+        uses: ./.github/actions/setup-env
+        with:
+          node-version: '20'
+          node-cache-path: workflow-scripts/package-lock.json
+          setup-starsd: true
+
       - name: Mock E2E test
         id: e2e
         if: steps.check.outputs.result != 'skipped'

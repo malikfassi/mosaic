@@ -35,13 +35,12 @@ jobs:
           execution_plan: ${{ inputs.execution_plan }}
           job_name: fmt_${{ inputs.contract_name }}
 
-      - uses: actions-rs/toolchain@v1
+      - name: Setup environment
         if: steps.check.outputs.result != 'skipped'
+        uses: ./.github/actions/setup-env
         with:
-          profile: minimal
-          toolchain: stable
-          override: true
-          components: rustfmt
+          node-version: '20'  # For tooling scripts
+          rust-version: stable
 
       - name: Run rustfmt
         id: fmt

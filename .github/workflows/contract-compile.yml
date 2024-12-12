@@ -35,13 +35,14 @@ jobs:
           execution_plan: ${{ inputs.execution_plan }}
           job_name: compile_${{ inputs.contract_name }}
 
-      - uses: actions-rs/toolchain@v1
+      - name: Setup environment
         if: steps.check.outputs.result != 'skipped'
+        uses: ./.github/actions/setup-env
         with:
-          profile: minimal
-          toolchain: stable
-          override: true
-          target: wasm32-unknown-unknown
+          rust-version: stable
+          rust-workspace-path: contracts/Cargo.toml
+          rust-package-path: contracts/${{ inputs.contract_name }}/Cargo.toml
+          setup-wasm32: true
 
       - name: Compile contract
         id: compile
