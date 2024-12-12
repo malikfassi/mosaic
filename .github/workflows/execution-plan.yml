@@ -22,28 +22,11 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v3
+      - name: Setup Node.js environment
+        uses: ./.github/actions/setup-node
         with:
+          working-directory: .github/workflow-scripts
           node-version: '20'
-          cache: 'npm'
-          cache-dependency-path: .github/workflow-scripts/package-lock.json
-
-      - name: Cache node_modules
-        id: npm-cache
-        uses: actions/cache@v3
-        with:
-          path: |
-            .github/workflow-scripts/node_modules
-            ~/.npm
-          key: ${{ runner.os }}-node-20-${{ hashFiles('.github/workflow-scripts/package-lock.json') }}
-          restore-keys: |
-            ${{ runner.os }}-node-20-
-
-      - name: Install dependencies
-        if: steps.npm-cache.outputs.cache-hit != 'true'
-        working-directory: .github/workflow-scripts
-        run: npm ci
 
       - name: Generate execution plan
         id: plan

@@ -1,0 +1,59 @@
+name: 'Setup Node.js Environment'
+description: 'Sets up Node.js environment with caching for dependencies and Next.js build'
+
+inputs:
+  working-directory:
+    description: 'Directory containing package.json (e.g., "frontend")'
+    required: true
+  node-version:
+    description: 'Node.js version to use'
+    required: false
+    default: '20'
+  install-dependencies:
+    description: 'Whether to install dependencies'
+    required: false
+    default: 'true'
+
+runs:
+  using: "composite"
+  steps:
+    - name: Setup Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: ${{ inputs.node-version }}
+        cache: 'npm'
+        cache-dependency-path: ${{ inputs.working-directory }}/package-lock.json
+
+    - name: Cache node_modules
+      id: npm-cache
+      uses: actions/cache@v3
+      with:
+        path: |
+          ${{ inputs.working-directory }}/node_modules
+          ~/.npm
+        key: ${{ runner.os }}-node-${{ inputs.node-version }}-${{ hashFiles(format('{0}/package-lock.json', inputs.working-directory)) }}
+        restore-keys: |
+          ${{ runner.os }}-node-${{ inputs.node-version }}-
+
+    - name: Install dependencies
+      if: inputs.install-dependencies == 'true' && steps.npm-cache.outputs.cache-hit != 'true'
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      run: npm ci
+
+    - name: Cache Next.js build
+      if: hashFiles(format('{0}/next.config.js', inputs.working-directory)) != ''
+      uses: actions/cache@v3
+      with:
+        path: |
+          ${{ inputs.working-directory }}/.next/cache
+        key: ${{ runner.os }}-nextjs-${{ hashFiles(format('{0}/package-lock.json', inputs.working-directory)) }}-${{ hashFiles(format('{0}/src/**/*', inputs.working-directory), format('{0}/pages/**/*', inputs.working-directory)) }}
+        restore-keys: |
+          ${{ runner.os }}-nextjs-${{ hashFiles(format('{0}/package-lock.json', inputs.working-directory)) }}-
+          ${{ runner.os }}-nextjs-
+
+    - name: Disable Next.js telemetry
+      if: hashFiles(format('{0}/next.config.js', inputs.working-directory)) != ''
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      run: npx next telemetry disable 
