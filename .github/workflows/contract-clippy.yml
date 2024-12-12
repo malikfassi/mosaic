@@ -35,9 +35,8 @@ jobs:
           execution_plan: ${{ inputs.execution_plan }}
           job_name: clippy_${{ inputs.contract_name }}
 
-      - name: Setup Rust
+      - uses: ./.github/workflows/setup-rust.yml
         if: steps.check.outputs.result != 'skipped'
-        uses: ./.github/workflows/setup-rust
         with:
           rust-version: stable
           workspace-path: contracts/Cargo.toml

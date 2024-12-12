@@ -31,9 +31,8 @@ jobs:
           execution_plan: ${{ inputs.execution_plan }}
           job_name: frontend_ci_build
 
-      - name: Setup Node.js
+      - uses: ./.github/workflows/setup-node.yml
         if: steps.check.outputs.result != 'skipped'
-        uses: ./.github/workflows/setup-node
         with:
           node-version: '20'
           cache-path: frontend/package-lock.json
