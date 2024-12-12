@@ -27,11 +27,15 @@ jobs:
         run: |
           if [[ "${{ inputs.needs_run }}" != "true" ]]; then
             echo "Job can be skipped - reusing previous successful run"
+            echo "result=skipped" >> $GITHUB_OUTPUT
             exit 0
           fi
 
       - uses: actions/checkout@v3
+        if: steps.check.outputs.result != 'skipped'
+
       - name: Run E2E tests
+        if: steps.check.outputs.result != 'skipped'
         run: |
           echo "Running ${{ inputs.test_type }} E2E tests..."
           # Add actual E2E test commands here
