@@ -1,12 +1,19 @@
 import fetch from 'node-fetch';
+import { JOBS } from './workflow-config.js';
 
 function formatJobStatus(jobName, result) {
   const emoji = result === 'success' ? '✅' : result === 'skipped' ? '⏭️' : '❌';
   return `${emoji} ${jobName}: ${result}`;
 }
 
+function getJobsByComponent(component) {
+  return Object.entries(JOBS)
+    .filter(([_, config]) => config.component.name === component)
+    .map(([jobName]) => jobName);
+}
+
 function generateDiscordMessage(planResults) {
-  const { metadata, results } = planResults;
+  const { metadata, jobs } = planResults;
   
   // Build message sections
   const sections = [];
@@ -18,67 +25,93 @@ function generateDiscordMessage(planResults) {
   sections.push('');
 
   // Frontend section
-  if (results['frontend-ci']) {
+  const frontendJobs = getJobsByComponent('frontend');
+  if (frontendJobs.some(job => jobs[job])) {
     sections.push('**Frontend**');
-    sections.push(formatJobStatus('Lint', results['frontend-ci'].lint.result));
-    sections.push(formatJobStatus('Test', results['frontend-ci'].test.result));
-    sections.push(formatJobStatus('Build', results['frontend-ci'].build.result));
+    if (jobs.frontend_lint) {
+      sections.push(formatJobStatus('Lint', jobs.frontend_lint.result));
+    }
+    if (jobs.frontend_test) {
+      sections.push(formatJobStatus('Test', jobs.frontend_test.result));
+    }
+    if (jobs.frontend_build) {
+      sections.push(formatJobStatus('Build', jobs.frontend_build.result));
+    }
     sections.push('');
   }
 
   // Mosaic Tile section
-  if (results['mosaic-tile']) {
+  const tileJobs = getJobsByComponent('mosaic_tile');
+  if (tileJobs.some(job => jobs[job])) {
     sections.push('**Mosaic Tile**');
-    if (results['mosaic-tile'].ci) {
-      sections.push(formatJobStatus('Format', results['mosaic-tile'].ci.format.result));
-      sections.push(formatJobStatus('Lint', results['mosaic-tile'].ci.lint.result));
-      sections.push(formatJobStatus('Test', results['mosaic-tile'].ci.test.result));
-      sections.push(formatJobStatus('Schema', results['mosaic-tile'].ci.schema.result));
+    if (jobs.mosaic_tile_nft_fmt) {
+      sections.push(formatJobStatus('Format', jobs.mosaic_tile_nft_fmt.result));
     }
-    if (results['mosaic-tile'].deploy) {
-      sections.push(formatJobStatus('Deploy', results['mosaic-tile'].deploy.result));
-      if (results['mosaic-tile'].deploy.outputs) {
-        sections.push(`Code ID: \`${results['mosaic-tile'].deploy.outputs.code_id}\``);
-        sections.push(`Contract: \`${results['mosaic-tile'].deploy.outputs.contract_address}\``);
+    if (jobs.mosaic_tile_nft_clippy) {
+      sections.push(formatJobStatus('Lint', jobs.mosaic_tile_nft_clippy.result));
+    }
+    if (jobs.mosaic_tile_nft_test) {
+      sections.push(formatJobStatus('Test', jobs.mosaic_tile_nft_test.result));
+    }
+    if (jobs.mosaic_tile_nft_compile) {
+      sections.push(formatJobStatus('Compile', jobs.mosaic_tile_nft_compile.result));
+    }
+    if (jobs.mosaic_tile_nft_deploy) {
+      sections.push(formatJobStatus('Deploy', jobs.mosaic_tile_nft_deploy.result));
+      if (jobs.mosaic_tile_nft_deploy.data && jobs.mosaic_tile_nft_deploy.data.code_id) {
+        sections.push(`Code ID: \`${jobs.mosaic_tile_nft_deploy.data.code_id}\``);
+      }
+      if (jobs.mosaic_tile_nft_deploy.data && jobs.mosaic_tile_nft_deploy.data.contract_address) {
+        sections.push(`Contract: \`${jobs.mosaic_tile_nft_deploy.data.contract_address}\``);
       }
     }
-    if (results['mosaic-tile'].e2e) {
-      sections.push(formatJobStatus('E2E Tests', results['mosaic-tile'].e2e.result));
+    if (jobs.mosaic_tile_nft_e2e) {
+      sections.push(formatJobStatus('E2E Tests', jobs.mosaic_tile_nft_e2e.result));
     }
     sections.push('');
   }
 
   // Mosaic Vending section
-  if (results['mosaic-vending']) {
+  const vendingJobs = getJobsByComponent('mosaic_vending');
+  if (vendingJobs.some(job => jobs[job])) {
     sections.push('**Mosaic Vending**');
-    if (results['mosaic-vending'].ci) {
-      sections.push(formatJobStatus('Format', results['mosaic-vending'].ci.format.result));
-      sections.push(formatJobStatus('Lint', results['mosaic-vending'].ci.lint.result));
-      sections.push(formatJobStatus('Test', results['mosaic-vending'].ci.test.result));
-      sections.push(formatJobStatus('Schema', results['mosaic-vending'].ci.schema.result));
+    if (jobs.mosaic_vending_minter_fmt) {
+      sections.push(formatJobStatus('Format', jobs.mosaic_vending_minter_fmt.result));
     }
-    if (results['mosaic-vending'].deploy) {
-      sections.push(formatJobStatus('Deploy', results['mosaic-vending'].deploy.result));
-      if (results['mosaic-vending'].deploy.outputs) {
-        sections.push(`Code ID: \`${results['mosaic-vending'].deploy.outputs.code_id}\``);
-        sections.push(`Contract: \`${results['mosaic-vending'].deploy.outputs.contract_address}\``);
+    if (jobs.mosaic_vending_minter_clippy) {
+      sections.push(formatJobStatus('Lint', jobs.mosaic_vending_minter_clippy.result));
+    }
+    if (jobs.mosaic_vending_minter_test) {
+      sections.push(formatJobStatus('Test', jobs.mosaic_vending_minter_test.result));
+    }
+    if (jobs.mosaic_vending_minter_compile) {
+      sections.push(formatJobStatus('Compile', jobs.mosaic_vending_minter_compile.result));
+    }
+    if (jobs.mosaic_vending_minter_deploy) {
+      sections.push(formatJobStatus('Deploy', jobs.mosaic_vending_minter_deploy.result));
+      if (jobs.mosaic_vending_minter_deploy.data && jobs.mosaic_vending_minter_deploy.data.code_id) {
+        sections.push(`Code ID: \`${jobs.mosaic_vending_minter_deploy.data.code_id}\``);
+      }
+      if (jobs.mosaic_vending_minter_deploy.data && jobs.mosaic_vending_minter_deploy.data.contract_address) {
+        sections.push(`Contract: \`${jobs.mosaic_vending_minter_deploy.data.contract_address}\``);
       }
     }
-    if (results['mosaic-vending'].e2e) {
-      sections.push(formatJobStatus('E2E Tests', results['mosaic-vending'].e2e.result));
+    if (jobs.mosaic_vending_minter_e2e) {
+      sections.push(formatJobStatus('E2E Tests', jobs.mosaic_vending_minter_e2e.result));
     }
     sections.push('');
   }
 
   // Full E2E section
-  if (results['full-e2e']) {
+  if (jobs.full_e2e) {
     sections.push('**Integration Tests**');
-    sections.push(formatJobStatus('Full E2E', results['full-e2e'].result));
+    sections.push(formatJobStatus('Full E2E', jobs.full_e2e.result));
     sections.push('');
   }
 
-  // Footer
-  sections.push(`Run completed at: ${new Date(metadata.completed_at).toLocaleString()}`);
+  // Footer with run URL
+  const runUrl = `https://github.com/${metadata.repository}/actions/runs/${metadata.run_id}`;
+  sections.push(`[View Run Details](${runUrl})`);
 
   return sections.join('\n');
 }
