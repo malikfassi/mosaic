@@ -1,0 +1,35 @@
+name: Discord Notification
+
+on:
+  workflow_call:
+    inputs:
+      plan_results:
+        required: true
+        type: string
+        description: "JSON string containing all job results"
+    secrets:
+      DISCORD_WEBHOOK:
+        required: true
+        description: "Discord webhook URL for notifications"
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      
+      - uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: .github/workflow-scripts/package.json
+
+      - name: Install dependencies
+        working-directory: .github/workflow-scripts
+        run: npm ci
+
+      - name: Send Discord notification
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
+          PLAN_RESULTS: ${{ inputs.plan_results }}
+        run: npm run send-discord-message 

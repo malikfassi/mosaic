@@ -1,0 +1,63 @@
+name: Frontend Test
+
+on:
+  workflow_call:
+    inputs:
+      execution_plan:
+        required: true
+        type: string
+        description: "JSON string containing the execution plan"
+    outputs:
+      result:
+        description: "Result of the workflow (success/failure/skipped)"
+        value: ${{ jobs.test.outputs.result }}
+      data:
+        description: "JSON string containing all job data"
+        value: ${{ jobs.test.outputs.data }}
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    outputs:
+      result: ${{ steps.set-result.outputs.result }}
+      data: ${{ steps.set-result.outputs.data }}
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Check previous run
+        id: check
+        uses: ./.github/actions/check-previous-run
+        with:
+          execution_plan: ${{ inputs.execution_plan }}
+          job_name: frontend_ci_test
+
+      - uses: actions/setup-node@v3
+        if: steps.check.outputs.result != 'skipped'
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Install dependencies
+        if: steps.check.outputs.result != 'skipped'
+        run: npm ci
+
+      - name: Run tests
+        id: test
+        if: steps.check.outputs.result != 'skipped'
+        run: |
+          npm test
+          echo "test_count=$(find . -name '*.test.*' | wc -l)" >> $GITHUB_OUTPUT
+
+      - name: Set result
+        id: set-result
+        if: always()
+        run: |
+          if [[ "${{ steps.check.outputs.result }}" == "skipped" ]]; then
+            echo "data=${{ steps.check.outputs.data }}" >> $GITHUB_OUTPUT
+            echo "result=skipped" >> $GITHUB_OUTPUT
+          else
+            echo "result=${{ job.status }}" >> $GITHUB_OUTPUT
+            echo "data=$(jq -n \
+              --arg count "${{ steps.test.outputs.test_count }}" \
+              '{test_count: $count}')" >> $GITHUB_OUTPUT
+          fi 

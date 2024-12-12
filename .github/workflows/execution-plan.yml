@@ -3,35 +3,22 @@ name: Generate Execution Plan
 on:
   workflow_call:
     inputs:
-      GIST_ID:
-        required: true
-        type: string
-        description: "Gist ID for storing job results"
       GITHUB_SHA:
-        required: true
         type: string
-        description: "Github SHA for the current commit"
+        description: "The SHA of the commit to generate the execution plan for"
     secrets:
       GIST_SECRET:
-        required: true
-        description: "Token for gist access"
+        description: "The secret for the Gist"
     outputs:
-      plan:
-        description: "Complete execution plan for all jobs"
-        value: ${{ jobs.create-plan.outputs.plan }}
-
-permissions:
-  contents: read
-  actions: read
+      EXECUTION_PLAN:
+        description: "JSON string containing the execution plan"
+        value: ${{ jobs.plan.outputs.execution_plan }}
 
 jobs:
-  create-plan:
+  plan:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: ${{ github.workspace }}
     outputs:
-      plan: ${{ steps.plan.outputs.plan }}
+      execution_plan: ${{ steps.plan.outputs.execution_plan }}
     steps:
       - uses: actions/checkout@v3
         with:
@@ -51,10 +38,10 @@ jobs:
         id: plan
         working-directory: .github/workflow-scripts
         env:
-          GIST_SECRET: ${{ secrets.GIST_SECRET }}
-          GIST_ID: ${{ inputs.GIST_ID }}
           GITHUB_SHA: ${{ inputs.GITHUB_SHA }}
+          GIST_SECRET: ${{ secrets.GIST_SECRET }}
+          GIST_ID: ${{ vars.GIST_ID }}
         run: |
           npm run execution-plan
           PLAN=$(cat execution-plan.json | jq -c .)
-          echo "plan=${PLAN}" >> $GITHUB_OUTPUT
+          echo "execution_plan=${PLAN}" >> $GITHUB_OUTPUT 

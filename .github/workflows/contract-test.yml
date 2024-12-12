@@ -1,0 +1,65 @@
+name: Contract Test
+
+on:
+  workflow_call:
+    inputs:
+      contract_name:
+        required: true
+        type: string
+        description: "Name of the contract to test"
+      execution_plan:
+        required: true
+        type: string
+        description: "JSON string containing the execution plan"
+    outputs:
+      result:
+        description: "Result of the workflow (success/failure/skipped)"
+        value: ${{ jobs.test.outputs.result }}
+      data:
+        description: "JSON string containing all job data"
+        value: ${{ jobs.test.outputs.data }}
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    outputs:
+      result: ${{ steps.set-result.outputs.result }}
+      data: ${{ steps.set-result.outputs.data }}
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Check previous run
+        id: check
+        uses: ./.github/actions/check-previous-run
+        with:
+          execution_plan: ${{ inputs.execution_plan }}
+          job_name: test_${{ inputs.contract_name }}
+
+      - uses: actions-rs/toolchain@v1
+        if: steps.check.outputs.result != 'skipped'
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
+
+      - name: Run tests
+        id: test
+        if: steps.check.outputs.result != 'skipped'
+        run: |
+          cd contracts/${{ inputs.contract_name }}
+          cargo test
+          echo "test_count=$(find . -name '*test*.rs' | wc -l)" >> $GITHUB_OUTPUT
+
+      - name: Set result
+        id: set-result
+        if: always()
+        run: |
+          if [[ "${{ steps.check.outputs.result }}" == "skipped" ]]; then
+            echo "data=${{ steps.check.outputs.data }}" >> $GITHUB_OUTPUT
+            echo "result=skipped" >> $GITHUB_OUTPUT
+          else
+            echo "result=${{ job.status }}" >> $GITHUB_OUTPUT
+            echo "data=$(jq -n \
+              --arg count "${{ steps.test.outputs.test_count }}" \
+              '{test_count: $count}')" >> $GITHUB_OUTPUT
+          fi 

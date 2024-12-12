@@ -4,22 +4,22 @@ import { createHash } from 'crypto';
 import { globSync } from 'glob';
 import { readFileSync, existsSync } from 'fs';
 import ignore from 'ignore';
-import { getAllJobs, COMPONENTS, getAllFileNames } from './workflow-config.js';
+import { JOBS, COMPONENTS, tryParseJson } from './workflow-config.js';
 import { dirname, join } from 'path';
 
-// Change to workspace root (two levels up from script location)
-const scriptDir = dirname(new URL(import.meta.url).pathname);
-process.chdir(join(scriptDir, '..', '..', '..'));
-
 // Calculate hash for a component's files
-function calculateComponentHash(component) {
+function calculateComponentHash(componentConfig) {
+  const { paths } = componentConfig;
+  if (paths.length === 1 && paths[0] === ".") {
+    return process.env.GITHUB_SHA;
+  }
   const hash = createHash('sha256');
-  const { paths } = COMPONENTS[component];
   const ig = ignore();
   
   // Add root .gitignore if exists
-  if (existsSync('.gitignore')) {
-    ig.add(readFileSync('.gitignore', 'utf8'));
+  root_ignore_file = join(process.env.GITHUB_WORKSPACE, '.gitignore');
+  if (existsSync(root_ignore_file)) {
+    ig.add(readFileSync(root_ignore_file, 'utf8'));
   }
 
   // Get all files matching the patterns
@@ -27,8 +27,8 @@ function calculateComponentHash(component) {
     const matches = globSync(pattern, { 
       dot: true, 
       nodir: true,
-      cwd: process.cwd(),
-      absolute: false
+      cwd: process.env.GITHUB_WORKSPACE,
+      absolute: false,
     });
     console.log(`Found ${matches.length} files for pattern ${pattern}`);
     return matches;
@@ -69,6 +69,25 @@ async function getGistFiles(gistId, token) {
   return gist.files;
 }
 
+function getPreviousRun(gistFiles, filename) {
+    const gistFile = gistFiles[filename];
+    let previousRun = null;
+    if (gistFile) {
+      previousRun = tryParseJson(gistFile.content);
+    }
+    return previousRun;
+}
+
+
+function generate_hashes() {
+    let component_hashes = {}
+
+    COMPONENTS.forEach((componentName, componentConfig) => {
+        component_hashes[componentName] = calculateComponentHash(componentConfig);
+    });
+    return component_hashes;
+}
+
 async function generateExecutionPlan() {
   const gistId = process.env.GIST_ID;
   const token = process.env.GIST_SECRET;
@@ -78,22 +97,21 @@ async function generateExecutionPlan() {
     throw new Error('Missing required environment variables');
   }
 
-  // Calculate component hashes first
-  const componentHashes = {};
-  Object.keys(COMPONENTS).forEach(componentName => {
-    componentHashes[componentName] = calculateComponentHash(componentName);
-  });
-
-  // Get all possible filenames with hashes
-  const allFileNames = getAllFileNames(componentHashes, commitSha);
-
-  // Get all gist files
   const gistFiles = await getGistFiles(gistId, token);
+  const component_hashes = generate_hashes();
+
+  // Calculate component hashes first
+  JOBS.forEach((jobName, jobConfig) => {
+
+    JOBS[jobName].component.hash = component_hashes[jobName];
+    JOBS[jobName].filename = `${jobName}.${component_hashes[jobName]}.json`;
+
+    JOBS[jobName].previous_run = getPreviousRun(gistFiles, JOBS[jobName].filename);
+  });
 
   // Generate plan
   const plan = {
-    components: componentHashes,
-    jobs: {},
+    jobs: JOBS,
     metadata: {
       commit_sha: process.env.GITHUB_SHA,
       workflow_id: process.env.GITHUB_WORKFLOW,
@@ -104,38 +122,6 @@ async function generateExecutionPlan() {
     }
   };
 
-  // Add all jobs with their previous run data
-  Object.entries(getAllJobs()).forEach(([jobName, jobConfig]) => {
-    // Find matching gist file for this job
-    const filename = allFileNames.find(name => name.startsWith(jobName + '.'));
-    const gistFile = filename ? gistFiles[filename] : null;
-
-    let previousRun = null;
-    if (gistFile) {
-      try {
-        const content = JSON.parse(gistFile.content);
-        previousRun = {
-          filename,
-          content,
-          exists: true,
-          success: content.success,
-          timestamp: content.timestamp,
-          run_id: content.run_id,
-          hash: filename.split('.')[1]?.replace('.json', '') || null
-        };
-      } catch (error) {
-        console.warn(`Error parsing ${filename}: ${error.message}`);
-      }
-    }
-
-    plan.jobs[jobName] = {
-      component: jobConfig.component,
-      needs_run: !previousRun?.success,
-      previous_run: previousRun
-    };
-  });
-
-  // Save plan (pretty print for file, compact for output)
   const planFile = join('.github', 'workflow-scripts', 'execution-plan.json');
   await writeFile(planFile, JSON.stringify(plan, null, 2));
   console.log('Generated execution plan:', JSON.stringify(plan));

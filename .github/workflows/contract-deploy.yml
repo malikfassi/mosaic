@@ -1,0 +1,83 @@
+name: Contract Deploy
+
+on:
+  workflow_call:
+    inputs:
+      contract_name:
+        required: true
+        type: string
+        description: "Name of the contract to deploy"
+      execution_plan:
+        required: true
+        type: string
+        description: "JSON string containing the execution plan"
+    secrets:
+      STARSD_MNEMONIC:
+        required: true
+        description: "Mnemonic for the deployment wallet"
+    outputs:
+      result:
+        description: "Result of the workflow (success/failure/skipped)"
+        value: ${{ jobs.deploy.outputs.result }}
+      data:
+        description: "JSON string containing all job data"
+        value: ${{ jobs.deploy.outputs.data }}
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    outputs:
+      result: ${{ steps.set-result.outputs.result }}
+      data: ${{ steps.set-result.outputs.data }}
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Check previous run
+        id: check
+        uses: ./.github/actions/check-previous-run
+        with:
+          execution_plan: ${{ inputs.execution_plan }}
+          job_name: deploy_${{ inputs.contract_name }}
+
+      - uses: actions-rs/toolchain@v1
+        if: steps.check.outputs.result != 'skipped'
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
+          target: wasm32-unknown-unknown
+
+      - name: Compile contract
+        id: compile
+        if: steps.check.outputs.result != 'skipped'
+        run: |
+          cd contracts/${{ inputs.contract_name }}
+          cargo wasm
+          echo "wasm_path=$(realpath target/wasm32-unknown-unknown/release/*.wasm)" >> $GITHUB_OUTPUT
+
+      - name: Deploy contract
+        id: deploy
+        if: steps.check.outputs.result != 'skipped'
+        env:
+          STARSD_MNEMONIC: ${{ secrets.STARSD_MNEMONIC }}
+        run: |
+          cd contracts/${{ inputs.contract_name }}
+          CODE_ID=$(starsd tx wasm store ${{ steps.compile.outputs.wasm_path }} --from deployer -y | jq -r '.logs[0].events[1].attributes[0].value')
+          CONTRACT_ADDR=$(starsd tx wasm instantiate $CODE_ID '{}' --from deployer --label "${{ inputs.contract_name }}" -y | jq -r '.logs[0].events[0].attributes[0].value')
+          echo "code_id=$CODE_ID" >> $GITHUB_OUTPUT
+          echo "contract_address=$CONTRACT_ADDR" >> $GITHUB_OUTPUT
+
+      - name: Set result
+        id: set-result
+        if: always()
+        run: |
+          if [[ "${{ steps.check.outputs.result }}" == "skipped" ]]; then
+            echo "data=${{ steps.check.outputs.data }}" >> $GITHUB_OUTPUT
+            echo "result=skipped" >> $GITHUB_OUTPUT
+          else
+            echo "result=${{ job.status }}" >> $GITHUB_OUTPUT
+            echo "data=$(jq -n \
+              --arg code "${{ steps.deploy.outputs.code_id }}" \
+              --arg addr "${{ steps.deploy.outputs.contract_address }}" \
+              '{code_id: $code, contract_address: $addr}')" >> $GITHUB_OUTPUT
+          fi 

@@ -1,0 +1,53 @@
+name: E2E Tests
+
+on:
+  workflow_call:
+    inputs:
+      test_type:
+        required: true
+        type: string
+        description: "Type of E2E test to run (mosaic-tile/mosaic-vending/full)"
+      execution_plan:
+        required: true
+        type: string
+        description: "JSON string containing the execution plan"
+    outputs:
+      result:
+        description: "Result of the workflow (success/failure/skipped)"
+        value: ${{ jobs.e2e.outputs.result }}
+      data:
+        description: "JSON string containing all job data"
+        value: ${{ jobs.e2e.outputs.data }}
+
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    outputs:
+      result: ${{ steps.set-result.outputs.result }}
+      data: ${{ steps.set-result.outputs.data }}
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Check previous run
+        id: check
+        uses: ./.github/actions/check-previous-run
+        with:
+          execution_plan: ${{ inputs.execution_plan }}
+          job_name: e2e_${{ inputs.test_type }}
+
+      - name: Mock E2E test
+        id: e2e
+        if: steps.check.outputs.result != 'skipped'
+        run: |
+          echo "E2E tests are currently disabled"
+
+      - name: Set result
+        id: set-result
+        if: always()
+        run: |
+          if [[ "${{ steps.check.outputs.result }}" == "skipped" ]]; then
+            echo "data=${{ steps.check.outputs.data }}" >> $GITHUB_OUTPUT
+            echo "result=skipped" >> $GITHUB_OUTPUT
+          else
+            echo "result=success" >> $GITHUB_OUTPUT
+          fi

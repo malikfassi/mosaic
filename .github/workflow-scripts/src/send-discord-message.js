@@ -1,32 +1,119 @@
-import { getJobInfo } from './workflow-config.js';
+import fetch from 'node-fetch';
 
-function formatJobResult(result, jobName, plan) {
-  if (!result) return '⚪️ Not run';
-  
-  const jobInfo = plan.jobs[jobName];
-  const previousRun = jobInfo?.previous_run;
-  
-  const status = {
-    success: '✅ Success',
-    skipped: '⏭️ Skipped',
-    failure: '❌ Failed'
-  }[result.toLowerCase()] || `⚠️ ${result}`;
+function formatJobStatus(jobName, result) {
+  const emoji = result === 'success' ? '✅' : result === 'skipped' ? '⏭️' : '❌';
+  return `${emoji} ${jobName}: ${result}`;
+}
 
-  if (previousRun?.run_id) {
-    return `${status} ([Previous Run](https://github.com/${plan.metadata.repository}/actions/runs/${previousRun.run_id}))`;
+function generateDiscordMessage(planResults) {
+  const { metadata, results } = planResults;
+  
+  // Build message sections
+  const sections = [];
+
+  // Header
+  sections.push(`**Workflow Run: ${metadata.workflow_id}**`);
+  sections.push(`Branch: \`${metadata.branch}\``);
+  sections.push(`Commit: \`${metadata.commit_sha.substring(0, 7)}\``);
+  sections.push('');
+
+  // Frontend section
+  if (results['frontend-ci']) {
+    sections.push('**Frontend**');
+    sections.push(formatJobStatus('Lint', results['frontend-ci'].lint.result));
+    sections.push(formatJobStatus('Test', results['frontend-ci'].test.result));
+    sections.push(formatJobStatus('Build', results['frontend-ci'].build.result));
+    sections.push('');
   }
 
-  return status;
+  // Mosaic Tile section
+  if (results['mosaic-tile']) {
+    sections.push('**Mosaic Tile**');
+    if (results['mosaic-tile'].ci) {
+      sections.push(formatJobStatus('Format', results['mosaic-tile'].ci.format.result));
+      sections.push(formatJobStatus('Lint', results['mosaic-tile'].ci.lint.result));
+      sections.push(formatJobStatus('Test', results['mosaic-tile'].ci.test.result));
+      sections.push(formatJobStatus('Schema', results['mosaic-tile'].ci.schema.result));
+    }
+    if (results['mosaic-tile'].deploy) {
+      sections.push(formatJobStatus('Deploy', results['mosaic-tile'].deploy.result));
+      if (results['mosaic-tile'].deploy.outputs) {
+        sections.push(`Code ID: \`${results['mosaic-tile'].deploy.outputs.code_id}\``);
+        sections.push(`Contract: \`${results['mosaic-tile'].deploy.outputs.contract_address}\``);
+      }
+    }
+    if (results['mosaic-tile'].e2e) {
+      sections.push(formatJobStatus('E2E Tests', results['mosaic-tile'].e2e.result));
+    }
+    sections.push('');
+  }
+
+  // Mosaic Vending section
+  if (results['mosaic-vending']) {
+    sections.push('**Mosaic Vending**');
+    if (results['mosaic-vending'].ci) {
+      sections.push(formatJobStatus('Format', results['mosaic-vending'].ci.format.result));
+      sections.push(formatJobStatus('Lint', results['mosaic-vending'].ci.lint.result));
+      sections.push(formatJobStatus('Test', results['mosaic-vending'].ci.test.result));
+      sections.push(formatJobStatus('Schema', results['mosaic-vending'].ci.schema.result));
+    }
+    if (results['mosaic-vending'].deploy) {
+      sections.push(formatJobStatus('Deploy', results['mosaic-vending'].deploy.result));
+      if (results['mosaic-vending'].deploy.outputs) {
+        sections.push(`Code ID: \`${results['mosaic-vending'].deploy.outputs.code_id}\``);
+        sections.push(`Contract: \`${results['mosaic-vending'].deploy.outputs.contract_address}\``);
+      }
+    }
+    if (results['mosaic-vending'].e2e) {
+      sections.push(formatJobStatus('E2E Tests', results['mosaic-vending'].e2e.result));
+    }
+    sections.push('');
+  }
+
+  // Full E2E section
+  if (results['full-e2e']) {
+    sections.push('**Integration Tests**');
+    sections.push(formatJobStatus('Full E2E', results['full-e2e'].result));
+    sections.push('');
+  }
+
+  // Footer
+  sections.push(`Run completed at: ${new Date(metadata.completed_at).toLocaleString()}`);
+
+  return sections.join('\n');
+}
+
+async function sendDiscordMessage(message) {
+  const webhookUrl = process.env.DISCORD_WEBHOOK;
+  if (!webhookUrl) {
+    throw new Error('Missing DISCORD_WEBHOOK environment variable');
+  }
+
+  const response = await fetch(webhookUrl, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      content: message,
+    }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Failed to send Discord message: ${response.statusText}`);
+  }
 }
 
 async function main() {
-  const plan = JSON.parse(process.env.EXECUTION_PLAN);
-  const results = Object.fromEntries(
-    Object.entries(JOB_RESULT_MAP).map(([job, env]) => 
-      [job, process.env[env]]
-    )
-  );
+  try {
+    const planResults = JSON.parse(process.env.PLAN_RESULTS);
+    const message = generateDiscordMessage(planResults);
+    await sendDiscordMessage(message);
+    console.log('Successfully sent Discord notification');
+  } catch (error) {
+    console.error('Error sending Discord notification:', error);
+    process.exit(1);
+  }
+}
 
-  const message = generateDiscordMessage(plan, results);
-  await sendDiscordMessage(message, process.env.DISCORD_WEBHOOK);
-} 
+await main(); 

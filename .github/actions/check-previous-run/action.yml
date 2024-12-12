@@ -1,0 +1,38 @@
+name: 'Check Previous Run'
+
+description: 'Check if a job has a previous successful run and can be skipped'
+
+inputs:
+  execution_plan:
+    description: 'JSON string containing the execution plan'
+    required: true
+  job_name:
+    description: 'Name of the job to check'
+    required: true
+
+outputs:
+  result:
+    description: 'Result of the check (skipped or empty)'
+    value: ${{ steps.check.outputs.result }}
+  data:
+    description: 'Previous run data if skipped'
+    value: ${{ steps.check.outputs.data }}
+
+runs:
+  using: "composite"
+  steps:
+    - name: Check previous run
+      id: check
+      shell: bash
+      run: |
+        PLAN='${{ inputs.execution_plan }}'
+        JOB_NAME="${{ inputs.job_name }}"
+        PREV_RUN=$(echo "$PLAN" | jq -r --arg job "$JOB_NAME" \
+          '.jobs[$job].previous_run')
+        if [[ -n "$PREV_RUN" ]]; then
+          echo "result=skipped" >> $GITHUB_OUTPUT
+          echo "data=$PREV_RUN" >> $GITHUB_OUTPUT
+        else
+          echo "result=" >> $GITHUB_OUTPUT
+          echo "data=" >> $GITHUB_OUTPUT
+        fi

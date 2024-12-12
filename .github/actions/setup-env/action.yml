@@ -1,3 +1,4 @@
+---
 name: 'Setup Environment'
 description: 'Sets up Node.js and Rust environment with caching'
 
