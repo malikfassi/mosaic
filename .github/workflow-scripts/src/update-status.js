@@ -89,6 +89,22 @@ async function main() {
           }
         };
 
+        // Add deployment info for deploy jobs
+        if (jobName.startsWith('deploy-')) {
+          content.deployment = {
+            network: {
+              chain_id: 'elgafar-1',
+              rpc_endpoint: 'https://rpc.elgafar-1.stargaze-apis.com:443',
+              explorer: 'https://testnet-explorer.publicawesome.dev/stargaze'
+            },
+            contract: {
+              code_id: process.env[`${jobName.toUpperCase()}_CODE_ID`],
+              address: process.env[`${jobName.toUpperCase()}_CONTRACT_ADDRESS`],
+              name: jobName.replace('deploy-', '')
+            }
+          };
+        }
+
         files[filename] = {
           content: JSON.stringify(content, null, 2)
         };

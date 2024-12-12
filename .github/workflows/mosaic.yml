@@ -47,22 +47,28 @@ jobs:
       component_hash: ${{ fromJson(needs.execution_plan.outputs.plan).components.mosaic_vending }}
 
   deploy-mosaic-tile:
-    needs: mosaic-tile-ci
+    needs: [execution_plan, mosaic-tile-ci]
     if: needs.mosaic-tile-ci.result == 'success'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      - name: Deploy mosaic-tile contract
-        run: echo "Deploying mosaic-tile contract..."
+    uses: ./.github/workflows/reusable-deploy.yml
+    with:
+      contract_name: mosaic-tile-nft
+      needs_run: ${{ fromJson(needs.execution_plan.outputs.plan).jobs['deploy-mosaic-tile'].needs_run }}
+      code_id: ${{ needs.mosaic-tile-ci.outputs.code_id }}
+      contract_address: ${{ needs.mosaic-tile-ci.outputs.contract_address }}
+      component_hash: ${{ fromJson(needs.execution_plan.outputs.plan).components.mosaic_tile }}
+    secrets:
+      STARSD_MNEMONIC: ${{ secrets.STARSD_MNEMONIC }}
 
   deploy-mosaic-vending:
-    needs: mosaic-vending-ci
+    needs: [execution_plan, mosaic-vending-ci]
     if: needs.mosaic-vending-ci.result == 'success'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      - name: Deploy mosaic-vending contract
-        run: echo "Deploying mosaic-vending contract..."
+    uses: ./.github/workflows/reusable-deploy.yml
+    with:
+      contract_name: mosaic-vending-minter
+      needs_run: ${{ fromJson(needs.execution_plan.outputs.plan).jobs['deploy-mosaic-vending'].needs_run }}
+      component_hash: ${{ fromJson(needs.execution_plan.outputs.plan).components.mosaic_vending }}
+    secrets:
+      STARSD_MNEMONIC: ${{ secrets.STARSD_MNEMONIC }}
 
   mosaic-tile-e2e:
     needs: deploy-mosaic-tile
@@ -97,27 +103,26 @@ jobs:
     uses: ./.github/workflows/reusable-notify.yml
     with:
       execution_plan: ${{ needs.execution_plan.outputs.plan }}
-      # Frontend results
       frontend_lint_result: ${{ needs.frontend-ci.outputs.lint_result }}
       frontend_test_result: ${{ needs.frontend-ci.outputs.test_result }}
       frontend_build_result: ${{ needs.frontend-ci.outputs.build_result }}
-      # Mosaic Tile results
       mosaic_tile_format_result: ${{ needs.mosaic-tile-ci.outputs.format_result }}
       mosaic_tile_lint_result: ${{ needs.mosaic-tile-ci.outputs.lint_result }}
       mosaic_tile_test_result: ${{ needs.mosaic-tile-ci.outputs.test_result }}
       mosaic_tile_schema_result: ${{ needs.mosaic-tile-ci.outputs.schema_result }}
-      mosaic_tile_deploy_result: ${{ needs.deploy-mosaic-tile.result }}
+      mosaic_tile_deploy_result: ${{ needs.deploy-mosaic-tile.outputs.result }}
+      mosaic_tile_deploy_code_id: ${{ needs.deploy-mosaic-tile.outputs.code_id }}
+      mosaic_tile_deploy_contract_address: ${{ needs.deploy-mosaic-tile.outputs.contract_address }}
       mosaic_tile_e2e_result: ${{ needs.mosaic-tile-e2e.outputs.e2e_result }}
-      # Mosaic Vending results
       mosaic_vending_format_result: ${{ needs.mosaic-vending-ci.outputs.format_result }}
       mosaic_vending_lint_result: ${{ needs.mosaic-vending-ci.outputs.lint_result }}
       mosaic_vending_test_result: ${{ needs.mosaic-vending-ci.outputs.test_result }}
       mosaic_vending_schema_result: ${{ needs.mosaic-vending-ci.outputs.schema_result }}
-      mosaic_vending_deploy_result: ${{ needs.deploy-mosaic-vending.result }}
+      mosaic_vending_deploy_result: ${{ needs.deploy-mosaic-vending.outputs.result }}
+      mosaic_vending_deploy_code_id: ${{ needs.deploy-mosaic-vending.outputs.code_id }}
+      mosaic_vending_deploy_contract_address: ${{ needs.deploy-mosaic-vending.outputs.contract_address }}
       mosaic_vending_e2e_result: ${{ needs.mosaic-vending-e2e.outputs.e2e_result }}
-      # Integration results
       full_e2e_result: ${{ needs.full-e2e.outputs.e2e_result }}
-      # Gist info
       gist_id: ${{ vars.GIST_ID }}
     secrets:
       GIST_SECRET: ${{ secrets.GIST_SECRET }}
