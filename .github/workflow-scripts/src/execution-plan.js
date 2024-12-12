@@ -108,14 +108,14 @@ async function generateExecutionPlan() {
   const component_hashes = generate_hashes();
 
   // Calculate component hashes first
-  Object.keys(JOBS).forEach((jobName) => {
-    JOBS[jobName].component.hash = component_hashes[jobName];
-    JOBS[jobName].filename = `${jobName}.${component_hashes[jobName]}.json`;
+  Object.entries(JOBS).forEach(([jobName, job]) => {
+    JOBS[jobName].component = {
+      name: job.component.name,
+      hash: component_hashes[job.component.name],
+    };
+    JOBS[jobName].filename = `${jobName}.${component_hashes[job.component.name]}.json`;
 
-    JOBS[jobName].previous_run = getPreviousRun(
-      gistFiles,
-      JOBS[jobName].filename
-    );
+    JOBS[jobName].previous_run = getPreviousRun(gistFiles, job.filename);
   });
 
   // Generate plan
