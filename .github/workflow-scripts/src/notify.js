@@ -24,7 +24,7 @@ function formatJobResult(result, jobName, plan) {
 
   if (previousRun) {
     const prevStatus = previousRun.success ? '✅' : '❌';
-    return `${status} (Previous: ${prevStatus} [Run](${plan.metadata.repository}/actions/runs/${previousRun.run_id}))`;
+    return `${status} (Previous: ${prevStatus} [Run](https://github.com/${plan.metadata.repository}/actions/runs/${previousRun.run_id}))`;
   }
 
   return status;
@@ -32,7 +32,10 @@ function formatJobResult(result, jobName, plan) {
 
 function generateComponentStatus(name, jobs, results, plan) {
   const lines = [];
-  lines.push(`**${name}**`);
+  const componentHash = plan.components[name.toLowerCase().replace(' ', '_')];
+  
+  // Add component name and hash
+  lines.push(`**${name}** (${componentHash || 'no hash'})`);
   
   for (const jobName of jobs) {
     const resultKey = JOB_RESULT_MAP[jobName];
@@ -114,8 +117,8 @@ async function main() {
     sections.push('**Integration**');
     sections.push(`- Full E2E: ${formatJobResult(results.full_e2e_result, 'full-e2e', plan)}`);
     
-    // Add run link
-    sections.push(`\n[View run](${plan.metadata.repository}/actions/runs/${plan.metadata.run_id})`);
+    // Add run link with full URL
+    sections.push(`\n[View run](https://github.com/${plan.metadata.repository}/actions/runs/${plan.metadata.run_id})`);
 
     // Join all sections and send to Discord
     const message = sections.join('\n\n');
