@@ -55,6 +55,7 @@ jobs:
       - name: Compile contract
         id: compile
         if: steps.check.outputs.result != 'skipped'
+        working-directory: contracts/${{ inputs.contract_name }}
         run: |
           cargo build --target wasm32-unknown-unknown --release --package ${{ inputs.contract_name }}
           mkdir -p artifacts
