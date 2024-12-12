@@ -26,6 +26,7 @@ runs:
       shell: bash
       run: |
         PLAN='${{ inputs.execution_plan }}'
+        echo "PLAN: $PLAN"
         JOB_NAME="${{ inputs.job_name }}"
         PREV_RUN=$(echo "$PLAN" | jq -r --arg job "$JOB_NAME" \
           '.jobs[$job].previous_run')
