@@ -1,5 +1,5 @@
 [package]
-name = "mosaic-tile-nft"
+name = "mosaic_vending_minter"
 version.workspace = true
 authors.workspace = true
 edition.workspace = true
@@ -25,11 +25,7 @@ cw721-base.workspace = true
 schemars.workspace = true
 serde.workspace = true
 thiserror.workspace = true
-anyhow.workspace = true
-sg721.workspace = true
-sg721-base.workspace = true
-sg-std.workspace = true
-cw-utils.workspace = true
 
 [dev-dependencies]
 cw-multi-test.workspace = true
+anyhow.workspace = true 

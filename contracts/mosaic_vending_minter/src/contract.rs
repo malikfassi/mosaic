@@ -19,7 +19,7 @@ use mosaic_tile_nft::msg::ExecuteMsg as NFTExecuteMsg;
 use mosaic_tile_nft::state::{Position, Color};
 
 // Version info for migration
-const CONTRACT_NAME: &str = "crates.io:mosaic-vending-minter";
+const CONTRACT_NAME: &str = "crates.io:mosaic_vending_minter";
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 #[cfg_attr(not(feature = "library"), entry_point)]

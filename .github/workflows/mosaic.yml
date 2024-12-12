@@ -42,28 +42,28 @@ jobs:
     needs: [generate_execution_plan]
     uses: ./.github/workflows/contract-clippy.yml
     with:
-      contract_name: mosaic-tile-nft
+      contract_name: mosaic_tile_nft
       execution_plan: ${{ needs.generate_execution_plan.outputs.execution_plan }}
 
   mosaic_tile_format:
     needs: [generate_execution_plan]
     uses: ./.github/workflows/contract-format.yml
     with:
-      contract_name: mosaic-tile-nft
+      contract_name: mosaic_tile_nft
       execution_plan: ${{ needs.generate_execution_plan.outputs.execution_plan }}
 
   mosaic_tile_test:
     needs: [generate_execution_plan]
     uses: ./.github/workflows/contract-test.yml
     with:
-      contract_name: mosaic-tile-nft
+      contract_name: mosaic_tile_nft
       execution_plan: ${{ needs.generate_execution_plan.outputs.execution_plan }}
 
   mosaic_tile_compile:
     needs: [generate_execution_plan]
     uses: ./.github/workflows/contract-compile.yml
     with:
-      contract_name: mosaic-tile-nft
+      contract_name: mosaic_tile_nft
       execution_plan: ${{ needs.generate_execution_plan.outputs.execution_plan }}
 
   mosaic_tile_deploy:
@@ -76,7 +76,7 @@ jobs:
     ]
     uses: ./.github/workflows/contract-deploy.yml
     with:
-      contract_name: mosaic-tile-nft
+      contract_name: mosaic_tile_nft
       execution_plan: ${{ needs.generate_execution_plan.outputs.execution_plan }}
     secrets:
       STARSD_MNEMONIC: ${{ secrets.DEPLOYMENT_WALLET_ADDRESS }}
@@ -86,28 +86,28 @@ jobs:
     needs: [generate_execution_plan]
     uses: ./.github/workflows/contract-clippy.yml
     with:
-      contract_name: mosaic-vending-minter
+      contract_name: mosaic_vending_minter
       execution_plan: ${{ needs.generate_execution_plan.outputs.execution_plan }}
 
   mosaic_vending_format:
     needs: [generate_execution_plan]
     uses: ./.github/workflows/contract-format.yml
     with:
-      contract_name: mosaic-vending-minter
+      contract_name: mosaic_vending_minter
       execution_plan: ${{ needs.generate_execution_plan.outputs.execution_plan }}
 
   mosaic_vending_test:
     needs: [generate_execution_plan]
     uses: ./.github/workflows/contract-test.yml
     with:
-      contract_name: mosaic-vending-minter
+      contract_name: mosaic_vending_minter
       execution_plan: ${{ needs.generate_execution_plan.outputs.execution_plan }}
 
   mosaic_vending_compile:
     needs: [generate_execution_plan]
     uses: ./.github/workflows/contract-compile.yml
     with:
-      contract_name: mosaic-vending-minter
+      contract_name: mosaic_vending_minter
       execution_plan: ${{ needs.generate_execution_plan.outputs.execution_plan }}
 
   mosaic_vending_deploy:
@@ -120,7 +120,7 @@ jobs:
     ]
     uses: ./.github/workflows/contract-deploy.yml
     with:
-      contract_name: mosaic-vending-minter
+      contract_name: mosaic_vending_minter
       execution_plan: ${{ needs.generate_execution_plan.outputs.execution_plan }}
     secrets:
       STARSD_MNEMONIC: ${{ secrets.DEPLOYMENT_WALLET_ADDRESS }}

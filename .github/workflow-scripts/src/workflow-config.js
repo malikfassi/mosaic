@@ -9,14 +9,14 @@ export const COMPONENTS = {
   mosaic_tile: {
     name: "mosaic_tile",
     paths: [
-      'contracts/mosaic-tile-nft/**/*',
+      'contracts/mosaic_tile_nft/**/*',
       'contracts/Cargo.toml',
     ]
   },
   mosaic_vending: {
     name: "mosaic_vending",
     paths: [
-      'contracts/mosaic-vending-minter/**/*',
+      'contracts/mosaic_vending_minter/**/*',
       'contracts/Cargo.toml',
     ]
   },

@@ -71,10 +71,10 @@ The project consists of three main components:
 
 3. Build contracts:
    ```bash
-   cd contracts/mosaic-tile-nft
+   cd contracts/mosaic_tile_nft
    cargo build
    cargo run --example schema
-   cd ../mosaic-vending-minter
+   cd ../mosaic_vending_minter
    cargo build
    cargo run --example schema
    ```
@@ -107,8 +107,8 @@ The project includes comprehensive test coverage:
    cd frontend && npm test
    
    # Contract tests
-   cd contracts/mosaic-tile-nft && cargo test
-   cd contracts/mosaic-vending-minter && cargo test
+   cd contracts/mosaic_tile_nft && cargo test
+   cd contracts/mosaic_vending_minter && cargo test
    ```
 
 2. E2E Tests
