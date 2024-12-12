@@ -49,7 +49,7 @@ function calculateComponentHash(componentConfig) {
   // Sort files for consistent hashing
   files.sort().forEach((file) => {
     try {
-      const content = readFileSync(file, "utf8");
+      const content = readFileSync(join(process.env.GITHUB_WORKSPACE, file), "utf8");
       hash.update(`${file}:`);
       hash.update(content);
     } catch (error) {
