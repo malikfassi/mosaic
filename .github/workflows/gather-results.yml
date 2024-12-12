@@ -26,78 +26,78 @@ on:
         required: false
         type: string
       # Mosaic Tile results
-      mosaic_tile_clippy_result:
+      mosaic_tile_nft_clippy_result:
         required: false
         type: string
-      mosaic_tile_clippy_outputs:
+      mosaic_tile_nft_clippy_outputs:
         required: false
         type: string
-      mosaic_tile_fmt_result:
+      mosaic_tile_nft_fmt_result:
         required: false
         type: string
-      mosaic_tile_fmt_outputs:
+      mosaic_tile_nft_fmt_outputs:
         required: false
         type: string
-      mosaic_tile_test_result:
+      mosaic_tile_nft_test_result:
         required: false
         type: string
-      mosaic_tile_test_outputs:
+      mosaic_tile_nft_test_outputs:
         required: false
         type: string
-      mosaic_tile_compile_result:
+      mosaic_tile_nft_compile_result:
         required: false
         type: string
-      mosaic_tile_compile_outputs:
+      mosaic_tile_nft_compile_outputs:
         required: false
         type: string
-      mosaic_tile_deploy_result:
+      mosaic_tile_nft_deploy_result:
         required: false
         type: string
-      mosaic_tile_deploy_outputs:
+      mosaic_tile_nft_deploy_outputs:
         required: false
         type: string
       # Mosaic Vending results
-      mosaic_vending_clippy_result:
+      mosaic_vending_minter_clippy_result:
         required: false
         type: string
-      mosaic_vending_clippy_outputs:
+      mosaic_vending_minter_clippy_outputs:
         required: false
         type: string
-      mosaic_vending_fmt_result:
+      mosaic_vending_minter_fmt_result:
         required: false
         type: string
-      mosaic_vending_fmt_outputs:
+      mosaic_vending_minter_fmt_outputs:
         required: false
         type: string
-      mosaic_vending_test_result:
+      mosaic_vending_minter_test_result:
         required: false
         type: string
-      mosaic_vending_test_outputs:
+      mosaic_vending_minter_test_outputs:
         required: false
         type: string
-      mosaic_vending_compile_result:
+      mosaic_vending_minter_compile_result:
         required: false
         type: string
-      mosaic_vending_compile_outputs:
+      mosaic_vending_minter_compile_outputs:
         required: false
         type: string
-      mosaic_vending_deploy_result:
+      mosaic_vending_minter_deploy_result:
         required: false
         type: string
-      mosaic_vending_deploy_outputs:
+      mosaic_vending_minter_deploy_outputs:
         required: false
         type: string
       # E2E results
-      mosaic_tile_e2e_result:
+      mosaic_tile_nft_e2e_result:
         required: false
         type: string
-      mosaic_tile_e2e_outputs:
+      mosaic_tile_nft_e2e_outputs:
         required: false
         type: string
-      mosaic_vending_e2e_result:
+      mosaic_vending_minter_e2e_result:
         required: false
         type: string
-      mosaic_vending_e2e_outputs:
+      mosaic_vending_minter_e2e_outputs:
         required: false
         type: string
       full_e2e_result:
@@ -139,32 +139,32 @@ jobs:
           FRONTEND_TEST_OUTPUTS: ${{ inputs.frontend_test_outputs }}
           FRONTEND_BUILD_OUTPUTS: ${{ inputs.frontend_build_outputs }}
           # Mosaic Tile results
-          MOSAIC_TILE_CLIPPY_RESULT: ${{ inputs.mosaic_tile_clippy_result }}
-          MOSAIC_TILE_CLIPPY_OUTPUTS: ${{ inputs.mosaic_tile_clippy_outputs }}
-          MOSAIC_TILE_FMT_RESULT: ${{ inputs.mosaic_tile_fmt_result }}
-          MOSAIC_TILE_FMT_OUTPUTS: ${{ inputs.mosaic_tile_fmt_outputs }}
-          MOSAIC_TILE_TEST_RESULT: ${{ inputs.mosaic_tile_test_result }}
-          MOSAIC_TILE_TEST_OUTPUTS: ${{ inputs.mosaic_tile_test_outputs }}
-          MOSAIC_TILE_COMPILE_RESULT: ${{ inputs.mosaic_tile_compile_result }}
-          MOSAIC_TILE_COMPILE_OUTPUTS: ${{ inputs.mosaic_tile_compile_outputs }}
-          MOSAIC_TILE_DEPLOY_RESULT: ${{ inputs.mosaic_tile_deploy_result }}
-          MOSAIC_TILE_DEPLOY_OUTPUTS: ${{ inputs.mosaic_tile_deploy_outputs }}
+          MOSAIC_TILE_NFT_CLIPPY_RESULT: ${{ inputs.mosaic_tile_nft_clippy_result }}
+          MOSAIC_TILE_NFT_CLIPPY_OUTPUTS: ${{ inputs.mosaic_tile_nft_clippy_outputs }}
+          MOSAIC_TILE_NFT_FMT_RESULT: ${{ inputs.mosaic_tile_nft_fmt_result }}
+          MOSAIC_TILE_NFT_FMT_OUTPUTS: ${{ inputs.mosaic_tile_nft_fmt_outputs }}
+          MOSAIC_TILE_NFT_TEST_RESULT: ${{ inputs.mosaic_tile_nft_test_result }}
+          MOSAIC_TILE_NFT_TEST_OUTPUTS: ${{ inputs.mosaic_tile_nft_test_outputs }}
+          MOSAIC_TILE_NFT_COMPILE_RESULT: ${{ inputs.mosaic_tile_nft_compile_result }}
+          MOSAIC_TILE_NFT_COMPILE_OUTPUTS: ${{ inputs.mosaic_tile_nft_compile_outputs }}
+          MOSAIC_TILE_NFT_DEPLOY_RESULT: ${{ inputs.mosaic_tile_nft_deploy_result }}
+          MOSAIC_TILE_NFT_DEPLOY_OUTPUTS: ${{ inputs.mosaic_tile_nft_deploy_outputs }}
           # Mosaic Vending results
-          MOSAIC_VENDING_CLIPPY_RESULT: ${{ inputs.mosaic_vending_clippy_result }}
-          MOSAIC_VENDING_CLIPPY_OUTPUTS: ${{ inputs.mosaic_vending_clippy_outputs }}
-          MOSAIC_VENDING_FMT_RESULT: ${{ inputs.mosaic_vending_fmt_result }}
-          MOSAIC_VENDING_FMT_OUTPUTS: ${{ inputs.mosaic_vending_fmt_outputs }}
-          MOSAIC_VENDING_TEST_RESULT: ${{ inputs.mosaic_vending_test_result }}
-          MOSAIC_VENDING_TEST_OUTPUTS: ${{ inputs.mosaic_vending_test_outputs }}
-          MOSAIC_VENDING_COMPILE_RESULT: ${{ inputs.mosaic_vending_compile_result }}
-          MOSAIC_VENDING_COMPILE_OUTPUTS: ${{ inputs.mosaic_vending_compile_outputs }}
-          MOSAIC_VENDING_DEPLOY_RESULT: ${{ inputs.mosaic_vending_deploy_result }}
-          MOSAIC_VENDING_DEPLOY_OUTPUTS: ${{ inputs.mosaic_vending_deploy_outputs }}
+          MOSAIC_VENDING_MINTER_CLIPPY_RESULT: ${{ inputs.mosaic_vending_minter_clippy_result }}
+          MOSAIC_VENDING_MINTER_CLIPPY_OUTPUTS: ${{ inputs.mosaic_vending_minter_clippy_outputs }}
+          MOSAIC_VENDING_MINTER_FMT_RESULT: ${{ inputs.mosaic_vending_minter_fmt_result }}
+          MOSAIC_VENDING_MINTER_FMT_OUTPUTS: ${{ inputs.mosaic_vending_minter_fmt_outputs }}
+          MOSAIC_VENDING_MINTER_TEST_RESULT: ${{ inputs.mosaic_vending_minter_test_result }}
+          MOSAIC_VENDING_MINTER_TEST_OUTPUTS: ${{ inputs.mosaic_vending_minter_test_outputs }}
+          MOSAIC_VENDING_MINTER_COMPILE_RESULT: ${{ inputs.mosaic_vending_minter_compile_result }}
+          MOSAIC_VENDING_MINTER_COMPILE_OUTPUTS: ${{ inputs.mosaic_vending_minter_compile_outputs }}
+          MOSAIC_VENDING_MINTER_DEPLOY_RESULT: ${{ inputs.mosaic_vending_minter_deploy_result }}
+          MOSAIC_VENDING_MINTER_DEPLOY_OUTPUTS: ${{ inputs.mosaic_vending_minter_deploy_outputs }}
           # E2E results
-          MOSAIC_TILE_E2E_RESULT: ${{ inputs.mosaic_tile_e2e_result }}
-          MOSAIC_TILE_E2E_OUTPUTS: ${{ inputs.mosaic_tile_e2e_outputs }}
-          MOSAIC_VENDING_E2E_RESULT: ${{ inputs.mosaic_vending_e2e_result }}
-          MOSAIC_VENDING_E2E_OUTPUTS: ${{ inputs.mosaic_vending_e2e_outputs }}
+          MOSAIC_TILE_NFT_E2E_RESULT: ${{ inputs.mosaic_tile_nft_e2e_result }}
+          MOSAIC_TILE_NFT_E2E_OUTPUTS: ${{ inputs.mosaic_tile_nft_e2e_outputs }}
+          MOSAIC_VENDING_MINTER_E2E_RESULT: ${{ inputs.mosaic_vending_minter_e2e_result }}
+          MOSAIC_VENDING_MINTER_E2E_OUTPUTS: ${{ inputs.mosaic_vending_minter_e2e_outputs }}
           FULL_E2E_RESULT: ${{ inputs.full_e2e_result }}
           FULL_E2E_OUTPUTS: ${{ inputs.full_e2e_outputs }}
         run: |

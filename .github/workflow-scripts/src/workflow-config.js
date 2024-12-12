@@ -36,20 +36,20 @@ export const JOBS = {
   frontend_build: { component: COMPONENTS.frontend },
   
   // Mosaic Tile jobs
-  mosaic_tile_clippy: { component: COMPONENTS.mosaic_tile },
-  mosaic_tile_fmt: { component: COMPONENTS.mosaic_tile },
-  mosaic_tile_test: { component: COMPONENTS.mosaic_tile },
-  mosaic_tile_compile: { component: COMPONENTS.mosaic_tile },
-  mosaic_tile_deploy: { component: COMPONENTS.mosaic_tile },
-  mosaic_tile_e2e: { component: COMPONENTS.mosaic_tile },
+  mosaic_tile_nft_clippy: { component: COMPONENTS.mosaic_tile },
+  mosaic_tile_nft_fmt: { component: COMPONENTS.mosaic_tile },
+  mosaic_tile_nft_test: { component: COMPONENTS.mosaic_tile },
+  mosaic_tile_nft_compile: { component: COMPONENTS.mosaic_tile },
+  mosaic_tile_nft_deploy: { component: COMPONENTS.mosaic_tile },
+  mosaic_tile_nft_e2e: { component: COMPONENTS.mosaic_tile },
   
   // Mosaic Vending jobs
-  mosaic_vending_clippy: { component: COMPONENTS.mosaic_vending },
-  mosaic_vending_fmt: { component: COMPONENTS.mosaic_vending },
-  mosaic_vending_test: { component: COMPONENTS.mosaic_vending },
-  mosaic_vending_compile: { component: COMPONENTS.mosaic_vending },
-  mosaic_vending_deploy: { component: COMPONENTS.mosaic_vending },
-  mosaic_vending_e2e: { component: COMPONENTS.mosaic_vending },
+  mosaic_vending_minter_clippy: { component: COMPONENTS.mosaic_vending },
+  mosaic_vending_minter_fmt: { component: COMPONENTS.mosaic_vending },
+  mosaic_vending_minter_test: { component: COMPONENTS.mosaic_vending },
+  mosaic_vending_minter_compile: { component: COMPONENTS.mosaic_vending },
+  mosaic_vending_minter_deploy: { component: COMPONENTS.mosaic_vending },
+  mosaic_vending_minter_e2e: { component: COMPONENTS.mosaic_vending },
 
   // Full e2e jobs
   full_e2e: { component: COMPONENTS.all }

@@ -38,7 +38,7 @@ jobs:
       execution_plan: ${{ needs.generate_execution_plan.outputs.execution_plan }}
 
   # Mosaic Tile Contract
-  mosaic_tile_clippy:
+  mosaic_tile_nft_clippy:
     needs: [generate_execution_plan]
     uses: ./.github/workflows/contract-clippy.yml
     with:
@@ -52,27 +52,27 @@ jobs:
       contract_name: mosaic_tile_nft
       execution_plan: ${{ needs.generate_execution_plan.outputs.execution_plan }}
 
-  mosaic_tile_test:
+  mosaic_tile_nft_test:
     needs: [generate_execution_plan]
     uses: ./.github/workflows/contract-test.yml
     with:
       contract_name: mosaic_tile_nft
       execution_plan: ${{ needs.generate_execution_plan.outputs.execution_plan }}
 
-  mosaic_tile_compile:
+  mosaic_tile_nft_compile:
     needs: [generate_execution_plan]
     uses: ./.github/workflows/contract-compile.yml
     with:
       contract_name: mosaic_tile_nft
       execution_plan: ${{ needs.generate_execution_plan.outputs.execution_plan }}
 
-  mosaic_tile_deploy:
+  mosaic_tile_nft_deploy:
     needs: [
       generate_execution_plan,
-      mosaic_tile_clippy,
+      mosaic_tile_nft_clippy,
       mosaic_tile_format,
-      mosaic_tile_test,
-      mosaic_tile_compile,
+      mosaic_tile_nft_test,
+      mosaic_tile_nft_compile,
     ]
     uses: ./.github/workflows/contract-deploy.yml
     with:
@@ -82,7 +82,7 @@ jobs:
       DEPLOYMENT_WALLET_MNEMONIC: ${{ secrets.DEPLOYMENT_WALLET_ADDRESS }}
 
   # Mosaic Vending Contract
-  mosaic_vending_clippy:
+  mosaic_vending_minter_clippy:
     needs: [generate_execution_plan]
     uses: ./.github/workflows/contract-clippy.yml
     with:
@@ -96,27 +96,27 @@ jobs:
       contract_name: mosaic_vending_minter
       execution_plan: ${{ needs.generate_execution_plan.outputs.execution_plan }}
 
-  mosaic_vending_test:
+  mosaic_vending_minter_test:
     needs: [generate_execution_plan]
     uses: ./.github/workflows/contract-test.yml
     with:
       contract_name: mosaic_vending_minter
       execution_plan: ${{ needs.generate_execution_plan.outputs.execution_plan }}
 
-  mosaic_vending_compile:
+  mosaic_vending_minter_compile:
     needs: [generate_execution_plan]
     uses: ./.github/workflows/contract-compile.yml
     with:
       contract_name: mosaic_vending_minter
       execution_plan: ${{ needs.generate_execution_plan.outputs.execution_plan }}
 
-  mosaic_vending_deploy:
+  mosaic_vending_minter_deploy:
     needs: [
       generate_execution_plan,
-      mosaic_vending_clippy,
+      mosaic_vending_minter_clippy,
       mosaic_vending_format,
-      mosaic_vending_test,
-      mosaic_vending_compile,
+      mosaic_vending_minter_test,
+      mosaic_vending_minter_compile,
     ]
     uses: ./.github/workflows/contract-deploy.yml
     with:
@@ -127,20 +127,20 @@ jobs:
 
   # E2E Tests
 
-  mosaic_tile_e2e:
+  mosaic_tile_nft_e2e:
     needs: [
       generate_execution_plan,
-      mosaic_tile_deploy,
+      mosaic_tile_nft_deploy,
     ]
     uses: ./.github/workflows/e2e.yml
     with:
       execution_plan: ${{ needs.generate_execution_plan.outputs.execution_plan }}
       test_type: mosaic-tile
   
-  mosaic_vending_e2e:
+  mosaic_vending_minter_e2e:
     needs: [
       generate_execution_plan,
-      mosaic_vending_deploy,
+      mosaic_vending_minter_deploy,
     ]
     uses: ./.github/workflows/e2e.yml
     with:
@@ -151,8 +151,8 @@ jobs:
     needs: [
       generate_execution_plan,
       frontend_build,
-      mosaic_tile_e2e,
-      mosaic_vending_e2e
+      mosaic_tile_nft_e2e,
+      mosaic_vending_minter_e2e
     ]
     uses: ./.github/workflows/e2e.yml
     with:
@@ -165,18 +165,18 @@ jobs:
       frontend_lint,
       frontend_test,
       frontend_build,
-      mosaic_tile_clippy,
+      mosaic_tile_nft_clippy,
       mosaic_tile_format,
-      mosaic_tile_test,
-      mosaic_tile_compile,
-      mosaic_tile_deploy,
-      mosaic_vending_clippy,
+      mosaic_tile_nft_test,
+      mosaic_tile_nft_compile,
+      mosaic_tile_nft_deploy,
+      mosaic_vending_minter_clippy,
       mosaic_vending_format,
-      mosaic_vending_test,
-      mosaic_vending_compile,
-      mosaic_vending_deploy,
-      mosaic_tile_e2e,
-      mosaic_vending_e2e,
+      mosaic_vending_minter_test,
+      mosaic_vending_minter_compile,
+      mosaic_vending_minter_deploy,
+      mosaic_tile_nft_e2e,
+      mosaic_vending_minter_e2e,
       full_e2e
     ]
     if: always()
@@ -191,32 +191,32 @@ jobs:
       frontend_test_outputs: ${{ needs.frontend_test.outputs.data }}
       frontend_build_outputs: ${{ needs.frontend_build.outputs.data }}
       # Mosaic Tile results
-      mosaic_tile_clippy_result: ${{ needs.mosaic_tile_clippy.outputs.result }}
-      mosaic_tile_clippy_outputs: ${{ needs.mosaic_tile_clippy.outputs.data }}
-      mosaic_tile_fmt_result: ${{ needs.mosaic_tile_format.outputs.result }}
-      mosaic_tile_fmt_outputs: ${{ needs.mosaic_tile_format.outputs.data }}
-      mosaic_tile_test_result: ${{ needs.mosaic_tile_test.outputs.result }}
-      mosaic_tile_test_outputs: ${{ needs.mosaic_tile_test.outputs.data }}
-      mosaic_tile_compile_result: ${{ needs.mosaic_tile_compile.outputs.result }}
-      mosaic_tile_compile_outputs: ${{ needs.mosaic_tile_compile.outputs.data }}
-      mosaic_tile_deploy_result: ${{ needs.mosaic_tile_deploy.outputs.result }}
-      mosaic_tile_deploy_outputs: ${{ needs.mosaic_tile_deploy.outputs.data }}
+      mosaic_tile_nft_clippy_result: ${{ needs.mosaic_tile_nft_clippy.outputs.result }}
+      mosaic_tile_nft_clippy_outputs: ${{ needs.mosaic_tile_nft_clippy.outputs.data }}
+      mosaic_tile_nft_fmt_result: ${{ needs.mosaic_tile_format.outputs.result }}
+      mosaic_tile_nft_fmt_outputs: ${{ needs.mosaic_tile_format.outputs.data }}
+      mosaic_tile_nft_test_result: ${{ needs.mosaic_tile_nft_test.outputs.result }}
+      mosaic_tile_nft_test_outputs: ${{ needs.mosaic_tile_nft_test.outputs.data }}
+      mosaic_tile_nft_compile_result: ${{ needs.mosaic_tile_nft_compile.outputs.result }}
+      mosaic_tile_nft_compile_outputs: ${{ needs.mosaic_tile_nft_compile.outputs.data }}
+      mosaic_tile_nft_deploy_result: ${{ needs.mosaic_tile_nft_deploy.outputs.result }}
+      mosaic_tile_nft_deploy_outputs: ${{ needs.mosaic_tile_nft_deploy.outputs.data }}
       # Mosaic Vending results
-      mosaic_vending_clippy_result: ${{ needs.mosaic_vending_clippy.outputs.result }}
-      mosaic_vending_clippy_outputs: ${{ needs.mosaic_vending_clippy.outputs.data }}
-      mosaic_vending_fmt_result: ${{ needs.mosaic_vending_format.outputs.result }}
-      mosaic_vending_fmt_outputs: ${{ needs.mosaic_vending_format.outputs.data }}
-      mosaic_vending_test_result: ${{ needs.mosaic_vending_test.outputs.result }}
-      mosaic_vending_test_outputs: ${{ needs.mosaic_vending_test.outputs.data }}
-      mosaic_vending_compile_result: ${{ needs.mosaic_vending_compile.outputs.result }}
-      mosaic_vending_compile_outputs: ${{ needs.mosaic_vending_compile.outputs.data }}
-      mosaic_vending_deploy_result: ${{ needs.mosaic_vending_deploy.outputs.result }}
-      mosaic_vending_deploy_outputs: ${{ needs.mosaic_vending_deploy.outputs.data }}
+      mosaic_vending_minter_clippy_result: ${{ needs.mosaic_vending_minter_clippy.outputs.result }}
+      mosaic_vending_minter_clippy_outputs: ${{ needs.mosaic_vending_minter_clippy.outputs.data }}
+      mosaic_vending_minter_fmt_result: ${{ needs.mosaic_vending_format.outputs.result }}
+      mosaic_vending_minter_fmt_outputs: ${{ needs.mosaic_vending_format.outputs.data }}
+      mosaic_vending_minter_test_result: ${{ needs.mosaic_vending_minter_test.outputs.result }}
+      mosaic_vending_minter_test_outputs: ${{ needs.mosaic_vending_minter_test.outputs.data }}
+      mosaic_vending_minter_compile_result: ${{ needs.mosaic_vending_minter_compile.outputs.result }}
+      mosaic_vending_minter_compile_outputs: ${{ needs.mosaic_vending_minter_compile.outputs.data }}
+      mosaic_vending_minter_deploy_result: ${{ needs.mosaic_vending_minter_deploy.outputs.result }}
+      mosaic_vending_minter_deploy_outputs: ${{ needs.mosaic_vending_minter_deploy.outputs.data }}
       # E2E results
-      mosaic_tile_e2e_result: ${{ needs.mosaic_tile_e2e.outputs.result }}
-      mosaic_tile_e2e_outputs: ${{ needs.mosaic_tile_e2e.outputs.data }}
-      mosaic_vending_e2e_result: ${{ needs.mosaic_vending_e2e.outputs.result }}
-      mosaic_vending_e2e_outputs: ${{ needs.mosaic_vending_e2e.outputs.data }}
+      mosaic_tile_nft_e2e_result: ${{ needs.mosaic_tile_nft_e2e.outputs.result }}
+      mosaic_tile_nft_e2e_outputs: ${{ needs.mosaic_tile_nft_e2e.outputs.data }}
+      mosaic_vending_minter_e2e_result: ${{ needs.mosaic_vending_minter_e2e.outputs.result }}
+      mosaic_vending_minter_e2e_outputs: ${{ needs.mosaic_vending_minter_e2e.outputs.data }}
       full_e2e_result: ${{ needs.full_e2e.outputs.result }}
       full_e2e_outputs: ${{ needs.full_e2e.outputs.data }}
 
