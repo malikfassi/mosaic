@@ -48,7 +48,7 @@ jobs:
         if: steps.check.outputs.result != 'skipped'
         run: |
           cd contracts/${{ inputs.contract_name }}
-          cargo fmt --all -- --check
+          cargo fmt --check --package ${{ inputs.contract_name }} -- --check
 
       - name: Set result
         id: set-result
