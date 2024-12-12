@@ -37,7 +37,7 @@ jobs:
         uses: ./.github/actions/check-previous-run
         with:
           execution_plan: ${{ inputs.execution_plan }}
-          job_name: deploy_${{ inputs.contract_name }}
+          job_name: ${{ inputs.contract_name }}_deploy
 
       - name: Setup starsd
         if: steps.check.outputs.result != 'skipped'

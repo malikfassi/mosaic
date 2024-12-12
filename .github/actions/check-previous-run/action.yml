@@ -26,15 +26,22 @@ runs:
       shell: bash
       run: |
         PLAN='${{ inputs.execution_plan }}'
-        echo "PLAN: $PLAN"
         JOB_NAME="${{ inputs.job_name }}"
+        echo "Checking job: $JOB_NAME"
+        echo "Available jobs:"
+        echo "$PLAN" | jq -r '.jobs | keys[]'
+        echo "Looking for previous run..."
         PREV_RUN=$(echo "$PLAN" | jq -r --arg job "$JOB_NAME" \
           '.jobs[$job].previous_run')
-        echo "PREV_RUN: $PREV_RUN"
+        echo "Previous run value: $PREV_RUN"
+        echo "Full job data:"
+        echo "$PLAN" | jq -r --arg job "$JOB_NAME" '.jobs[$job]'
         if [[ "$PREV_RUN" != 'null' ]]; then
+          echo "Found previous run, setting result to skipped"
           echo "result=skipped" >> $GITHUB_OUTPUT
           echo "data=$PREV_RUN" >> $GITHUB_OUTPUT
         else
+          echo "No previous run found, continuing with job"
           echo "result=" >> $GITHUB_OUTPUT
           echo "data=" >> $GITHUB_OUTPUT
         fi
