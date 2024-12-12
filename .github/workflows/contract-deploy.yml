@@ -63,17 +63,16 @@ jobs:
           STARSD_MNEMONIC: ${{ secrets.STARSD_MNEMONIC }}
         run: |
           cd contracts/${{ inputs.contract_name }}
-          CODE_ID=$(starsd tx wasm store ${{ steps.compile.outputs.wasm_path }} --from deployer -y | jq -r '.logs[0].events[1].attributes[0].value')
+          CODE_ID=$(starsd tx wasm store target/wasm32-unknown-unknown/release/*.wasm --from deployer -y | jq -r '.logs[0].events[1].attributes[0].value')
           CONTRACT_ADDR=$(starsd tx wasm instantiate $CODE_ID '{}' --from deployer --label "${{ inputs.contract_name }}" -y | jq -r '.logs[0].events[0].attributes[0].value')
           echo "data={\"code_id\": \"$CODE_ID\", \"contract_address\": \"$CONTRACT_ADDR\"}" >> $GITHUB_OUTPUT
 
       - name: Set result
         id: set-result
         if: always()
-        run: |
-          if [[ "${{ steps.check.outputs.result }}" == "skipped" ]]; then
-            echo "data=${{ steps.check.outputs.data }}" >> $GITHUB_OUTPUT
-            echo "result=skipped" >> $GITHUB_OUTPUT
-          else
-            echo "result=${{ job.status }}" >> $GITHUB_OUTPUT
-          fi 
+        uses: ./.github/actions/set-result
+        with:
+          previous_run_result: ${{ steps.check.outputs.result }}
+          previous_run_data: ${{ steps.check.outputs.data }}
+          job_status: ${{ job.status }}
+          job_data: ${{ steps.deploy.outputs.data || '{}' }} 

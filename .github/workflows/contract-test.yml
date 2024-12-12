@@ -53,10 +53,9 @@ jobs:
       - name: Set result
         id: set-result
         if: always()
-        run: |
-          if [[ "${{ steps.check.outputs.result }}" == "skipped" ]]; then
-            echo "data=${{ steps.check.outputs.data }}" >> $GITHUB_OUTPUT
-            echo "result=skipped" >> $GITHUB_OUTPUT
-          else
-            echo "result=${{ job.status }}" >> $GITHUB_OUTPUT
-          fi 
+        uses: ./.github/actions/set-result
+        with:
+          previous_run_result: ${{ steps.check.outputs.result }}
+          previous_run_data: ${{ steps.check.outputs.data }}
+          job_status: ${{ job.status }}
+          job_data: ${{ '{}' }}

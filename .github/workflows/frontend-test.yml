@@ -47,20 +47,16 @@ jobs:
       - name: Run tests
         id: test
         if: steps.check.outputs.result != 'skipped'
+        working-directory: frontend
         run: |
           npm test
-          echo "test_count=$(find . -name '*.test.*' | wc -l)" >> $GITHUB_OUTPUT
 
       - name: Set result
         id: set-result
         if: always()
-        run: |
-          if [[ "${{ steps.check.outputs.result }}" == "skipped" ]]; then
-            echo "data=${{ steps.check.outputs.data }}" >> $GITHUB_OUTPUT
-            echo "result=skipped" >> $GITHUB_OUTPUT
-          else
-            echo "result=${{ job.status }}" >> $GITHUB_OUTPUT
-            echo "data=$(jq -n \
-              --arg count "${{ steps.test.outputs.test_count }}" \
-              '{test_count: $count}')" >> $GITHUB_OUTPUT
-          fi 
+        uses: ./.github/actions/set-result
+        with:
+          previous_run_result: ${{ steps.check.outputs.result }}
+          previous_run_data: ${{ steps.check.outputs.data }}
+          job_status: ${{ job.status }}
+          job_data: ${{ '{}' }}

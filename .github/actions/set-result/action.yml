@@ -1,0 +1,40 @@
+name: 'Set Result'
+description: 'Set the result and data outputs for a workflow job'
+
+inputs:
+  previous_run_result:
+    description: 'Result from check-previous-run (skipped or empty)'
+    required: true
+  previous_run_data:
+    description: 'Data from check-previous-run if skipped'
+    required: true
+  job_status:
+    description: 'Current job status'
+    required: true
+  job_data:
+    description: 'JSON string containing job-specific data'
+    required: false
+    default: '{}'
+
+outputs:
+  result:
+    description: 'Result of the job (success/failure/skipped)'
+    value: ${{ steps.set-result.outputs.result }}
+  data:
+    description: 'Job data or previous run data if skipped'
+    value: ${{ steps.set-result.outputs.data }}
+
+runs:
+  using: "composite"
+  steps:
+    - name: Set result
+      id: set-result
+      shell: bash
+      run: |
+        if [[ "${{ inputs.previous_run_result }}" == "skipped" ]]; then
+          echo "data=${{ inputs.previous_run_data }}" >> $GITHUB_OUTPUT
+          echo "result=skipped" >> $GITHUB_OUTPUT
+        else
+          echo "result=${{ inputs.job_status }}" >> $GITHUB_OUTPUT
+          echo "data=${{ inputs.job_data }}" >> $GITHUB_OUTPUT
+        fi 

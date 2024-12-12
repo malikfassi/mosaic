@@ -47,20 +47,16 @@ jobs:
       - name: Build
         id: build
         if: steps.check.outputs.result != 'skipped'
+        working-directory: frontend
         run: |
           npm run build
-          echo "build_size=$(du -sh dist | cut -f1)" >> $GITHUB_OUTPUT
 
       - name: Set result
         id: set-result
         if: always()
-        run: |
-          if [[ "${{ steps.check.outputs.result }}" == "skipped" ]]; then
-            echo "data=${{ steps.check.outputs.data }}" >> $GITHUB_OUTPUT
-            echo "result=skipped" >> $GITHUB_OUTPUT
-          else
-            echo "result=${{ job.status }}" >> $GITHUB_OUTPUT
-            echo "data=$(jq -n \
-              --arg size "${{ steps.build.outputs.build_size }}" \
-              '{build_size: $size}')" >> $GITHUB_OUTPUT
-          fi 
+        uses: ./.github/actions/set-result
+        with:
+          previous_run_result: ${{ steps.check.outputs.result }}
+          previous_run_data: ${{ steps.check.outputs.data }}
+          job_status: ${{ job.status }}
+          job_data: ${{ '{}' }}
