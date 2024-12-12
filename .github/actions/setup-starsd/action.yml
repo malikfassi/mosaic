@@ -46,13 +46,5 @@ runs:
     - name: Setup wallet
       shell: bash
       run: |
-        # Create a temporary file with restricted permissions
-        MNEMONIC_FILE=$(mktemp)
-        chmod 600 "$MNEMONIC_FILE"
-        echo "${{ inputs.mnemonic }}" > "$MNEMONIC_FILE"
-
         # Import the wallet
-        starsd keys add deployer --recover --keyring-backend test < "$MNEMONIC_FILE"
-
-        # Securely remove the mnemonic file
-        shred -u "$MNEMONIC_FILE"
+        echo "${{ inputs.mnemonic }}" | starsd keys add deployer --recover --keyring-backend test
