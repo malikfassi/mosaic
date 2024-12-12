@@ -49,7 +49,7 @@ jobs:
       - name: Check if job needs to run
         id: check
         run: |
-          if [[ "${{ inputs.needs_run }}" == "false" ]]; then
+          if [[ "${{ inputs.needs_run }}" != "true" ]]; then
             echo "Job can be skipped - reusing previous successful run"
             echo "result=skipped" >> $GITHUB_OUTPUT
             echo "code_id=${{ inputs.code_id }}" >> $GITHUB_OUTPUT
@@ -58,10 +58,10 @@ jobs:
           fi
 
       - uses: actions/checkout@v3
-        if: inputs.needs_run == 'true'
+        if: steps.check.outputs.result != 'skipped'
 
       - name: Setup Rust
-        if: inputs.needs_run == 'true'
+        if: steps.check.outputs.result != 'skipped'
         uses: actions-rs/toolchain@v1
         with:
           profile: minimal
@@ -70,7 +70,7 @@ jobs:
           target: wasm32-unknown-unknown
 
       - name: Cache Rust
-        if: inputs.needs_run == 'true'
+        if: steps.check.outputs.result != 'skipped'
         uses: actions/cache@v3
         with:
           path: |
@@ -84,7 +84,7 @@ jobs:
             ${{ runner.os }}-cargo-
 
       - name: Cache starsd
-        if: inputs.needs_run == 'true'
+        if: steps.check.outputs.result != 'skipped'
         id: cache-starsd
         uses: actions/cache@v3
         with:
@@ -92,14 +92,14 @@ jobs:
           key: ${{ runner.os }}-starsd-7.5.0
 
       - name: Install starsd
-        if: inputs.needs_run == 'true' && steps.cache-starsd.outputs.cache-hit != 'true'
+        if: steps.check.outputs.result != 'skipped' && steps.cache-starsd.outputs.cache-hit != 'true'
         run: |
           wget https://github.com/public-awesome/stargaze/releases/download/v7.5.0/stargaze_7.5.0_linux_amd64.tar.gz
           tar -C /usr/local/bin -xvf stargaze_7.5.0_linux_amd64.tar.gz starsd
           chmod +x /usr/local/bin/starsd
 
       - name: Configure starsd
-        if: inputs.needs_run == 'true'
+        if: steps.check.outputs.result != 'skipped'
         env:
           STARSD_MNEMONIC: ${{ secrets.STARSD_MNEMONIC }}
         run: |
@@ -116,13 +116,13 @@ jobs:
           starsd query bank balances $ADDR
 
       - name: Build Contract
-        if: inputs.needs_run == 'true'
+        if: steps.check.outputs.result != 'skipped'
         run: |
           cd contracts/${{ inputs.contract_name }}
           cargo build --release --target wasm32-unknown-unknown
 
       - name: Optimize Contract
-        if: inputs.needs_run == 'true'
+        if: steps.check.outputs.result != 'skipped'
         run: |
           cd contracts/${{ inputs.contract_name }}
           docker run --rm -v "$(pwd)":/code \
@@ -131,7 +131,7 @@ jobs:
             cosmwasm/rust-optimizer:0.12.6
 
       - name: Deploy Contract
-        if: inputs.needs_run == 'true'
+        if: steps.check.outputs.result != 'skipped'
         id: deploy
         run: |
           cd contracts/${{ inputs.contract_name }}
@@ -169,7 +169,7 @@ jobs:
         id: set-result
         if: always()
         run: |
-          if [[ "${{ inputs.needs_run }}" == "false" ]]; then
+          if [[ "${{ inputs.needs_run }}" != "true" ]]; then
             echo "result=skipped" >> $GITHUB_OUTPUT
           else
             echo "result=${{ job.status }}" >> $GITHUB_OUTPUT

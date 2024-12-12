@@ -97,6 +97,13 @@ jobs:
       - name: Generate and Send Discord Message
         working-directory: .github/workflow-scripts
         env:
+          JOB_RESULT_MAP: |
+            {
+              "success": "✅",
+              "failure": "❌",
+              "cancelled": "⚠️",
+              "skipped": "⏭️"
+            }
           EXECUTION_PLAN: ${{ inputs.execution_plan }}
           FRONTEND_LINT_RESULT: ${{ inputs.frontend_lint_result }}  
           FRONTEND_TEST_RESULT: ${{ inputs.frontend_test_result }}
@@ -124,6 +131,13 @@ jobs:
       - name: Update Gist Status
         working-directory: .github/workflow-scripts
         env:
+          JOB_RESULT_MAP: |
+            {
+              "success": "✅",
+              "failure": "❌",
+              "cancelled": "⚠️",
+              "skipped": "⏭️"
+            }
           EXECUTION_PLAN: ${{ inputs.execution_plan }}
           FRONTEND_LINT_RESULT: ${{ inputs.frontend_lint_result }}  
           FRONTEND_TEST_RESULT: ${{ inputs.frontend_test_result }}
