@@ -1,23 +1,27 @@
 // Define components and their file paths for hashing
 export const COMPONENTS = {
   frontend: {
+    name: "frontend",
     paths: [
       'frontend/**/*',
     ]
   },
   mosaic_tile: {
+    name: "mosaic_tile",
     paths: [
       'contracts/mosaic-tile-nft/**/*',
       'contracts/Cargo.toml',
     ]
   },
   mosaic_vending: {
+    name: "mosaic_vending",
     paths: [
       'contracts/mosaic-vending-minter/**/*',
       'contracts/Cargo.toml',
     ]
   },
   all: {
+    name: "all",
     paths: [
         "."
     ]

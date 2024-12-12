@@ -110,6 +110,7 @@ async function generateExecutionPlan() {
   console.log("Component hashes:", component_hashes);
 
   // Calculate component hashes first
+  console.log("JOBS:", JOBS);
   Object.entries(JOBS).forEach(([jobName, job]) => {
     console.log("Job name:", jobName);
     console.log("Job component name:", job.component.name);
