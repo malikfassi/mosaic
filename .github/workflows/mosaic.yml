@@ -48,7 +48,6 @@ jobs:
 
   deploy-mosaic-tile:
     needs: [execution_plan, mosaic-tile-ci]
-    if: needs.mosaic-tile-ci.result == 'success'
     uses: ./.github/workflows/reusable-deploy.yml
     with:
       contract_name: mosaic-tile-nft
@@ -61,7 +60,6 @@ jobs:
 
   deploy-mosaic-vending:
     needs: [execution_plan, mosaic-vending-ci]
-    if: needs.mosaic-vending-ci.result == 'success'
     uses: ./.github/workflows/reusable-deploy.yml
     with:
       contract_name: mosaic-vending-minter
@@ -72,7 +70,6 @@ jobs:
 
   mosaic-tile-e2e:
     needs: deploy-mosaic-tile
-    if: needs.deploy-mosaic-tile.result == 'success'
     uses: ./.github/workflows/reusable-e2e.yml
     with:
       test_type: mosaic-tile
@@ -80,7 +77,6 @@ jobs:
 
   mosaic-vending-e2e:
     needs: deploy-mosaic-vending
-    if: needs.deploy-mosaic-vending.result == 'success'
     uses: ./.github/workflows/reusable-e2e.yml
     with:
       test_type: mosaic-vending
@@ -88,10 +84,6 @@ jobs:
 
   full-e2e:
     needs: [frontend-ci, mosaic-tile-e2e, mosaic-vending-e2e]
-    if: |
-      needs.frontend-ci.result == 'success' && 
-      needs.mosaic-tile-e2e.result == 'success' && 
-      needs.mosaic-vending-e2e.result == 'success'
     uses: ./.github/workflows/reusable-e2e.yml
     with:
       test_type: full

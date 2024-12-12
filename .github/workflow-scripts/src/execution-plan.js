@@ -24,7 +24,6 @@ function calculateComponentHash(component) {
 
   // Get all files matching the patterns
   const files = paths.flatMap(pattern => {
-    console.log(`Searching pattern ${pattern} for ${component}`);
     const matches = globSync(pattern, { 
       dot: true, 
       nodir: true,
@@ -38,13 +37,12 @@ function calculateComponentHash(component) {
   if (files.length === 0) {
     console.warn(`No files found for component ${component} with patterns:`, paths);
   } else {
-    console.log(`Found ${files.length} files for component ${component}:`, files);
+    console.log(`Found ${files.length} files for component ${component}:`);
   }
 
   // Sort files for consistent hashing
   files.sort().forEach(file => {
     try {
-      console.log(`Reading file ${file}`);
       const content = readFileSync(file, 'utf8');
       hash.update(`${file}:`);
       hash.update(content);
