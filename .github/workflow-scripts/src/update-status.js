@@ -11,10 +11,6 @@ async function updateGistFiles(planResults) {
   const octokit = getOctokit(gistToken);
   let files = {};
 
-  // use env plan results to update gist
-  const planResults = JSON.parse(process.env.PLAN_RESULTS);
-  console.log('planResults', planResults);
-
   for (const jobName in planResults.jobs) {
     const job = planResults.jobs[jobName];
     const filename = job.filename;
