@@ -9,6 +9,7 @@ import { dirname, join } from "path";
 
 // Calculate hash for a component's files
 function calculateComponentHash(componentConfig) {
+  console.log("Component config:", componentConfig);
   const { paths } = componentConfig;
   if (paths.length === 1 && paths[0] === ".") {
     return process.env.GITHUB_SHA;
