@@ -38,10 +38,26 @@ jobs:
           cache: 'npm'
           cache-dependency-path: frontend/package-lock.json
 
+      - name: Cache Next.js build
+        if: steps.check.outputs.result != 'skipped'
+        uses: actions/cache@v3
+        with:
+          path: |
+            frontend/.next/cache
+          key: ${{ runner.os }}-nextjs-${{ hashFiles('frontend/package-lock.json') }}-${{ hashFiles('frontend/src/**/*', 'frontend/pages/**/*') }}
+          restore-keys: |
+            ${{ runner.os }}-nextjs-${{ hashFiles('frontend/package-lock.json') }}-
+            ${{ runner.os }}-nextjs-
+
       - name: Install dependencies
         if: steps.check.outputs.result != 'skipped'
         working-directory: frontend
         run: npm ci
+
+      - name: Disable Next.js telemetry
+        if: steps.check.outputs.result != 'skipped'
+        working-directory: frontend
+        run: npx next telemetry disable
 
       - name: Build
         id: build
