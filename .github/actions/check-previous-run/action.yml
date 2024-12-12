@@ -30,7 +30,8 @@ runs:
         JOB_NAME="${{ inputs.job_name }}"
         PREV_RUN=$(echo "$PLAN" | jq -r --arg job "$JOB_NAME" \
           '.jobs[$job].previous_run')
-        if [[ -n "$PREV_RUN" ]]; then
+        echo "PREV_RUN: $PREV_RUN"
+        if [[ "$PREV_RUN" != 'null' ]]; then
           echo "result=skipped" >> $GITHUB_OUTPUT
           echo "data=$PREV_RUN" >> $GITHUB_OUTPUT
         else
