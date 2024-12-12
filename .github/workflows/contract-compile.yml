@@ -49,11 +49,10 @@ jobs:
           # Parse the JSON into a variable
             EXECUTION_PLAN_JSON='${{ inputs.execution_plan }}'
   
-            # Use jq to extract the required value
-            COMPONENT_HASH=$(echo "$EXECUTION_PLAN_JSON" | jq -r ".\"${{ inputs.contract_name }}_compile\".component.hash")
-  
-            # Export the value for use in subsequent steps
-            echo "name=${COMPONENT_HASH}-wasm" >> $GITHUB_OUTPUT
+          # Use jq to extract the required value
+          COMPONENT_HASH=$(echo "$EXECUTION_PLAN_JSON" | jq -r --arg job "${{ inputs.contract_name }}_compile" '.jobs[$job].component.hash')  
+          # Export the value for use in subsequent steps
+          echo "name=${COMPONENT_HASH}-wasm" >> $GITHUB_OUTPUT
 
       - name: Compile contract
         id: compile
