@@ -37,7 +37,7 @@ jobs:
 
       - name: Setup Node.js environment
         if: steps.check.outputs.result != 'skipped'
-        uses: ./.github/workflows/setup-node
+        uses: ./.github/workflows/setup-node.yml
         with:
           working-directory: .github/workflow-scripts
           node-version: '20'
