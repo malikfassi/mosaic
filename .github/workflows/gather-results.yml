@@ -145,14 +145,14 @@ jobs:
           MOSAIC_TILE_FMT_OUTPUTS: ${{ inputs.mosaic_tile_fmt_outputs }}
           MOSAIC_TILE_TEST_RESULT: ${{ inputs.mosaic_tile_test_result }}
           MOSAIC_TILE_TEST_OUTPUTS: ${{ inputs.mosaic_tile_test_outputs }}
-          mosaic_tile_compile_result: ${{ inputs.mosaic_tile_compile_result }}
-          mosaic_tile_compile_outputs: ${{ inputs.mosaic_tile_compile_outputs }}
+          MOSAIC_TILE_COMPILE_RESULT: ${{ inputs.mosaic_tile_compile_result }}
+          MOSAIC_TILE_COMPILE_OUTPUTS: ${{ inputs.mosaic_tile_compile_outputs }}
           MOSAIC_TILE_DEPLOY_RESULT: ${{ inputs.mosaic_tile_deploy_result }}
           MOSAIC_TILE_DEPLOY_OUTPUTS: ${{ inputs.mosaic_tile_deploy_outputs }}
           # Mosaic Vending results
           MOSAIC_VENDING_CLIPPY_RESULT: ${{ inputs.mosaic_vending_clippy_result }}
           MOSAIC_VENDING_CLIPPY_OUTPUTS: ${{ inputs.mosaic_vending_clippy_outputs }}
-          mosaic_vending_fmt_result: ${{ inputs.mosaic_vending_fmt_result }}
+          MOSAIC_VENDING_FMT_RESULT: ${{ inputs.mosaic_vending_fmt_result }}
           MOSAIC_VENDING_FMT_OUTPUTS: ${{ inputs.mosaic_vending_fmt_outputs }}
           MOSAIC_VENDING_TEST_RESULT: ${{ inputs.mosaic_vending_test_result }}
           MOSAIC_VENDING_TEST_OUTPUTS: ${{ inputs.mosaic_vending_test_outputs }}

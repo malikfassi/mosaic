@@ -24,6 +24,33 @@ jobs:
           working-directory: .github/workflow-scripts
           node-version: '20'
 
+      - name: Debug inputs
+        run: |
+          echo "Plan results length: ${#PLAN_RESULTS}"
+          echo "Has GIST_ID: ${{ vars.GIST_ID != '' }}"
+          echo "Has GIST_SECRET: ${{ secrets.GIST_SECRET != '' }}"
+        env:
+          PLAN_RESULTS: ${{ inputs.plan_results }}
+
+      - name: Validate inputs
+        run: |
+          if [ -z "$GIST_ID" ]; then
+            echo "::error::GIST_ID is not set"
+            exit 1
+          fi
+          if [ -z "$GIST_SECRET" ]; then
+            echo "::error::GIST_SECRET is not set"
+            exit 1
+          fi
+          if [ -z "$PLAN_RESULTS" ]; then
+            echo "::error::plan_results is empty"
+            exit 1
+          fi
+        env:
+          GIST_ID: ${{ vars.GIST_ID }}
+          GIST_SECRET: ${{ secrets.GIST_SECRET }}
+          PLAN_RESULTS: ${{ inputs.plan_results }}
+
       - name: Update status in gist
         working-directory: .github/workflow-scripts
         env:

@@ -222,6 +222,7 @@ jobs:
 
   update_status:
     needs: [gather_results]
+    if: always()
     uses: ./.github/workflows/update-status.yml
     with:
       plan_results: ${{ needs.gather_results.outputs.plan_results }}
@@ -230,6 +231,7 @@ jobs:
 
   notify_discord:
     needs: [gather_results]
+    if: always()
     uses: ./.github/workflows/notify-discord.yml
     with:
       plan_results: ${{ needs.gather_results.outputs.plan_results }}
