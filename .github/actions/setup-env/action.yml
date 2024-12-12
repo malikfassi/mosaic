@@ -65,6 +65,6 @@ runs:
       if: inputs.setup-starsd == 'true'
       shell: bash
       run: |
-        curl -s https://get.starsd.com | bash
-        sudo mv starsd /usr/local/bin/
-        starsd version
+        git clone git@github.com:public-awesome/stargaze.git
+        cd stargaze
+        make install
