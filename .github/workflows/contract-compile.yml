@@ -55,11 +55,12 @@ jobs:
       - name: Compile contract
         id: compile
         if: steps.check.outputs.result != 'skipped'
-        working-directory: contracts/
+        working-directory: contracts
         run: |
           cargo build --target wasm32-unknown-unknown --release --package ${{ inputs.contract_name }}
-          mkdir -p artifacts
-          cp ${{inputs.contract_name}}/target/wasm32-unknown-unknown/release/${{ inputs.contract_name }}.wasm artifacts/
+          mkdir -p ${{ inputs.contract_name }}/artifacts
+          cp target/wasm32-unknown-unknown/release/${{ inputs.contract_name }}.wasm ${{ inputs.contract_name }}/artifacts/
+          echo "wasm_path=${{ inputs.contract_name }}/artifacts/${{ inputs.contract_name }}.wasm" >> $GITHUB_OUTPUT
 
       - name: Upload WASM artifact
         if: steps.check.outputs.result != 'skipped'
