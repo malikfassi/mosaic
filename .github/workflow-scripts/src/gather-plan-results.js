@@ -6,7 +6,12 @@ function getJobResults() {
 
   const jobNames = Object.keys(executionPlan.jobs);
   console.log('env', process.env);
+
+
   jobNames.forEach((jobName) => {
+    console.log('jobName', jobName);
+    console.log('env', process.env[`${jobName.toUpperCase()}_RESULT`]);
+    console.log('key', `${jobName.toUpperCase()}_RESULT`);
     executionPlan.jobs[jobName].result = process.env[`${jobName.toUpperCase()}_RESULT`];
     executionPlan.jobs[jobName].data = tryParseJson(process.env[`${jobName.toUpperCase()}_OUTPUTS`]);
   });
