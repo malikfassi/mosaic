@@ -94,6 +94,6 @@ runs:
       if: inputs.setup-starsd == 'true'
       shell: bash
       run: |
-        git clone git@github.com:public-awesome/stargaze.git
+        ls -la
         cd stargaze
         make install
