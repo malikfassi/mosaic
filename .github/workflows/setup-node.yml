@@ -12,13 +12,18 @@ on:
         type: string
         default: '18'
         description: "Node.js version to use"
+      install-dependencies:
+        required: false
+        type: boolean
+        default: true
+        description: "Whether to install dependencies"
 
 jobs:
   setup:
     runs-on: ubuntu-latest
-    outputs:
-      cache-hit: ${{ steps.npm-cache.outputs.cache-hit }}
     steps:
+      - uses: actions/checkout@v3
+
       - name: Setup Node.js
         uses: actions/setup-node@v3
         with:
@@ -38,7 +43,7 @@ jobs:
             ${{ runner.os }}-node-${{ inputs.node-version }}-
 
       - name: Install dependencies
-        if: steps.npm-cache.outputs.cache-hit != 'true'
+        if: inputs.install-dependencies == true && steps.npm-cache.outputs.cache-hit != 'true'
         working-directory: ${{ inputs.working-directory }}
         run: npm ci
 
