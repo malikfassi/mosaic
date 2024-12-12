@@ -10,7 +10,7 @@
   "name": "mosaic-workflow-scripts",
   "scripts": {
     "execution-plan": "node src/execution-plan.js",
-    "notify": "node src/notify.js",
+    "send-discord-message": "node src/send-discord-message.js",
     "status": "node src/status.js",
     "update-status": "node src/update-status.js"
   },

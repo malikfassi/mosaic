@@ -52,8 +52,8 @@ jobs:
     with:
       contract_name: mosaic-tile-nft
       needs_run: ${{ fromJson(needs.execution_plan.outputs.plan).jobs['deploy_mosaic_tile'].needs_run }}
-      code_id: ${{ needs.mosaic_tile_ci.outputs.code_id }}
-      contract_address: ${{ needs.mosaic_tile_ci.outputs.contract_address }}
+      code_id: ${{ fromJson(needs.execution_plan.outputs.plan).jobs['deploy_mosaic_tile'].previous_run.code_id }}
+      contract_address: ${{ fromJson(needs.execution_plan.outputs.plan).jobs['deploy_mosaic_tile'].previous_run.contract_address }}
       component_hash: ${{ fromJson(needs.execution_plan.outputs.plan).components.mosaic_tile }}
     secrets:
       STARSD_MNEMONIC: ${{ secrets.DEPLOYMENT_WALLET_MNEMONIC }}
@@ -64,8 +64,8 @@ jobs:
     with:
       contract_name: mosaic-vending-minter
       needs_run: ${{ fromJson(needs.execution_plan.outputs.plan).jobs['deploy_mosaic_vending'].needs_run }}
-      code_id: ${{ needs.mosaic_vending_ci.outputs.code_id }}
-      contract_address: ${{ needs.mosaic_vending_ci.outputs.contract_address }}
+      code_id: ${{ fromJson(needs.execution_plan.outputs.plan).jobs['deploy_mosaic_vending'].previous_run.code_id }}
+      contract_address: ${{ fromJson(needs.execution_plan.outputs.plan).jobs['deploy_mosaic_vending'].previous_run.contract_address }}
       component_hash: ${{ fromJson(needs.execution_plan.outputs.plan).components.mosaic_vending }}
     secrets:
       STARSD_MNEMONIC: ${{ secrets.DEPLOYMENT_WALLET_MNEMONIC }}

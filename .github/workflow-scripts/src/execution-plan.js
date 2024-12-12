@@ -95,8 +95,9 @@ async function generateExecutionPlan() {
     components: componentHashes,
     jobs: {},
     metadata: {
-      created_at: new Date().toISOString(),
-      commit_sha: commitSha,
+      commit_sha: process.env.GITHUB_SHA,
+      workflow_id: process.env.GITHUB_WORKFLOW,
+      branch: process.env.GITHUB_REF_NAME,
       run_id: process.env.GITHUB_RUN_ID,
       run_number: process.env.GITHUB_RUN_NUMBER,
       repository: process.env.GITHUB_REPOSITORY

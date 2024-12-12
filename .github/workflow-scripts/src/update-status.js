@@ -1,5 +1,5 @@
 import { getOctokit } from '@actions/github';
-import { JOBS, COMPONENTS, getAllFileNames } from './workflow-config.js';
+import { JOBS, COMPONENTS, getAllFileNames, getJobInfo } from './workflow-config.js';
 
 // Map job names to their result environment variables
 const JOB_RESULT_MAP = {
@@ -25,86 +25,25 @@ const JOB_RESULT_MAP = {
 };
 
 async function updateGistContent(gist, plan, results) {
-  const content = [];
-  
-  // Add header with timestamp
-  content.push('# Mosaic CI/CD Status');
-  content.push(`Last updated: ${new Date().toISOString()}\n`);
+  const files = {};
 
-  // Add component hashes section
-  content.push('## Component Hashes');
-  for (const [component, hash] of Object.entries(plan.components)) {
-    content.push(`- ${component}: ${hash}`);
-  }
-  content.push('');
-
-  // Add job results section
-  content.push('## Job Results');
-  
-  // Frontend jobs
-  content.push('\n### Frontend');
-  if (COMPONENTS.frontend) {
-    for (const jobName of COMPONENTS.frontend.jobs) {
-      const jobInfo = plan.jobs[jobName];
-      const result = results[JOB_RESULT_MAP[jobName]];
-      content.push(`- ${jobName}: ${result || 'Not run'}`);
-      if (jobInfo) {
-        content.push(`  - Component: ${jobInfo.component}`);
-        content.push(`  - Hash: ${jobInfo.component_hash}`);
-        if (jobInfo.previous_run) {
-          content.push(`  - Previous run: ${jobInfo.previous_run.success ? 'Success' : 'Failure'}`);
-          content.push(`  - Previous run ID: ${jobInfo.previous_run.run_id}`);
-        }
-      }
+  // Store individual job results
+  for (const [jobName, result] of Object.entries(results)) {
+    if (result === 'success') {
+      const filename = `${jobName}.${plan.components[getJobInfo(jobName).component]}.json`;
+      files[filename] = {
+        content: JSON.stringify({
+          success: true,
+          timestamp: new Date().toISOString(),
+          run_id: plan.metadata.run_id,  // Store current run ID
+          job: jobName,
+          workflow_id: plan.metadata.workflow_id,
+          component: getJobInfo(jobName).component,
+          component_hash: plan.components[getJobInfo(jobName).component]
+        }, null, 2)
+      };
     }
   }
-
-  // Mosaic Tile jobs
-  content.push('\n### Mosaic Tile');
-  if (COMPONENTS.mosaic_tile) {
-    for (const jobName of COMPONENTS.mosaic_tile.jobs) {
-      const jobInfo = plan.jobs[jobName];
-      const result = results[JOB_RESULT_MAP[jobName]];
-      content.push(`- ${jobName}: ${result || 'Not run'}`);
-      if (jobInfo) {
-        content.push(`  - Component: ${jobInfo.component}`);
-        content.push(`  - Hash: ${jobInfo.component_hash}`);
-        if (jobInfo.previous_run) {
-          content.push(`  - Previous run: ${jobInfo.previous_run.success ? 'Success' : 'Failure'}`);
-          content.push(`  - Previous run ID: ${jobInfo.previous_run.run_id}`);
-        }
-      }
-    }
-  }
-
-  // Mosaic Vending jobs
-  content.push('\n### Mosaic Vending');
-  if (COMPONENTS.mosaic_vending) {
-    for (const jobName of COMPONENTS.mosaic_vending.jobs) {
-      const jobInfo = plan.jobs[jobName];
-      const result = results[JOB_RESULT_MAP[jobName]];
-      content.push(`- ${jobName}: ${result || 'Not run'}`);
-      if (jobInfo) {
-        content.push(`  - Component: ${jobInfo.component}`);
-        content.push(`  - Hash: ${jobInfo.component_hash}`);
-        if (jobInfo.previous_run) {
-          content.push(`  - Previous run: ${jobInfo.previous_run.success ? 'Success' : 'Failure'}`);
-          content.push(`  - Previous run ID: ${jobInfo.previous_run.run_id}`);
-        }
-      }
-    }
-  }
-
-  // Integration jobs
-  content.push('\n### Integration');
-  content.push(`- Full E2E: ${results.full_e2e_result || 'Not run'}`);
-
-  // Update gist content
-  const files = {
-    'status.md': {
-      content: content.join('\n')
-    }
-  };
 
   await octokit.rest.gists.update({
     gist_id: gist.id,
@@ -173,8 +112,8 @@ async function main() {
             workflow_id: plan.metadata.workflow_id,
             commit_sha: plan.metadata.commit_sha,
             repository: plan.metadata.repository,
-            component: ,
-            componentHash: ,
+            component: plan.components[jobName],
+            componentHash: plan.components[jobName],
             branch: plan.metadata.branch
           }
         };

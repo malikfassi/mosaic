@@ -117,4 +117,17 @@ export function getAllJobs() {
   jobs[JOBS.FULL_E2E] = { component: 'integration' };
   
   return jobs;
+}
+
+// Add helper functions for consistent data handling
+export function getJobInfo(jobName) {
+  const component = Object.entries(COMPONENTS).find(([_, config]) => 
+    config.jobs.includes(jobName)
+  )?.[0];
+  
+  return {
+    component,
+    type: jobName.includes('deploy-') ? 'deploy' : 
+          jobName.includes('e2e') ? 'e2e' : 'ci'
+  };
 } 
