@@ -56,20 +56,19 @@ jobs:
         id: compile
         if: steps.check.outputs.result != 'skipped'
         run: |
-          cd contracts/${{ inputs.contract_name }}
-          cargo build --target wasm32-unknown-unknown --release
+          cargo build --target wasm32-unknown-unknown --release --package ${{ inputs.contract_name }}
           mkdir -p artifacts
-          cp ../../target/wasm32-unknown-unknown/release/*.wasm artifacts/
-          echo "wasm_path=artifacts/$(ls artifacts)" >> $GITHUB_OUTPUT
+          cp target/wasm32-unknown-unknown/release/${{ inputs.contract_name }}.wasm artifacts/
+          echo "wasm_path=artifacts/${{ inputs.contract_name }}.wasm" >> $GITHUB_OUTPUT
 
       - name: Upload WASM artifact
         if: steps.check.outputs.result != 'skipped'
         uses: actions/upload-artifact@v3
         with:
           name: ${{ inputs.contract_name }}-wasm
-          path: contracts/${{ inputs.contract_name }}/${{ steps.compile.outputs.wasm_path }}
+          path: artifacts/${{ inputs.contract_name }}.wasm
           retention-days: 1
-
+      
       - name: Set result
         id: set-result
         if: always()
