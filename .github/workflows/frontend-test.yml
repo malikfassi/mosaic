@@ -33,7 +33,7 @@ jobs:
 
       - name: Setup Node.js environment
         if: steps.check.outputs.result != 'skipped'
-        uses: ./.github/workflows/setup-node.yml
+        uses: ./.github/workflows/setup-node
         with:
           working-directory: frontend
           node-version: '20'
