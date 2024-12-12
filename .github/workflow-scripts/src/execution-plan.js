@@ -131,7 +131,7 @@ async function generateExecutionPlan() {
     },
   };
 
-  const planFile = join(process.env.GITHUB_WORKSPACE, "execution-plan.json");
+  const planFile = "execution-plan.json";
   await writeFile(planFile, JSON.stringify(plan, null, 2));
   console.log("Generated execution plan:", JSON.stringify(plan));
 
