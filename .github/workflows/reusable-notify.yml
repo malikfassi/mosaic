@@ -31,6 +31,12 @@ on:
       mosaic_tile_deploy_result:
         required: true
         type: string
+      mosaic_tile_deploy_code_id:
+        required: true
+        type: string
+      mosaic_tile_deploy_contract_address:
+        required: true
+        type: string
       mosaic_tile_e2e_result:
         required: true
         type: string
@@ -47,6 +53,12 @@ on:
         required: true
         type: string
       mosaic_vending_deploy_result:
+        required: true
+        type: string
+      mosaic_vending_deploy_code_id:
+        required: true
+        type: string
+      mosaic_vending_deploy_contract_address:
         required: true
         type: string
       mosaic_vending_e2e_result:
@@ -101,6 +113,10 @@ jobs:
           MOSAIC_VENDING_DEPLOY_RESULT: ${{ inputs.mosaic_vending_deploy_result }}
           MOSAIC_TILE_E2E_RESULT: ${{ inputs.mosaic_tile_e2e_result }}
           MOSAIC_VENDING_E2E_RESULT: ${{ inputs.mosaic_vending_e2e_result }}
+          MOSAIC_TILE_DEPLOY_CODE_ID: ${{ inputs.mosaic_tile_deploy_code_id }}
+          MOSAIC_VENDING_DEPLOY_CODE_ID: ${{ inputs.mosaic_vending_deploy_code_id }}
+          MOSAIC_TILE_DEPLOY_CONTRACT_ADDRESS: ${{ inputs.mosaic_tile_deploy_contract_address }}
+          MOSAIC_VENDING_DEPLOY_CONTRACT_ADDRESS: ${{ inputs.mosaic_vending_deploy_contract_address }}
           FULL_E2E_RESULT: ${{ inputs.full_e2e_result }}
           DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
         run: npm run notify
@@ -124,6 +140,10 @@ jobs:
           MOSAIC_VENDING_DEPLOY_RESULT: ${{ inputs.mosaic_vending_deploy_result }}
           MOSAIC_TILE_E2E_RESULT: ${{ inputs.mosaic_tile_e2e_result }}
           MOSAIC_VENDING_E2E_RESULT: ${{ inputs.mosaic_vending_e2e_result }}
+          MOSAIC_TILE_DEPLOY_CODE_ID: ${{ inputs.mosaic_tile_deploy_code_id }}
+          MOSAIC_VENDING_DEPLOY_CODE_ID: ${{ inputs.mosaic_vending_deploy_code_id }}
+          MOSAIC_TILE_DEPLOY_CONTRACT_ADDRESS: ${{ inputs.mosaic_tile_deploy_contract_address }}
+          MOSAIC_VENDING_DEPLOY_CONTRACT_ADDRESS: ${{ inputs.mosaic_vending_deploy_contract_address }}
           FULL_E2E_RESULT: ${{ inputs.full_e2e_result }}
           GIST_SECRET: ${{ secrets.GIST_SECRET }}
           GIST_ID: ${{ inputs.gist_id }}
