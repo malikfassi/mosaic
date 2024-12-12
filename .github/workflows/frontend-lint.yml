@@ -39,13 +39,14 @@ jobs:
           node-cache-path: frontend/package-lock.json
 
       - name: Install dependencies
+        working-directory: frontend
         if: steps.check.outputs.result != 'skipped'
         run: |
-          cd frontend
           npm ci
 
       - name: Run lint
         id: lint
+        working-directory: frontend
         if: steps.check.outputs.result != 'skipped'
         run: |
           npm run lint
@@ -60,7 +61,4 @@ jobs:
             echo "result=skipped" >> $GITHUB_OUTPUT
           else
             echo "result=${{ job.status }}" >> $GITHUB_OUTPUT
-            echo "data=$(jq -n \
-              --arg ver "${{ steps.lint.outputs.eslint_version }}" \
-              '{eslint_version: $ver}')" >> $GITHUB_OUTPUT
           fi 
