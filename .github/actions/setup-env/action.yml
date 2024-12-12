@@ -61,6 +61,35 @@ runs:
           target
         key: ${{ runner.os }}-cargo-${{ inputs.rust-workspace-path != '' && format('workspace-{0}', hashFiles(inputs.rust-workspace-path)) || '' }}-${{ inputs.rust-package-path != '' && format('package-{0}', hashFiles(inputs.rust-package-path)) || '' }}
 
+    - name: Cache Go Modules
+      if: inputs.setup-starsd == 'true'
+      uses: actions/cache@v3
+      with:
+        path: |
+          ~/.cache/go-build
+          ~/go/pkg/mod
+        key: ${{ runner.os }}-go-mod-${{ hashFiles('**/go.sum') }}
+        restore-keys: |
+          ${{ runner.os }}-go-mod-
+
+    - name: Cache Build Artifacts
+      if: inputs.setup-starsd == 'true'
+      uses: actions/cache@v3
+      with:
+        path: |
+          ./build
+          ./bin
+        key: ${{ runner.os }}-build-${{ hashFiles('**/*') }}
+        restore-keys: |
+          ${{ runner.os }}-build-
+
+    - name: Checkout Stargaze Repository
+      if: inputs.setup-starsd == 'true'
+      uses: actions/checkout@v3
+      with:
+        repository: public-awesome/stargaze
+        ref: main  # The branch or tag to check out
+
     - name: Setup starsd CLI
       if: inputs.setup-starsd == 'true'
       shell: bash
