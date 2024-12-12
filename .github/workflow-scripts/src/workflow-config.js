@@ -31,25 +31,25 @@ export const COMPONENTS = {
 // Explicit list of all jobs and their components
 export const JOBS = {
   // Frontend jobs
-  frontend_ci_lint: { component: COMPONENTS.frontend },
-  frontend_ci_test: { component: COMPONENTS.frontend },
-  frontend_ci_build: { component: COMPONENTS.frontend },
+  frontend_lint: { component: COMPONENTS.frontend },
+  frontend_test: { component: COMPONENTS.frontend },
+  frontend_build: { component: COMPONENTS.frontend },
   
   // Mosaic Tile jobs
-  clippy_mosaic_tile: { component: COMPONENTS.mosaic_tile },
-  fmt_mosaic_tile: { component: COMPONENTS.mosaic_tile },
-  test_mosaic_tile: { component: COMPONENTS.mosaic_tile },
-  compile_mosaic_tile: { component: COMPONENTS.mosaic_tile },
-  deploy_mosaic_tile: { component: COMPONENTS.mosaic_tile },
-  e2e_mosaic_tile: { component: COMPONENTS.mosaic_tile },
+  mosaic_tile_clippy: { component: COMPONENTS.mosaic_tile },
+  mosaic_tile_fmt: { component: COMPONENTS.mosaic_tile },
+  mosaic_tile_test: { component: COMPONENTS.mosaic_tile },
+  mosaic_tile_compile: { component: COMPONENTS.mosaic_tile },
+  mosaic_tile_deploy: { component: COMPONENTS.mosaic_tile },
+  mosaic_tile_e2e: { component: COMPONENTS.mosaic_tile },
   
   // Mosaic Vending jobs
-  clippy_mosaic_vending: { component: COMPONENTS.mosaic_vending },
-  fmt_mosaic_vending: { component: COMPONENTS.mosaic_vending },
-  test_mosaic_vending: { component: COMPONENTS.mosaic_vending },
-  compile_mosaic_vending: { component: COMPONENTS.mosaic_vending },
-  deploy_mosaic_vending: { component: COMPONENTS.mosaic_vending },
-  e2e_mosaic_vending: { component: COMPONENTS.mosaic_vending },
+  mosaic_vending_clippy: { component: COMPONENTS.mosaic_vending },
+  mosaic_vending_fmt: { component: COMPONENTS.mosaic_vending },
+  mosaic_vending_test: { component: COMPONENTS.mosaic_vending },
+  mosaic_vending_compile: { component: COMPONENTS.mosaic_vending },
+  mosaic_vending_deploy: { component: COMPONENTS.mosaic_vending },
+  mosaic_vending_e2e: { component: COMPONENTS.mosaic_vending },
 
   // Full e2e jobs
   full_e2e: { component: COMPONENTS.all }
