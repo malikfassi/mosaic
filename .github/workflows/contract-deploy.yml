@@ -46,14 +46,14 @@ jobs:
           branch: main
           mnemonic: ${{ secrets.DEPLOYMENT_WALLET_MNEMONIC }}
 
-      - name: Parse JSON and set the name
+      - name: Parse JSON and set wasm name
         id: set-name
         run: |
           # Parse the JSON into a variable
           EXECUTION_PLAN_JSON='${{ inputs.execution_plan }}'
   
           # Use jq to extract the required value
-          COMPONENT_HASH=$(echo "$EXECUTION_PLAN_JSON" | jq -r ".\"${{ inputs.contract_name }}_deploy\".component.hash")
+          COMPONENT_HASH=$(echo "$EXECUTION_PLAN_JSON" | jq -r ".jobs.\"${{ inputs.contract_name }}_deploy\".component.hash")
 
           # Export the value for use in subsequent steps
           echo "name=${COMPONENT_HASH}-wasm" >> $GITHUB_OUTPUT
