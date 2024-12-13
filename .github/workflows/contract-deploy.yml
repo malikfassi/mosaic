@@ -48,15 +48,25 @@ jobs:
 
       - name: Parse JSON and set wasm name
         id: set-name
+        if: steps.check.outputs.result != 'skipped'
         run: |
           # Parse the JSON into a variable
           EXECUTION_PLAN_JSON='${{ inputs.execution_plan }}'
+          JOB_NAME="${{ inputs.contract_name }}_compile"
   
           # Use jq to extract the required value
-          COMPONENT_HASH=$(echo "$EXECUTION_PLAN_JSON" | jq -r ".jobs.\"${{ inputs.contract_name }}_deploy\".component.hash")
+          COMPONENT_HASH=$(echo "$EXECUTION_PLAN_JSON" | jq -r --arg job "$JOB_NAME" '.jobs[$job].component.hash')
+          
+          # if compile skipped, use previous run id else use run id from compile job
+          if [ "${{ steps.check.outputs.result }}" == "skipped" ]; then
+            COMPILE_RUN_ID=$(echo "$EXECUTION_PLAN_JSON" | jq -r --arg job "$JOB_NAME" '.jobs[$job].previous_run.run_id')
+          else
+            COMPILE_RUN_ID=$(echo "$EXECUTION_PLAN_JSON" | jq -r --arg job "$JOB_NAME" '.jobs[$job].run_id')
+          fi
 
-          # Export the value for use in subsequent steps
+          # Export the values for use in subsequent steps
           echo "name=${COMPONENT_HASH}-wasm" >> $GITHUB_OUTPUT
+          echo "run_id=$COMPILE_RUN_ID" >> $GITHUB_OUTPUT
 
       - name: Download WASM artifact
         if: steps.check.outputs.result != 'skipped'
@@ -64,6 +74,8 @@ jobs:
         with:
           name: ${{ steps.set-name.outputs.name }}
           path: contracts/${{ inputs.contract_name }}/artifacts
+          github-token: ${{ github.token }}
+          run-id: ${{ steps.set-name.outputs.run_id }}
 
       - name: Deploy contract
         id: deploy
@@ -71,8 +83,14 @@ jobs:
         working-directory: contracts/${{ inputs.contract_name }}
         run: |
           WASM_FILE=$(ls artifacts/*.wasm)
-          CODE_ID=$(starsd tx wasm store $WASM_FILE --from deployer -y | jq -r '.logs[0].events[1].attributes[0].value')
-          CONTRACT_ADDR=$(starsd tx wasm instantiate $CODE_ID '{}' --from deployer --label "${{ inputs.contract_name }}" -y | jq -r '.logs[0].events[0].attributes[0].value')
+          if [ ! -f "$WASM_FILE" ]; then
+            echo "Error: WASM file not found in artifacts directory"
+            ls -la artifacts/
+            exit 1
+          fi
+          
+          CODE_ID=$(starsd tx wasm store $WASM_FILE --from deployer --keyring-backend test -y | jq -r '.logs[0].events[1].attributes[0].value')
+          CONTRACT_ADDR=$(starsd tx wasm instantiate $CODE_ID '{}' --from deployer --keyring-backend test --label "${{ inputs.contract_name }}" -y | jq -r '.logs[0].events[0].attributes[0].value')
           echo "data={\"code_id\": \"$CODE_ID\", \"contract_address\": \"$CONTRACT_ADDR\"}" >> $GITHUB_OUTPUT
 
       - name: Set result
@@ -83,4 +101,4 @@ jobs:
           previous_run_result: ${{ steps.check.outputs.result }}
           previous_run_data: ${{ steps.check.outputs.data }}
           job_status: ${{ job.status }}
-          job_data: ${{ steps.deploy.outputs.data || '{}' }} 
+          job_data: ${{ steps.deploy.outputs.data || '{}' }}
