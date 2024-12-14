@@ -63,19 +63,25 @@ jobs:
           else
             COMPILE_RUN_ID=$(echo "$EXECUTION_PLAN_JSON" | jq -r --arg job "$JOB_NAME" '.jobs[$job].run_id')
           fi
+          
+          # Get repository from metadata
+          REPO=$(echo "$EXECUTION_PLAN_JSON" | jq -r '.metadata.repository')
 
           # Export the values for use in subsequent steps
           echo "name=${COMPONENT_HASH}-wasm" >> $GITHUB_OUTPUT
           echo "run_id=$COMPILE_RUN_ID" >> $GITHUB_OUTPUT
+          echo "repo=$REPO" >> $GITHUB_OUTPUT
 
       - name: Download WASM artifact
         if: steps.check.outputs.result != 'skipped'
-        uses: actions/download-artifact@v3
+        uses: dawidd6/action-download-artifact@v2
         with:
           name: ${{ steps.set-name.outputs.name }}
           path: contracts/${{ inputs.contract_name }}/artifacts
-          github-token: ${{ github.token }}
-          run-id: ${{ steps.set-name.outputs.run_id }}
+          workflow: mosaic.yml
+          workflow_conclusion: success
+          run_id: ${{ steps.set-name.outputs.run_id }}
+          repo: ${{ steps.set-name.outputs.repo }}
 
       - name: Deploy contract
         id: deploy
