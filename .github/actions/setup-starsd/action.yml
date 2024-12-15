@@ -48,10 +48,6 @@ runs:
       shell: bash
       if: always()
       run: |
-        # Configure chain settings
-        starsd config node ${{ inputs.node }}
-        starsd config chain-id ${{ inputs.chain_id }}
-
         # Import deployer key
         echo "${{ inputs.mnemonic }}" | \
           starsd keys add deployer \
