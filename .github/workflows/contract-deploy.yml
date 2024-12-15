@@ -135,10 +135,17 @@ jobs:
             --output json \
             --chain-id ${{ inputs.chain_id }} \
             --node ${{ inputs.node }} \
-            -y)
+            -y --broadcast-mode block)
           
           echo "Debug: Store transaction"
           echo "$STORE_TX" | jq '.'
+          
+          # Check for errors
+          if [ "$(echo "$STORE_TX" | jq -r '.code // 0')" != "0" ]; then
+            echo "Error in store transaction:"
+            echo "$STORE_TX" | jq -r '.raw_log'
+            exit 1
+          fi
           
           # Extract code ID from store transaction
           CODE_ID=$(echo "$STORE_TX" | jq -r '.logs[0].events[] | select(.type=="store_code") | .attributes[] | select(.key=="code_id") | .value')
@@ -155,7 +162,7 @@ jobs:
             --output json \
             --chain-id ${{ inputs.chain_id }} \
             --node ${{ inputs.node }} \
-            -y)
+            -y --broadcast-mode block)
           
           # Extract contract address from instantiate transaction
           echo "Debug: Instantiate transaction"
