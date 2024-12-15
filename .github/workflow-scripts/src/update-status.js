@@ -15,20 +15,24 @@ async function updateGistFiles(planResults) {
     const job = planResults.jobs[jobName];
     const filename = job.filename;
     if (job.result === 'success') {
+      const cleanJob = {
+        name: jobName,
+        component: job.component,
+        filename: job.filename,
+        result: job.result,
+        data: job.data || {}
+      };
+
       files[filename] = {
         content: JSON.stringify({
           timestamp: new Date().toISOString(),
           ...planResults.metadata,
-          job: {
-            name: jobName,
-            ...job
-          }
+          job: cleanJob
         }, null, 2)
       };
     }
   }
 
-  // Update gist with all files
   await octokit.rest.gists.update({
     gist_id: gistId,
     files
