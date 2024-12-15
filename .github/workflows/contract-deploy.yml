@@ -135,20 +135,28 @@ jobs:
             --output json \
             --chain-id ${{ inputs.chain_id }} \
             --node ${{ inputs.node }} \
-            -y --broadcast-mode block)
+            -y --broadcast-mode sync)
           
           echo "Debug: Store transaction"
           echo "$STORE_TX" | jq '.'
           
+          # Wait for transaction to be included
+          TXHASH=$(echo "$STORE_TX" | jq -r '.txhash')
+          echo "Waiting for transaction $TXHASH..."
+          sleep 5
+          
+          # Query transaction result
+          TX_RESULT=$(starsd query tx $TXHASH --output json --node ${{ inputs.node }})
+          
           # Check for errors
-          if [ "$(echo "$STORE_TX" | jq -r '.code // 0')" != "0" ]; then
+          if [ "$(echo "$TX_RESULT" | jq -r '.code // 0')" != "0" ]; then
             echo "Error in store transaction:"
-            echo "$STORE_TX" | jq -r '.raw_log'
+            echo "$TX_RESULT" | jq -r '.raw_log'
             exit 1
           fi
           
-          # Extract code ID from store transaction
-          CODE_ID=$(echo "$STORE_TX" | jq -r '.logs[0].events[] | select(.type=="store_code") | .attributes[] | select(.key=="code_id") | .value')
+          # Extract code ID from transaction result
+          CODE_ID=$(echo "$TX_RESULT" | jq -r '.logs[0].events[] | select(.type=="store_code") | .attributes[] | select(.key=="code_id") | .value')
           echo "Contract stored with code ID: $CODE_ID"
           
           echo "Instantiating contract..."
@@ -162,12 +170,21 @@ jobs:
             --output json \
             --chain-id ${{ inputs.chain_id }} \
             --node ${{ inputs.node }} \
-            -y --broadcast-mode block)
+            -y --broadcast-mode sync)
           
-          # Extract contract address from instantiate transaction
           echo "Debug: Instantiate transaction"
           echo "$INIT_TX" | jq '.'
-          CONTRACT_ADDR=$(echo "$INIT_TX" | jq -r '.logs[0].events[] | select(.type=="instantiate") | .attributes[] | select(.key=="_contract_address") | .value')
+
+          # Wait for instantiate transaction
+          TXHASH=$(echo "$INIT_TX" | jq -r '.txhash')
+          echo "Waiting for transaction $TXHASH..."
+          sleep 5
+          
+          # Query instantiate result
+          TX_RESULT=$(starsd query tx $TXHASH --output json --node ${{ inputs.node }})
+          
+          # Extract contract address
+          CONTRACT_ADDR=$(echo "$TX_RESULT" | jq -r '.logs[0].events[] | select(.type=="instantiate") | .attributes[] | select(.key=="_contract_address") | .value')
           echo "Contract instantiated at address: $CONTRACT_ADDR"
           
           # Set output data
