@@ -132,6 +132,9 @@ jobs:
             --output json \
             -y)
           
+          echo "Debug: Store transaction"
+          echo "$STORE_TX" | jq '.'
+          
           # Extract code ID from store transaction
           CODE_ID=$(echo "$STORE_TX" | jq -r '.logs[0].events[] | select(.type=="store_code") | .attributes[] | select(.key=="code_id") | .value')
           echo "Contract stored with code ID: $CODE_ID"
