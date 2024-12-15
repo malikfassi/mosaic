@@ -129,6 +129,9 @@ jobs:
           STORE_TX=$(starsd tx wasm store "$WASM_FILE" \
             --from deployer \
             --keyring-backend test \
+            --gas-prices 0.025ustars \
+            --gas auto \
+            --gas-adjustment 1.3 \
             --output json \
             -y)
           
@@ -143,6 +146,9 @@ jobs:
           INIT_TX=$(starsd tx wasm instantiate "$CODE_ID" '{}' \
             --from deployer \
             --keyring-backend test \
+            --gas-prices 0.025ustars \
+            --gas auto \
+            --gas-adjustment 1.3 \
             --label "${{ inputs.contract_name }}" \
             --output json \
             -y)
