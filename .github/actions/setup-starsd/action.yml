@@ -33,26 +33,38 @@ runs:
         repository: public-awesome/stargaze
         ref: ${{ inputs.branch }}
         path: stargaze
+        fetch-depth: 0
 
     - uses: actions/setup-go@v4
       with:
         go-version: '1.22'
         cache-dependency-path: stargaze/go.sum
 
-    # Cache starsd binary
+    # Cache starsd binary and Go modules
     - uses: actions/cache@v3
       id: starsd-cache
       with:
-        path: ~/go/bin/starsd
-        key: ${{ runner.os }}-starsd-bin-${{ inputs.branch }}
-        restore-keys: |
-          ${{ runner.os }}-starsd-bin-
+        path: |
+          ~/go/bin/starsd
+          ~/go/pkg/mod
+        key: ${{ runner.os }}-starsd-${{ hashFiles('stargaze/go.sum', 'stargaze/go.mod') }}
 
     - name: Build starsd
       if: steps.starsd-cache.outputs.cache-hit != 'true'
       shell: bash
       working-directory: stargaze
+      env:
+        GOBIN: ~/go/bin
+        GO111MODULE: on
+        LEDGER_ENABLED: true
+        VERSION: ${{ inputs.branch }}
       run: |
+        # Ensure GOBIN is in PATH
+        export PATH=$GOBIN:$PATH
+        
+        # Initialize git repo properly
+        git config --global --add safe.directory $(pwd)
+        
         make install
 
     - name: Configure starsd
