@@ -14,7 +14,7 @@ on:
       node:
         required: false
         type: string
-        default: "http://localhost:26657"
+        default: "https://rpc.elgafar-1.stargaze-apis.com:443"
         description: "RPC endpoint"
       chain_id:
         required: false
