@@ -80,11 +80,14 @@ async function getGistFiles(gistId, token) {
 
 function getPreviousRun(gistFiles, filename) {
   const gistFile = gistFiles[filename];
-  let previousRun = null;
-  if (gistFile) {
-    previousRun = tryParseJson(gistFile.content);
+  if (!gistFile) return null;
+  
+  try {
+    return tryParseJson(gistFile.content);
+  } catch (error) {
+    console.warn(`Warning: Could not parse previous run from ${filename}:`, error);
+    return null;
   }
-  return previousRun;
 }
 
 function generate_hashes() {
@@ -109,22 +112,28 @@ async function generateExecutionPlan() {
   const component_hashes = generate_hashes();
   console.log("Component hashes:", component_hashes);
 
-  // Calculate component hashes first
+  // Calculate component hashes and check for previous successful runs
   console.log("JOBS:", JOBS);
   Object.entries(JOBS).forEach(([jobName, job]) => {
     console.log("Job name:", jobName);
     console.log("Job component name:", job.component.name);
     console.log("Component hash:", component_hashes[job.component.name]);
+    
+    // Update job with component hash
     JOBS[jobName].component = {
       name: job.component.name,
       hash: component_hashes[job.component.name],
     };
-    JOBS[jobName].filename = `${jobName}.${component_hashes[job.component.name]}.json`;
+    
+    // Set filename for this job's results
+    const filename = `${jobName}.${component_hashes[job.component.name]}.json`;
+    JOBS[jobName].filename = filename;
 
-    JOBS[jobName].previous_run = getPreviousRun(gistFiles, job.filename);
+    // Check for previous successful run with same component hash
+    JOBS[jobName].previous_run = getPreviousRun(gistFiles, filename);
   });
 
-  // Generate plan
+  // Generate execution plan
   const plan = {
     jobs: JOBS,
     metadata: {
