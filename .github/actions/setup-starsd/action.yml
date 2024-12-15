@@ -57,13 +57,14 @@ runs:
 
     - name: Configure starsd
       shell: bash
+      if: always()
       run: |
         # Configure chain settings
-        starsd config node ${{ inputs.node }}
-        starsd config chain-id ${{ inputs.chain_id }}
-        starsd config keyring-backend test
-        starsd config gas-prices ${{ inputs.gas_prices }}
-        starsd config gas-adjustment ${{ inputs.gas_adjustment }}
+        starsd config set node ${{ inputs.node }}
+        starsd config set chain-id ${{ inputs.chain_id }}
+        starsd config set keyring-backend test
+        starsd config set gas-prices ${{ inputs.gas_prices }}
+        starsd config set gas-adjustment ${{ inputs.gas_adjustment }}
 
         # Import deployer key
         echo "${{ inputs.mnemonic }}" | \
