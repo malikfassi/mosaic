@@ -124,8 +124,8 @@ jobs:
       contract_name: mosaic_vending_minter
       execution_plan: ${{ needs.generate_execution_plan.outputs.execution_plan }}
     secrets:
-      DEPLOYMENT_WALLET_MNEMONIC: ${{ secrets.DEPLOYMENT_WALLET_ADDRESS }}
-
+      DEPLOYMENT_WALLET_MNEMONIC: ${{ secrets.DEPLOYMENT_WALLET_MNEMONIC }}
+      DEPLOYMENT_WALLET_ADDRESS: ${{ secrets.DEPLOYMENT_WALLET_ADDRESS }}
   # E2E Tests
 
   mosaic_tile_nft_e2e:
