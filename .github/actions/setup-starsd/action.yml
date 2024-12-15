@@ -60,11 +60,11 @@ runs:
       if: always()
       run: |
         # Configure chain settings
-        starsd config set node ${{ inputs.node }}
-        starsd config set chain-id ${{ inputs.chain_id }}
-        starsd config set keyring-backend test
-        starsd config set gas-prices ${{ inputs.gas_prices }}
-        starsd config set gas-adjustment ${{ inputs.gas_adjustment }}
+        starsd config set client node ${{ inputs.node }}
+        starsd config set client chain-id ${{ inputs.chain_id }}
+        starsd config set client keyring-backend test
+        starsd config set client gas-prices ${{ inputs.gas_prices }}
+        starsd config set client gas-adjustment ${{ inputs.gas_adjustment }}
 
         # Import deployer key
         echo "${{ inputs.mnemonic }}" | \
