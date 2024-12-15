@@ -53,7 +53,7 @@ jobs:
         if: steps.check.outputs.result != 'skipped'
         uses: ./.github/actions/setup-starsd
         with:
-          branch: main
+          branch: v14.0.0
           mnemonic: ${{ secrets.DEPLOYMENT_WALLET_MNEMONIC }}
           node: ${{ inputs.node }}
           chain_id: ${{ inputs.chain_id }}
