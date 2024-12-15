@@ -38,25 +38,19 @@ runs:
       with:
         go-version: '1.22'
 
-    # Cache only the starsd binary
+    # Cache starsd binary
     - uses: actions/cache@v3
       id: starsd-cache
       with:
-        path: ~/.local/bin/starsd
-        key: ${{ runner.os }}-starsd-${{ hashFiles('stargaze/go.mod', 'stargaze/go.sum') }}
+        path: ~/go/bin/starsd
+        key: ${{ runner.os }}-starsd-bin-${{ inputs.branch }}
 
     - name: Build starsd
       if: steps.starsd-cache.outputs.cache-hit != 'true'
       shell: bash
       working-directory: stargaze
       run: |
-        mkdir -p ~/.local/bin
         make install
-        cp $(which starsd) ~/.local/bin/
-
-    - name: Add starsd to PATH
-      shell: bash
-      run: echo "~/.local/bin" >> $GITHUB_PATH
 
     - name: Configure starsd
       shell: bash
