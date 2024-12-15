@@ -37,19 +37,13 @@ runs:
       id: starsd-cache
       with:
         path: ~/go/bin/starsd
-        key: ${{ runner.os }}-starsd-${{ hashFiles('stargaze/go.sum', 'stargaze/go.mod') }}
+        key: ${{ runner.os }}-starsd-${{ inputs.branch }}
 
     - name: Build starsd
       if: steps.starsd-cache.outputs.cache-hit != 'true'
       shell: bash
       working-directory: stargaze
-      env:
-        GO111MODULE: on
-        LEDGER_ENABLED: true
-        VERSION: ${{ inputs.branch }}
-      run: |
-        git config --global --add safe.directory $(pwd)
-        make install
+      run: make install
 
     - name: Configure starsd
       shell: bash
