@@ -37,6 +37,7 @@ runs:
     - uses: actions/setup-go@v4
       with:
         go-version: '1.22'
+        cache-dependency-path: stargaze/go.sum
 
     # Cache starsd binary
     - uses: actions/cache@v3
@@ -44,6 +45,8 @@ runs:
       with:
         path: ~/go/bin/starsd
         key: ${{ runner.os }}-starsd-bin-${{ inputs.branch }}
+        restore-keys: |
+          ${{ runner.os }}-starsd-bin-
 
     - name: Build starsd
       if: steps.starsd-cache.outputs.cache-hit != 'true'

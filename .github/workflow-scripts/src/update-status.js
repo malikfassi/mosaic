@@ -15,20 +15,27 @@ async function updateGistFiles(planResults) {
     const job = planResults.jobs[jobName];
     const filename = job.filename;
     if (job.result === 'success') {
-      const cleanJob = {
-        name: jobName,
-        component: job.component,
-        filename: job.filename,
-        result: job.result,
-        data: job.data || {}
+      const jobRecord = {
+        timestamp: new Date().toISOString(),
+        run_id: planResults.metadata.run_id,
+        run_number: planResults.metadata.run_number,
+        commit_sha: planResults.metadata.commit_sha,
+        workflow_id: planResults.metadata.workflow_id,
+        branch: planResults.metadata.branch,
+        repository: planResults.metadata.repository,
+        job: {
+          name: jobName,
+          component: {
+            name: job.component.name,
+            hash: job.component.hash
+          },
+          result: job.result,
+          data: job.data || {}
+        }
       };
 
       files[filename] = {
-        content: JSON.stringify({
-          timestamp: new Date().toISOString(),
-          ...planResults.metadata,
-          job: cleanJob
-        }, null, 2)
+        content: JSON.stringify(jobRecord, null, 2)
       };
     }
   }
