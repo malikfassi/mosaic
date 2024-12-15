@@ -7,8 +7,8 @@ function formatJobStatus(jobName, jobInfo) {
   let message = `${emoji} ${jobName}: ${result}`;
   
   if (result === 'skipped' && previous_run) {
-    const prevRunUrl = `https://github.com/${previous_run.repository}/actions/runs/${previous_run.run_id}`;
-    message += `\n    ↳ Using results from [previous successful run](${prevRunUrl}) (${previous_run.commit_sha.substring(0, 7)})`;
+    const prevRunUrl = `<https://github.com/${previous_run.repository}/actions/runs/${previous_run.run_id}>`;
+    message += `\n    ↳ Using results from [previous successful run]${prevRunUrl} (${previous_run.commit_sha.substring(0, 7)})`;
   }
   
   return message;
@@ -36,14 +36,15 @@ function generateDiscordMessage(planResults) {
   const sections = [];
 
   // Header with metadata
-  const repoUrl = `https://github.com/${metadata.repository}`;
-  const runUrl = `${repoUrl}/actions/runs/${metadata.run_id}`;
-  const commitUrl = `${repoUrl}/commit/${metadata.commit_sha}`;
+  const repoUrl = `<https://github.com/${metadata.repository}>`;
+  const runUrl = `<${repoUrl}/actions/runs/${metadata.run_id}>`;
+  const commitUrl = `<${repoUrl}/commit/${metadata.commit_sha}>`;
+  const branchUrl = `<${repoUrl}/tree/${metadata.branch}>`;
 
-  sections.push(`**Workflow Run: ${metadata.workflow_id} [#${metadata.run_number}](${runUrl})**`);
-  sections.push(`Repository: [${metadata.repository}](${repoUrl})`);
-  sections.push(`Branch: [\`${metadata.branch}\`](${repoUrl}/tree/${metadata.branch})`);
-  sections.push(`Commit: [\`${metadata.commit_sha.substring(0, 7)}\`](${commitUrl})`);
+  sections.push(`**Workflow Run: ${metadata.workflow_id} [#${metadata.run_number}]${runUrl}**`);
+  sections.push(`Repository: [${metadata.repository}]${repoUrl}`);
+  sections.push(`Branch: [\`${metadata.branch}\`]${branchUrl}`);
+  sections.push(`Commit: [\`${metadata.commit_sha.substring(0, 7)}\`]${commitUrl}`);
   sections.push('');
 
   // Frontend section
