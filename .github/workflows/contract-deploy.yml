@@ -80,11 +80,14 @@ jobs:
           if [ "${{ steps.check.outputs.result }}" == "skipped" ]; then
             echo "Debug: Using previous run ID"
             COMPILE_RUN_ID=$(echo "$EXECUTION_PLAN_JSON" | jq -r --arg job "$JOB_NAME" '.jobs[$job].previous_run.run_id')
+            COMPILE_BRANCH=$(echo "$EXECUTION_PLAN_JSON" | jq -r --arg job "$JOB_NAME" '.jobs[$job].previous_run.branch')
           else
             echo "Debug: Using current run ID"
-            COMPILE_RUN_ID=$(echo "$EXECUTION_PLAN_JSON" | jq -r --arg job "$JOB_NAME" '.metadata.run_id')
+            COMPILE_RUN_ID=$(echo "$EXECUTION_PLAN_JSON" | jq -r '.metadata.run_id')
+            COMPILE_BRANCH=$(echo "$EXECUTION_PLAN_JSON" | jq -r '.metadata.branch')
           fi
           echo "Debug: Compile run ID: $COMPILE_RUN_ID"
+          echo "Debug: Branch: $COMPILE_BRANCH"
           
           # Get repository
           REPO=$(echo "$EXECUTION_PLAN_JSON" | jq -r '.metadata.repository')
@@ -94,10 +97,11 @@ jobs:
           echo "name=${COMPONENT_HASH}-wasm" >> $GITHUB_OUTPUT
           echo "run_id=$COMPILE_RUN_ID" >> $GITHUB_OUTPUT
           echo "repo=$REPO" >> $GITHUB_OUTPUT
+          echo "branch=$COMPILE_BRANCH" >> $GITHUB_OUTPUT
 
       - name: Download WASM artifact
         if: steps.check.outputs.result != 'skipped'
-        uses: dawidd6/action-download-artifact@v2
+        uses: dawidd6/action-download-artifact@v7
         with:
           name: ${{ steps.set-name.outputs.name }}
           path: contracts/${{ inputs.contract_name }}/artifacts
@@ -105,7 +109,11 @@ jobs:
           workflow_conclusion: success
           run_id: ${{ steps.set-name.outputs.run_id }}
           repo: ${{ steps.set-name.outputs.repo }}
+          branch: ${{ steps.set-name.outputs.branch }}
           github_token: ${{ github.token }}
+          if_no_artifact_found: fail
+          search_artifacts: true
+          check_artifacts: true
 
       - name: Deploy contract
         id: deploy
