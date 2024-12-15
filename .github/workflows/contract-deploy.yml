@@ -145,6 +145,8 @@ jobs:
             -y)
           
           # Extract contract address from instantiate transaction
+          echo "Debug: Instantiate transaction"
+          echo "$INIT_TX" | jq '.'
           CONTRACT_ADDR=$(echo "$INIT_TX" | jq -r '.logs[0].events[] | select(.type=="instantiate") | .attributes[] | select(.key=="_contract_address") | .value')
           echo "Contract instantiated at address: $CONTRACT_ADDR"
           
