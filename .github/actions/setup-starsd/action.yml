@@ -49,8 +49,8 @@ runs:
       if: always()
       run: |
         # Configure chain settings
-        starsd config set client node ${{ inputs.node }}
-        starsd config set client chain-id ${{ inputs.chain_id }}
+        starsd config node ${{ inputs.node }}
+        starsd config chain-id ${{ inputs.chain_id }}
 
         # Import deployer key
         echo "${{ inputs.mnemonic }}" | \
