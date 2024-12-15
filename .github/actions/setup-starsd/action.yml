@@ -1,41 +1,53 @@
-name: 'Setup Starsd'
-description: 'Sets up Starsd environment with caching for Go dependencies'
+name: 'Setup starsd'
+description: 'Sets up starsd binary'
 
 inputs:
   branch:
-    description: 'Branch of Stargaze repository to build from'
-    required: false
-    default: 'main'
+    description: 'Branch to build from'
+    required: true
   mnemonic:
-    description: 'Mnemonic for the deployment wallet'
+    description: 'Mnemonic for the deployer account'
     required: true
 
 runs:
   using: "composite"
   steps:
-    - name: Clone Stargaze Repository
-      uses: actions/checkout@v3
+    - uses: actions/checkout@v3
       with:
         repository: public-awesome/stargaze
         ref: ${{ inputs.branch }}
         path: stargaze
 
-    - name: Set up Go
-      uses: actions/setup-go@v4
+    - uses: dtolnay/rust-toolchain@stable
       with:
-        go-version: '1.22'
-        cache: true
-        cache-dependency-path: stargaze/go.sum
+        toolchain: stable
+
+    - uses: actions/cache@v3
+      id: cache-starsd
+      with:
+        path: |
+          stargaze/target
+          ~/.cargo/bin/starsd
+        key: ${{ runner.os }}-starsd-${{ inputs.branch }}-${{ hashFiles('stargaze/go.sum') }}
+        restore-keys: |
+          ${{ runner.os }}-starsd-${{ inputs.branch }}-
+          ${{ runner.os }}-starsd-
 
     - name: Build starsd
+      if: steps.cache-starsd.outputs.cache-hit != 'true'
       shell: bash
       working-directory: stargaze
       run: |
-        make install
-        echo "PATH=$PATH:$HOME/go/bin" >> $GITHUB_ENV
+        make build
+        mkdir -p ~/.cargo/bin
+        cp build/starsd ~/.cargo/bin/
 
-    - name: Setup wallet
+    - name: Setup deployer account
       shell: bash
       run: |
-        # Import the wallet
+        starsd config chain-id localnet
+        starsd config keyring-backend test
+        starsd config node http://localhost:26657
+        
+        # Import deployer key
         echo "${{ inputs.mnemonic }}" | starsd keys add deployer --recover --keyring-backend test
