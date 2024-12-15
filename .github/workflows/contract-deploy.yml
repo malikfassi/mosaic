@@ -146,7 +146,7 @@ jobs:
           sleep 5
           
           # Query transaction result
-          TX_RESULT=$(starsd query tx $TXHASH --output json --node ${{ inputs.node }}) --chain-id ${{ inputs.chain_id }}
+          TX_RESULT=$(starsd query tx $TXHASH --output json --node ${{ inputs.node }} --chain-id ${{ inputs.chain_id }})
           
           # Check for errors
           if [ "$(echo "$TX_RESULT" | jq -r '.code // 0')" != "0" ]; then
@@ -181,7 +181,7 @@ jobs:
           sleep 5
           
           # Query instantiate result
-          TX_RESULT=$(starsd query tx $TXHASH --output json --node ${{ inputs.node }}) --chain-id ${{ inputs.chain_id }}
+          TX_RESULT=$(starsd query tx $TXHASH --output json --node ${{ inputs.node }} --chain-id ${{ inputs.chain_id }})
           
           # Extract contract address
           CONTRACT_ADDR=$(echo "$TX_RESULT" | jq -r '.logs[0].events[] | select(.type=="instantiate") | .attributes[] | select(.key=="_contract_address") | .value')
