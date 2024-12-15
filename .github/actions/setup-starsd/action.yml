@@ -18,17 +18,20 @@ runs:
         ref: ${{ inputs.branch }}
         path: stargaze
 
-    - uses: dtolnay/rust-toolchain@stable
+    - uses: actions/setup-go@v4
       with:
-        toolchain: stable
+        go-version: '1.22'
+        cache-dependency-path: stargaze/go.sum
 
     - uses: actions/cache@v3
       id: cache-starsd
       with:
         path: |
-          stargaze/target
-          ~/.cargo/bin/starsd
-        key: ${{ runner.os }}-starsd-${{ inputs.branch }}-${{ hashFiles('stargaze/go.sum') }}
+          ~/.local/bin/starsd
+          ~/go/pkg/mod
+        key: >-
+          ${{ runner.os }}-starsd-${{ inputs.branch }}-
+          ${{ hashFiles('stargaze/go.sum') }}
         restore-keys: |
           ${{ runner.os }}-starsd-${{ inputs.branch }}-
           ${{ runner.os }}-starsd-
@@ -38,9 +41,13 @@ runs:
       shell: bash
       working-directory: stargaze
       run: |
-        make build
-        mkdir -p ~/.cargo/bin
-        cp build/starsd ~/.cargo/bin/
+        mkdir -p ~/.local/bin
+        make install
+        cp $(which starsd) ~/.local/bin/
+
+    - name: Add starsd to PATH
+      shell: bash
+      run: echo "~/.local/bin" >> $GITHUB_PATH
 
     - name: Setup deployer account
       shell: bash
@@ -50,4 +57,7 @@ runs:
         starsd config node http://localhost:26657
         
         # Import deployer key
-        echo "${{ inputs.mnemonic }}" | starsd keys add deployer --recover --keyring-backend test
+        echo "${{ inputs.mnemonic }}" | \
+          starsd keys add deployer \
+          --recover \
+          --keyring-backend test
