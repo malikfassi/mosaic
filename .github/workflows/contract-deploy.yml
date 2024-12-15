@@ -65,21 +65,32 @@ jobs:
           # Parse the JSON into a variable
           EXECUTION_PLAN_JSON='${{ inputs.execution_plan }}'
           JOB_NAME="${{ inputs.contract_name }}_compile"
-  
-          # Use jq to extract the required value
-          COMPONENT_HASH=$(echo "$EXECUTION_PLAN_JSON" | jq -r --arg job "$JOB_NAME" '.jobs[$job].component.hash')
           
-          # if compile skipped, use previous run id else use run id from compile job
+          echo "Debug: Execution Plan"
+          echo "$EXECUTION_PLAN_JSON" | jq '.'
+          
+          echo "Debug: Looking for compile job $JOB_NAME"
+          echo "$EXECUTION_PLAN_JSON" | jq --arg job "$JOB_NAME" '.jobs[$job]'
+          
+          # Get component hash
+          COMPONENT_HASH=$(echo "$EXECUTION_PLAN_JSON" | jq -r --arg job "$JOB_NAME" '.jobs[$job].component.hash')
+          echo "Debug: Component hash: $COMPONENT_HASH"
+          
+          # Get run ID based on previous run status
           if [ "${{ steps.check.outputs.result }}" == "skipped" ]; then
+            echo "Debug: Using previous run ID"
             COMPILE_RUN_ID=$(echo "$EXECUTION_PLAN_JSON" | jq -r --arg job "$JOB_NAME" '.jobs[$job].previous_run.run_id')
           else
-            COMPILE_RUN_ID=$(echo "$EXECUTION_PLAN_JSON" | jq -r --arg job "$JOB_NAME" '.jobs[$job].run_id')
+            echo "Debug: Using current run ID"
+            COMPILE_RUN_ID=$(echo "$EXECUTION_PLAN_JSON" | jq -r --arg job "$JOB_NAME" '.metadata.run_id')
           fi
+          echo "Debug: Compile run ID: $COMPILE_RUN_ID"
           
-          # Get repository from metadata
+          # Get repository
           REPO=$(echo "$EXECUTION_PLAN_JSON" | jq -r '.metadata.repository')
+          echo "Debug: Repository: $REPO"
 
-          # Export the values for use in subsequent steps
+          # Export values
           echo "name=${COMPONENT_HASH}-wasm" >> $GITHUB_OUTPUT
           echo "run_id=$COMPILE_RUN_ID" >> $GITHUB_OUTPUT
           echo "repo=$REPO" >> $GITHUB_OUTPUT
@@ -94,6 +105,7 @@ jobs:
           workflow_conclusion: success
           run_id: ${{ steps.set-name.outputs.run_id }}
           repo: ${{ steps.set-name.outputs.repo }}
+          github_token: ${{ github.token }}
 
       - name: Deploy contract
         id: deploy
