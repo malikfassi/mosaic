@@ -19,7 +19,7 @@ on:
       chain_id:
         required: false
         type: string
-        default: "localnet"
+        default: "elgafar-1"
         description: "Chain ID"
     secrets:
       DEPLOYMENT_WALLET_MNEMONIC:
@@ -133,6 +133,8 @@ jobs:
             --gas auto \
             --gas-adjustment 1.3 \
             --output json \
+            --chain-id ${{ inputs.chain_id }} \
+            --node ${{ inputs.node }} \
             -y)
           
           echo "Debug: Store transaction"
@@ -151,6 +153,8 @@ jobs:
             --gas-adjustment 1.3 \
             --label "${{ inputs.contract_name }}" \
             --output json \
+            --chain-id ${{ inputs.chain_id }} \
+            --node ${{ inputs.node }} \
             -y)
           
           # Extract contract address from instantiate transaction
