@@ -25,7 +25,6 @@ runs:
         repository: public-awesome/stargaze
         ref: ${{ inputs.branch }}
         path: stargaze
-        fetch-depth: 0
 
     - uses: actions/setup-go@v4
       with:
