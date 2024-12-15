@@ -44,6 +44,7 @@ jobs:
 
       - name: Parse JSON and set the wasm name
         id: set-name
+        if: steps.check.outputs.result != 'skipped'
         run: |
           # Parse the JSON into a variable
           EXECUTION_PLAN_JSON='${{ inputs.execution_plan }}'
@@ -56,6 +57,7 @@ jobs:
           echo "name=${COMPONENT_HASH}-wasm" >> $GITHUB_OUTPUT
 
       - name: Compile contract
+        if: steps.check.outputs.result != 'skipped'
         id: compile
         working-directory: contracts
         run: |
@@ -65,6 +67,7 @@ jobs:
           echo "wasm_path=${{ inputs.contract_name }}/artifacts/${{ inputs.contract_name }}.wasm" >> $GITHUB_OUTPUT
 
       - name: Upload WASM artifact
+        if: steps.check.outputs.result != 'skipped'
         uses: actions/upload-artifact@v4
         with:
           name: ${{ steps.set-name.outputs.name }}
