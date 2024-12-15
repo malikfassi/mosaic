@@ -109,7 +109,6 @@ jobs:
           workflow_conclusion: success
           run_id: ${{ steps.set-name.outputs.run_id }}
           repo: ${{ steps.set-name.outputs.repo }}
-          branch: ${{ steps.set-name.outputs.branch }}
           github_token: ${{ github.token }}
           if_no_artifact_found: fail
           search_artifacts: true
