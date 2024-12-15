@@ -11,6 +11,16 @@ on:
         required: true
         type: string
         description: "JSON string containing the execution plan"
+      node:
+        required: false
+        type: string
+        default: "http://localhost:26657"
+        description: "RPC endpoint"
+      chain_id:
+        required: false
+        type: string
+        default: "localnet"
+        description: "Chain ID"
     secrets:
       DEPLOYMENT_WALLET_MNEMONIC:
         required: true
@@ -45,6 +55,8 @@ jobs:
         with:
           branch: main
           mnemonic: ${{ secrets.DEPLOYMENT_WALLET_MNEMONIC }}
+          node: ${{ inputs.node }}
+          chain_id: ${{ inputs.chain_id }}
 
       - name: Parse JSON and set wasm name
         id: set-name
@@ -95,8 +107,30 @@ jobs:
             exit 1
           fi
           
-          CODE_ID=$(starsd tx wasm store $WASM_FILE --from deployer --keyring-backend test -y | jq -r '.logs[0].events[1].attributes[0].value')
-          CONTRACT_ADDR=$(starsd tx wasm instantiate $CODE_ID '{}' --from deployer --keyring-backend test --label "${{ inputs.contract_name }}" -y | jq -r '.logs[0].events[0].attributes[0].value')
+          echo "Storing contract..."
+          STORE_TX=$(starsd tx wasm store "$WASM_FILE" \
+            --from deployer \
+            --keyring-backend test \
+            --output json \
+            -y)
+          
+          # Extract code ID from store transaction
+          CODE_ID=$(echo "$STORE_TX" | jq -r '.logs[0].events[] | select(.type=="store_code") | .attributes[] | select(.key=="code_id") | .value')
+          echo "Contract stored with code ID: $CODE_ID"
+          
+          echo "Instantiating contract..."
+          INIT_TX=$(starsd tx wasm instantiate "$CODE_ID" '{}' \
+            --from deployer \
+            --keyring-backend test \
+            --label "${{ inputs.contract_name }}" \
+            --output json \
+            -y)
+          
+          # Extract contract address from instantiate transaction
+          CONTRACT_ADDR=$(echo "$INIT_TX" | jq -r '.logs[0].events[] | select(.type=="instantiate") | .attributes[] | select(.key=="_contract_address") | .value')
+          echo "Contract instantiated at address: $CONTRACT_ADDR"
+          
+          # Set output data
           echo "data={\"code_id\": \"$CODE_ID\", \"contract_address\": \"$CONTRACT_ADDR\"}" >> $GITHUB_OUTPUT
 
       - name: Set result

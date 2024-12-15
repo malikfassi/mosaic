@@ -8,6 +8,22 @@ inputs:
   mnemonic:
     description: 'Mnemonic for the deployer account'
     required: true
+  node:
+    description: 'RPC endpoint'
+    required: false
+    default: 'http://localhost:26657'
+  chain_id:
+    description: 'Chain ID'
+    required: false
+    default: 'localnet'
+  gas_prices:
+    description: 'Gas prices'
+    required: false
+    default: '0.025ustars'
+  gas_adjustment:
+    description: 'Gas adjustment'
+    required: false
+    default: '1.7'
 
 runs:
   using: "composite"
@@ -21,23 +37,16 @@ runs:
     - uses: actions/setup-go@v4
       with:
         go-version: '1.22'
-        cache-dependency-path: stargaze/go.sum
 
+    # Cache only the starsd binary
     - uses: actions/cache@v3
-      id: cache-starsd
+      id: starsd-cache
       with:
-        path: |
-          ~/.local/bin/starsd
-          ~/go/pkg/mod
-        key: >-
-          ${{ runner.os }}-starsd-${{ inputs.branch }}-
-          ${{ hashFiles('stargaze/go.sum') }}
-        restore-keys: |
-          ${{ runner.os }}-starsd-${{ inputs.branch }}-
-          ${{ runner.os }}-starsd-
+        path: ~/.local/bin/starsd
+        key: ${{ runner.os }}-starsd-${{ hashFiles('stargaze/go.mod', 'stargaze/go.sum') }}
 
     - name: Build starsd
-      if: steps.cache-starsd.outputs.cache-hit != 'true'
+      if: steps.starsd-cache.outputs.cache-hit != 'true'
       shell: bash
       working-directory: stargaze
       run: |
@@ -49,13 +58,16 @@ runs:
       shell: bash
       run: echo "~/.local/bin" >> $GITHUB_PATH
 
-    - name: Setup deployer account
+    - name: Configure starsd
       shell: bash
       run: |
-        starsd config chain-id localnet
+        # Configure chain settings
+        starsd config node ${{ inputs.node }}
+        starsd config chain-id ${{ inputs.chain_id }}
         starsd config keyring-backend test
-        starsd config node http://localhost:26657
-        
+        starsd config gas-prices ${{ inputs.gas_prices }}
+        starsd config gas-adjustment ${{ inputs.gas_adjustment }}
+
         # Import deployer key
         echo "${{ inputs.mnemonic }}" | \
           starsd keys add deployer \
