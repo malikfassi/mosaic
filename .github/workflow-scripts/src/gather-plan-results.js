@@ -10,7 +10,8 @@ function getJobResults() {
 
   jobNames.forEach((jobName) => {
     console.log('jobName', jobName);
-    console.log('env', process.env[`${jobName.toUpperCase()}_RESULT`]);
+    console.log('result value in env', process.env[`${jobName.toUpperCase()}_RESULT`]);
+    console.log('outputs value in env', process.env[`${jobName.toUpperCase()}_OUTPUTS`]);
     console.log('key', `${jobName.toUpperCase()}_RESULT`);
     executionPlan.jobs[jobName].result = process.env[`${jobName.toUpperCase()}_RESULT`];
     executionPlan.jobs[jobName].data = tryParseJson(process.env[`${jobName.toUpperCase()}_OUTPUTS`]);
