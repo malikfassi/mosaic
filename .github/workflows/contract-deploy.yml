@@ -110,7 +110,6 @@ jobs:
           run_id: ${{ steps.set-name.outputs.run_id }}
           repo: ${{ steps.set-name.outputs.repo }}
           github_token: ${{ github.token }}
-          if_no_artifact_found: fail
           search_artifacts: true
           check_artifacts: true
 
