@@ -78,7 +78,7 @@ jobs:
         with:
           name: ${{ steps.set-name.outputs.name }}
           path: contracts/${{ inputs.contract_name }}/artifacts
-          workflow: mosaic.yml
+          workflow: contract-compile.yml
           workflow_conclusion: success
           run_id: ${{ steps.set-name.outputs.run_id }}
           repo: ${{ steps.set-name.outputs.repo }}
