@@ -11,19 +11,11 @@ inputs:
   node:
     description: 'RPC endpoint'
     required: false
-    default: 'http://localhost:26657'
+    default: 'https://rpc.elgafar-1.stargaze-apis.com:443'
   chain_id:
     description: 'Chain ID'
     required: false
-    default: 'localnet'
-  gas_prices:
-    description: 'Gas prices'
-    required: false
-    default: '0.025ustars'
-  gas_adjustment:
-    description: 'Gas adjustment'
-    required: false
-    default: '1.7'
+    default: 'elgafar-1'
 
 runs:
   using: "composite"
@@ -40,13 +32,11 @@ runs:
         go-version: '1.22'
         cache-dependency-path: stargaze/go.sum
 
-    # Cache starsd binary and Go modules
+    # Cache starsd binary
     - uses: actions/cache@v3
       id: starsd-cache
       with:
-        path: |
-          ~/go/bin/starsd
-          ~/go/pkg/mod
+        path: ~/go/bin/starsd
         key: ${{ runner.os }}-starsd-${{ hashFiles('stargaze/go.sum', 'stargaze/go.mod') }}
 
     - name: Build starsd
@@ -54,34 +44,25 @@ runs:
       shell: bash
       working-directory: stargaze
       env:
-        GOBIN: /home/runner/go/bin
         GO111MODULE: on
         LEDGER_ENABLED: true
         VERSION: ${{ inputs.branch }}
       run: |
-        # Initialize git repo properly
         git config --global --add safe.directory $(pwd)
         make install
-
-    - name: Add to PATH
-      shell: bash
-      run: echo "~/go/bin" >> $GITHUB_PATH
 
     - name: Configure starsd
       shell: bash
       if: always()
       run: |
-        # Create config directory
         mkdir -p ~/.starsd/config
         
         # Configure chain settings
         starsd config set client node ${{ inputs.node }}
         starsd config set client chain-id ${{ inputs.chain_id }}
-        starsd config set client keyring-backend test
-        starsd config set client gas-prices ${{ inputs.gas_prices }}
-        starsd config set client gas-adjustment ${{ inputs.gas_adjustment }}
 
         # Import deployer key
         echo "${{ inputs.mnemonic }}" | \
           starsd keys add deployer \
-          --recover
+          --recover \
+          --keyring-backend test

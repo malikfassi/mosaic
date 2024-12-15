@@ -13,8 +13,16 @@ async function updateGistFiles(planResults) {
 
   for (const jobName in planResults.jobs) {
     const job = planResults.jobs[jobName];
+    if (!job.result) {
+      console.warn(`Warning: Job ${jobName} has no result`);
+      continue;
+    }
+
     const filename = job.filename;
+    // Only save successful jobs
     if (job.result === 'success') {
+      console.log(`Saving successful job ${jobName}`);
+      
       const jobRecord = {
         timestamp: new Date().toISOString(),
         run_id: planResults.metadata.run_id,
@@ -37,15 +45,20 @@ async function updateGistFiles(planResults) {
       files[filename] = {
         content: JSON.stringify(jobRecord, null, 2)
       };
+    } else {
+      console.log(`Not saving job ${jobName} with result: ${job.result}`);
     }
   }
 
-  await octokit.rest.gists.update({
-    gist_id: gistId,
-    files
-  });
-
-  console.log('Successfully updated gist files:', Object.keys(files));
+  if (Object.keys(files).length > 0) {
+    await octokit.rest.gists.update({
+      gist_id: gistId,
+      files
+    });
+    console.log('Successfully updated gist files:', Object.keys(files));
+  } else {
+    console.log('No successful jobs to update');
+  }
 }
 
 async function main() {
