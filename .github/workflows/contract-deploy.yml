@@ -160,7 +160,27 @@ jobs:
           echo "Contract stored with code ID: $CODE_ID"
           
           echo "Instantiating contract..."
-          INIT_TX=$(starsd tx wasm instantiate "$CODE_ID" '{}' \
+          INIT_TX=$(starsd tx wasm instantiate "$CODE_ID" \
+            '{
+              "name": "Mosaic Tile NFT",
+              "symbol": "TILE",
+              "minter": "'$(starsd keys show deployer -a)'",
+              "developer": "'$(starsd keys show deployer -a)'",
+              "collection_info": {
+                "creator": "'$(starsd keys show deployer -a)'",
+                "description": "A collection of mosaic tiles",
+                "image": "ipfs://...",
+                "external_link": null
+              },
+              "developer_fee": {
+                "amount": "1000000",
+                "denom": "ustars"
+              },
+              "owner_fee": {
+                "amount": "1000000",
+                "denom": "ustars"
+              }
+            }' \
             --from deployer \
             --keyring-backend test \
             --gas-prices 0.025ustars \
