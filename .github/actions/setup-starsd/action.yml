@@ -54,23 +54,26 @@ runs:
       shell: bash
       working-directory: stargaze
       env:
-        GOBIN: ~/go/bin
+        GOBIN: /home/runner/go/bin
         GO111MODULE: on
         LEDGER_ENABLED: true
         VERSION: ${{ inputs.branch }}
       run: |
-        # Ensure GOBIN is in PATH
-        export PATH=$GOBIN:$PATH
-        
         # Initialize git repo properly
         git config --global --add safe.directory $(pwd)
-        
         make install
+
+    - name: Add to PATH
+      shell: bash
+      run: echo "~/go/bin" >> $GITHUB_PATH
 
     - name: Configure starsd
       shell: bash
       if: always()
       run: |
+        # Create config directory
+        mkdir -p ~/.starsd/config
+        
         # Configure chain settings
         starsd config set client node ${{ inputs.node }}
         starsd config set client chain-id ${{ inputs.chain_id }}
@@ -81,5 +84,4 @@ runs:
         # Import deployer key
         echo "${{ inputs.mnemonic }}" | \
           starsd keys add deployer \
-          --recover \
-          --keyring-backend test
+          --recover
