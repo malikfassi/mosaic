@@ -76,8 +76,7 @@ jobs:
           COMPONENT_HASH=$(echo "$EXECUTION_PLAN_JSON" | jq -r --arg job "$JOB_NAME" '.jobs[$job].component.hash')
           echo "Debug: Component hash: $COMPONENT_HASH"
           
-          # Get run ID based on previous run status
-          if [ "${{ steps.check.outputs.result }}" == "skipped" ]; then
+          if [ "$(jq -r --arg job "$JOB_NAME" '.jobs[$job].check.outputs.result' <<< "$EXECUTION_PLAN_JSON")" == "skipped" ]; then
             echo "Debug: Using previous run ID"
             COMPILE_RUN_ID=$(echo "$EXECUTION_PLAN_JSON" | jq -r --arg job "$JOB_NAME" '.jobs[$job].previous_run.run_id')
             COMPILE_BRANCH=$(echo "$EXECUTION_PLAN_JSON" | jq -r --arg job "$JOB_NAME" '.jobs[$job].previous_run.branch')
