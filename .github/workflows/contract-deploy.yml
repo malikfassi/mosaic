@@ -25,6 +25,9 @@ on:
       DEPLOYMENT_WALLET_MNEMONIC:
         required: true
         description: "Mnemonic for the deployment wallet"
+      DEPLOYMENT_WALLET_ADDRESS:
+        required: true
+        description: "Address of the deployment wallet"
     outputs:
       result:
         description: "Result of the workflow (success/failure/skipped)"
@@ -164,10 +167,10 @@ jobs:
             '{
               "name": "Mosaic Tile NFT",
               "symbol": "TILE",
-              "minter": "'$(starsd keys show deployer -a)'",
-              "developer": "'$(starsd keys show deployer -a)'",
+              "minter": "${{ secrets.DEPLOYMENT_WALLET_ADDRESS }}",
+              "developer": "${{ secrets.DEPLOYMENT_WALLET_ADDRESS }}",
               "collection_info": {
-                "creator": "'$(starsd keys show deployer -a)'",
+                "creator": "${{ secrets.DEPLOYMENT_WALLET_ADDRESS }}",
                 "description": "A collection of mosaic tiles",
                 "image": "ipfs://...",
                 "external_link": null
