@@ -170,6 +170,7 @@ jobs:
             --output json \
             --chain-id ${{ inputs.chain_id }} \
             --node ${{ inputs.node }} \
+            --no-admin \
             -y --broadcast-mode sync)
           
           echo "Debug: Instantiate transaction"
