@@ -78,7 +78,7 @@ jobs:
         if: always()
         uses: ./.github/actions/set-result
         with:
-          previous_run_result: ${{ '{}' }}
-          previous_run_data: ${{ '{}' }}
+          previous_run_result: ${{ steps.check.outputs.result }}
+          previous_run_data: ${{ steps.check.outputs.data }}
           job_status: ${{ job.status }}
           job_data: ${{ '{}' }}
