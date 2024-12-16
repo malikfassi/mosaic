@@ -17,4 +17,17 @@ export async function queryBalance(client, address) {
 
 export function convertUstarsToStars(ustars) {
     return (parseInt(ustars) / 1_000_000).toFixed(6);
+}
+
+export async function queryAllBalances(client, addresses) {
+    return Promise.all(
+        Object.entries(addresses).map(async ([role, address]) => {
+            const balance = await queryBalance(client, address);
+            return {
+                role,
+                ...balance,
+                stars: convertUstarsToStars(balance.balance)
+            };
+        })
+    );
 } 
