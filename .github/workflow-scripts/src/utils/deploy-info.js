@@ -42,12 +42,13 @@ export async function getDeployAddresses(gistId, token) {
         deployer: latestDeploy.data.deployer_address,
         minter: latestDeploy.data.minter_address,
         owner: latestDeploy.data.owner_address,
-        user: latestDeploy.data.user_address
+        user: latestDeploy.data.user_address,
+        timestamp: latestDeploy.timestamp.toISOString()
     };
 
     // Validate addresses
     for (const [role, address] of Object.entries(addresses)) {
-        if (!address) {
+        if (!address && role !== 'timestamp') {
             console.log('Debug: Missing address for role:', role);
             console.log('Debug: Current addresses:', addresses);
             throw new Error(`Missing ${role} address in deploy data`);

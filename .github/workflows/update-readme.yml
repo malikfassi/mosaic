@@ -1,0 +1,46 @@
+name: Update README
+
+on:
+  schedule:
+    - cron: '*/10 * * * *'  # Run every 10 minutes
+  workflow_dispatch:  # Allow manual trigger
+
+jobs:
+  update-readme:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: .github/workflow-scripts/package.json
+
+      - name: Install dependencies
+        working-directory: .github/workflow-scripts
+        run: npm ci
+
+      - name: Run update script
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GIST_ID: "c67eb85b7002c9e7746d744ce70acbfb"
+          DEPLOYER_ADDRESS: "stars1pnet2e7tz7klwy48r7h3wl0n97td0haqjvs7mx"
+          MINTER_ADDRESS: "stars1x2pf9az2lwq7uk7vzhct6606cggz70wtqpkn2l"
+          OWNER_ADDRESS: "stars1uaw3k28gx0zfkfjsuv0vaufzxqdumlshazllmm"
+          USER_ADDRESS: "stars1rw6cfwwnqygdcpwrsxl9lkf4h0nsf3e6wf9frj"
+        run: |
+          node .github/workflow-scripts/src/update-readme.js
+
+      - name: Commit and push if changed
+        run: |
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git config --global user.name "github-actions[bot]"
+          git add README.md
+          git diff --quiet && git diff --staged --quiet || (git commit -m "docs: update README with latest component hashes and deployment info" && git push)

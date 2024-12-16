@@ -13,6 +13,7 @@
   "scripts": {
     "execution-plan": "node src/execution-plan.js",
     "update-balances": "node src/update-balances.js",
+    "update-readme": "node src/update-readme.js",
     "update-status": "node src/update-status.js"
   },
   "type": "module",
