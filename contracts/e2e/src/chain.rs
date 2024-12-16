@@ -166,4 +166,8 @@ impl Chain {
         println!("Query response: {}", response);
         Ok(response["data"].clone())
     }
+
+    pub fn get_node(&self) -> &str {
+        &self.node
+    }
 } 

@@ -4,6 +4,9 @@ use cosmwasm_std::{
     testing::{mock_dependencies, mock_env, mock_info},
     Coin, OwnedDeps, Response, Uint128,
 };
+use cosmwasm_std::BankMsg;
+use crate::ContractError;
+use crate::state::{TOTAL_PIXELS, TOTAL_TILES, PIXELS_PER_TILE, Color, TOKEN_COUNT};
 
 use crate::{
     contract::{execute, instantiate, query},
@@ -11,7 +14,6 @@ use crate::{
         ExecuteMsg, InstantiateMsg, PixelStateResponse, PixelUpdate, QueryMsg, TilePixelsResponse,
         TileStateResponse,
     },
-    state::{Color, PIXELS_PER_TILE, TOKEN_COUNT},
 };
 
 // Helper functions
@@ -426,7 +428,7 @@ fn test_color_persistence() {
 
     for (pixel_in_tile, color) in colors.iter() {
         let msg = ExecuteMsg::SetPixelColor {
-            pixel_id: pixel_in_tile,
+            pixel_id: *pixel_in_tile,
             color: color.clone(),
         };
         let info = mock_info(OWNER, &coins(200, "ustars"));

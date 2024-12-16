@@ -92,6 +92,13 @@ pub fn execute_set_pixel_color(
     let tile_id = get_tile_id_from_pixel(pixel_id)
         .ok_or(ContractError::InvalidPixelId { pixel_id })?;
 
+    // Check if tile exists
+    let contract = Cw721StorageType::default();
+    let token = contract
+        .tokens
+        .load(deps.storage, &tile_id.to_string())
+        .map_err(|_| ContractError::InvalidPixelId { pixel_id })?;
+
     // Validate fees
     let developer_fee = DEVELOPER_FEE.load(deps.storage)?;
     let owner_fee = OWNER_FEE.load(deps.storage)?;
@@ -101,9 +108,6 @@ pub fn execute_set_pixel_color(
         return Err(ContractError::InsufficientFunds {});
     }
 
-    // Get token owner and developer
-    let contract = Cw721StorageType::default();
-    let token = contract.tokens.load(deps.storage, &tile_id.to_string())?;
     let developer = DEVELOPER.load(deps.storage)?;
 
     // Update the color in storage

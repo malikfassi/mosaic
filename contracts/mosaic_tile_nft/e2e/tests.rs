@@ -279,15 +279,18 @@ async fn test_fee_distribution() {
     let final_deployer_balance = contract.query_balance(&deployer, "ustars").await.expect("Failed to query deployer balance");
     let final_owner_balance = contract.query_balance(&owner, "ustars").await.expect("Failed to query owner balance");
 
-    // Verify fee distribution
-    assert_eq!(
-        final_deployer_balance - initial_deployer_balance,
-        developer_fee,
-        "Developer should receive correct fee"
-    );
-    assert_eq!(
-        final_owner_balance - initial_owner_balance,
-        owner_fee,
-        "Owner should receive correct fee"
-    );
+    // Calculate differences
+    let deployer_diff = final_deployer_balance.parse::<u64>().unwrap() - initial_deployer_balance.parse::<u64>().unwrap();
+    let owner_diff = final_owner_balance.parse::<u64>().unwrap() - initial_owner_balance.parse::<u64>().unwrap();
+
+    // Get fee amounts from state
+    let state = contract.query(&json!({
+        "mosaic_state": {}
+    })).await.expect("Failed to query mosaic state");
+    let developer_fee = state["developer_fee"]["amount"].as_str().unwrap().parse::<u64>().unwrap();
+    let owner_fee = state["owner_fee"]["amount"].as_str().unwrap().parse::<u64>().unwrap();
+
+    // Assert the differences match the fees
+    assert_eq!(deployer_diff, developer_fee);
+    assert_eq!(owner_diff, owner_fee);
 }

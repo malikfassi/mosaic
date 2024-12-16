@@ -56,6 +56,37 @@ impl Contract {
         }
         Ok(())
     }
+
+    pub async fn query_balance(&self, address: &str, denom: &str) -> Result<String, Error> {
+        let output = std::process::Command::new("starsd")
+            .args([
+                "query",
+                "bank",
+                "balances",
+                address,
+                "--denom",
+                denom,
+                "--node",
+                self.chain.get_node(),
+                "--output",
+                "json",
+            ])
+            .output()
+            .map_err(|e| Error::CommandExecution(e.to_string()))?;
+
+        if !output.status.success() {
+            return Err(Error::QueryFailed(
+                String::from_utf8_lossy(&output.stderr).to_string(),
+            ));
+        }
+
+        let response: Value = serde_json::from_slice(&output.stdout)?;
+        let amount = response["amount"]
+            .as_str()
+            .ok_or_else(|| Error::QueryFailed("Amount not found in response".to_string()))?;
+
+        Ok(amount.to_string())
+    }
 }
 
 // Helper trait for CW721 contracts
