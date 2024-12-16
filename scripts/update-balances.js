@@ -24,6 +24,7 @@ async function getGistFiles() {
         throw new Error('Missing required environment variables: GIST_ID or GIST_SECRET');
     }
 
+    console.log('Debug: Fetching gist files from:', GIST_ID);
     const response = await fetch(`https://api.github.com/gists/${GIST_ID}`, {
         headers: {
             'Authorization': `token ${GIST_TOKEN}`,
@@ -36,6 +37,7 @@ async function getGistFiles() {
     }
 
     const data = await response.json();
+    console.log('Debug: Found gist files:', Object.keys(data.files));
     return data.files;
 }
 
@@ -100,21 +102,31 @@ async function getAddressesFromExecutionPlan() {
         user: null
     };
 
+    console.log('Debug: Looking for mosaic_tile_nft_deploy job output');
+    
     // Look for the mosaic_tile_nft_deploy job output
     for (const [filename, file] of Object.entries(files)) {
+        console.log('Debug: Checking file:', filename);
         if (filename.includes('mosaic_tile_nft_deploy')) {
             try {
+                console.log('Debug: Found deploy file, parsing content');
                 const content = JSON.parse(file.content);
+                console.log('Debug: File content:', JSON.stringify(content, null, 2));
+                
                 if (content.job?.data) {
+                    console.log('Debug: Found job data');
                     const data = content.job.data;
                     addresses.deployer = data.deployer_address;
                     addresses.minter = data.minter_address;
                     addresses.owner = data.owner_address;
                     addresses.user = data.user_address;
+                    console.log('Debug: Extracted addresses:', addresses);
                     break;
+                } else {
+                    console.log('Debug: No job data found in content');
                 }
             } catch (error) {
-                console.warn(`Failed to parse file ${filename}:`, error);
+                console.warn(`Debug: Failed to parse file ${filename}:`, error);
             }
         }
     }
@@ -122,6 +134,8 @@ async function getAddressesFromExecutionPlan() {
     // Validate that we have all addresses
     for (const [role, address] of Object.entries(addresses)) {
         if (!address) {
+            console.log('Debug: Missing address for role:', role);
+            console.log('Debug: Current addresses:', addresses);
             throw new Error(`Missing ${role} address in execution plan data`);
         }
     }
