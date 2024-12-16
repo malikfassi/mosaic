@@ -150,11 +150,11 @@ This project is licensed under the Apache License 2.0 - see the [LICENSE](LICENS
 
 ## Account Balances
 
-*Last updated: Waiting for first update...*
+*Last updated: 2024-12-16T20:10:50.436Z*
 
 | Role | Address | Balance (STARS) |
 |------|---------|----------------|
-| deployer | `...` | 0.000000 |
-| minter | `...` | 0.000000 |
-| owner | `...` | 0.000000 |
-| user | `...` | 0.000000 |
+| deployer | `stars1pnet2e7tz7klwy48r7h3wl0n97td0haqjvs7mx` | 9998.905565 |
+| minter | `stars1x2pf9az2lwq7uk7vzhct6606cggz70wtqpkn2l` | 5000.000000 |
+| owner | `stars1uaw3k28gx0zfkfjsuv0vaufzxqdumlshazllmm` | 0.000000 |
+| user | `stars1rw6cfwwnqygdcpwrsxl9lkf4h0nsf3e6wf9frj` | 0.000000 |

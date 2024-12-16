@@ -1,8 +1,11 @@
-const { CosmWasmClient } = require('@cosmjs/cosmwasm-stargate');
-const fs = require('fs').promises;
-const path = require('path');
+import { CosmWasmClient } from '@cosmjs/cosmwasm-stargate';
+import { promises as fs } from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
 const RPC_ENDPOINT = process.env.STARGAZE_RPC || 'https://rpc.elgafar-1.stargaze-apis.com:443';
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 async function queryBalance(client, address) {
     const balance = await client.getBalance(address, 'ustars');
@@ -52,7 +55,7 @@ async function updateReadme() {
     ].join('\n');
 
     // Read current README
-    const readmePath = path.join(process.env.GITHUB_WORKSPACE, 'README.md');
+    const readmePath = path.join(process.env.GITHUB_WORKSPACE || path.resolve(__dirname, '..'), 'README.md');
     let readme = await fs.readFile(readmePath, 'utf8');
 
     // Replace or append balance section
@@ -65,6 +68,7 @@ async function updateReadme() {
 
     // Write updated README
     await fs.writeFile(readmePath, readme);
+    console.log('README updated successfully');
 }
 
 updateReadme().catch(console.error); 
