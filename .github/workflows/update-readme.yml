@@ -29,12 +29,9 @@ jobs:
 
       - name: Run update script
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GIST_ID: "c67eb85b7002c9e7746d744ce70acbfb"
-          DEPLOYER_ADDRESS: "stars1pnet2e7tz7klwy48r7h3wl0n97td0haqjvs7mx"
-          MINTER_ADDRESS: "stars1x2pf9az2lwq7uk7vzhct6606cggz70wtqpkn2l"
-          OWNER_ADDRESS: "stars1uaw3k28gx0zfkfjsuv0vaufzxqdumlshazllmm"
-          USER_ADDRESS: "stars1rw6cfwwnqygdcpwrsxl9lkf4h0nsf3e6wf9frj"
+          GIST_SECRET: ${{ secrets.GIST_SECRET }}
+          GIST_ID: ${{ vars.GIST_ID }}
+          RPC_ENDPOINT: "https://stargaze-rpc.polkachu.com:443"
         run: |
           node .github/workflow-scripts/src/update-readme.js
 

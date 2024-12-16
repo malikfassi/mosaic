@@ -8,7 +8,7 @@ async function main() {
     try {
         // Get environment variables
         const {
-            GITHUB_TOKEN,
+            GIST_SECRET,
             GIST_ID,
             DEPLOYER_ADDRESS,
             MINTER_ADDRESS,
@@ -16,7 +16,7 @@ async function main() {
             USER_ADDRESS
         } = process.env;
 
-        if (!GITHUB_TOKEN || !GIST_ID) {
+        if (!GIST_SECRET || !GIST_ID) {
             throw new Error('Missing required environment variables');
         }
 
@@ -27,7 +27,7 @@ async function main() {
         // Get latest deploy info and balances
         console.log('Getting latest deploy info and balances...');
         const [addresses, client] = await Promise.all([
-            getDeployAddresses(GIST_ID, GITHUB_TOKEN),
+            getDeployAddresses(GIST_ID, GIST_SECRET),
             getClient()
         ]);
 
