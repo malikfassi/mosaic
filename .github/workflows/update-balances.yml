@@ -15,15 +15,11 @@ jobs:
           ref: main
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v3
+      - name: Setup Node.js environment
+        uses: ./.github/actions/setup-node
         with:
-          node-version: '18'
-          cache: 'npm'
-
-      - name: Install dependencies
-        run: |
-          npm install @cosmjs/cosmwasm-stargate node-fetch
+          working-directory: .github/workflow-scripts
+          node-version: '20'
 
       - name: Debug environment
         run: |
@@ -39,12 +35,13 @@ jobs:
           echo "SHA: ${{ github.sha }}"
 
       - name: Update balances
+        working-directory: .github/workflow-scripts
         env:
           GIST_ID: ${{ vars.GIST_ID }}
           PROJECT_GIST_ID: ${{ vars.PROJECT_GIST_ID }}
           GIST_SECRET: ${{ secrets.GIST_SECRET }}
         run: |
-          echo "Debug: Running update-balances.js"
+          echo "Debug: Running update-balances script"
           echo "Debug: Using execution plan gist: $GIST_ID"
           echo "Debug: Using balance badges gist: $PROJECT_GIST_ID"
-          node scripts/update-balances.js
+          npm run update-balances

@@ -96,6 +96,18 @@ async function updateGist(balances) {
     console.log('Balance badges updated successfully');
 }
 
+function getPreviousRun(gistFiles, filename) {
+    const gistFile = gistFiles[filename];
+    if (!gistFile) return null;
+    
+    try {
+        return JSON.parse(gistFile.content);
+    } catch (error) {
+        console.warn(`Debug: Could not parse previous run from ${filename}:`, error);
+        return null;
+    }
+}
+
 async function getAddressesFromExecutionPlan() {
     const files = await getGistFiles();
     const addresses = {
@@ -107,31 +119,39 @@ async function getAddressesFromExecutionPlan() {
 
     console.log('Debug: Looking for mosaic_tile_nft_deploy job output');
     
-    // Look for the mosaic_tile_nft_deploy job output
+    // Look for the latest successful deploy job
+    let latestRun = null;
+    let latestTimestamp = 0;
+
     for (const [filename, file] of Object.entries(files)) {
         console.log('Debug: Checking file:', filename);
         if (filename.includes('mosaic_tile_nft_deploy')) {
             try {
-                console.log('Debug: Found deploy file, parsing content');
-                const content = JSON.parse(file.content);
-                console.log('Debug: File content:', JSON.stringify(content, null, 2));
-                
-                if (content.job?.data) {
-                    console.log('Debug: Found job data');
-                    const data = content.job.data;
-                    addresses.deployer = data.deployer_address;
-                    addresses.minter = data.minter_address;
-                    addresses.owner = data.owner_address;
-                    addresses.user = data.user_address;
-                    console.log('Debug: Extracted addresses:', addresses);
-                    break;
-                } else {
-                    console.log('Debug: No job data found in content');
+                const run = getPreviousRun(files, filename);
+                if (run && run.job?.data && run.timestamp) {
+                    const timestamp = new Date(run.timestamp).getTime();
+                    if (timestamp > latestTimestamp) {
+                        latestTimestamp = timestamp;
+                        latestRun = run;
+                        console.log('Debug: Found newer deploy run from:', run.timestamp);
+                    }
                 }
             } catch (error) {
                 console.warn(`Debug: Failed to parse file ${filename}:`, error);
             }
         }
+    }
+
+    if (latestRun) {
+        console.log('Debug: Using deploy data from run:', latestRun.timestamp);
+        const data = latestRun.job.data;
+        addresses.deployer = data.deployer_address;
+        addresses.minter = data.minter_address;
+        addresses.owner = data.owner_address;
+        addresses.user = data.user_address;
+        console.log('Debug: Extracted addresses:', addresses);
+    } else {
+        console.log('Debug: No successful deploy job found');
     }
 
     // Validate that we have all addresses
