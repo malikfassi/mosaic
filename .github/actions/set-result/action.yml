@@ -32,9 +32,9 @@ runs:
       shell: bash
       run: |
         if [[ "${{ inputs.previous_run_result }}" == "skipped" ]]; then
-          echo "data=${{ inputs.previous_run_data }}" >> $GITHUB_OUTPUT
           echo "result=skipped" >> $GITHUB_OUTPUT
+          echo "data=${{ inputs.previous_run_data }}" >> $GITHUB_OUTPUT
         else
           echo "result=${{ inputs.job_status }}" >> $GITHUB_OUTPUT
           echo "data=${{ inputs.job_data }}" >> $GITHUB_OUTPUT
-        fi 
+        fi

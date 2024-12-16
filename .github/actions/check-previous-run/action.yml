@@ -39,7 +39,7 @@ runs:
         if [[ "$PREV_RUN" != 'null' ]]; then
           echo "Found previous run, setting result to skipped"
           echo "result=skipped" >> $GITHUB_OUTPUT
-          data=$(echo "$PREV_RUN" | jq -c .)
+          data=$(echo "$PREV_RUN" | jq -r '.job.data')
           echo "data=$data" >> $GITHUB_OUTPUT
         else
           echo "No previous run found, continuing with job"
