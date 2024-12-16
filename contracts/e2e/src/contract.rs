@@ -18,7 +18,10 @@ impl Contract {
 
     pub fn from_env(env_var: &str) -> Result<Self, Error> {
         let address = std::env::var(env_var)?;
-        Ok(Self::new(&address, Chain::default()))
+        Ok(Self {
+            address,
+            chain: Chain::default(),
+        })
     }
 
     pub async fn execute(
@@ -38,14 +41,14 @@ impl Contract {
         let schema_path = format!("schema/{}", schema_file);
         let schema_str = fs::read_to_string(&schema_path)
             .map_err(|e| Error::SchemaValidation(format!("Failed to read schema file: {}", e)))?;
-        
+
         let schema: Value = serde_json::from_str(&schema_str)
             .map_err(|e| Error::SchemaValidation(format!("Failed to parse schema: {}", e)))?;
-        
+
         if let Some(required) = schema["required"].as_array() {
             for field in required {
                 if let Some(field_name) = field.as_str() {
-                    if !msg.get(field_name).is_some() {
+                    if msg.get(field_name).is_none() {
                         return Err(Error::SchemaValidation(format!(
                             "Missing required field: {}",
                             field_name
@@ -104,17 +107,12 @@ pub trait CW721Contract {
         from: &str,
     ) -> Result<Value, Error>;
 
-    async fn transfer(
-        &self,
-        token_id: &str,
-        recipient: &str,
-        from: &str,
-    ) -> Result<Value, Error>;
+    async fn transfer(&self, token_id: &str, recipient: &str, from: &str) -> Result<Value, Error>;
 
     async fn query_owner_of(&self, token_id: &str) -> Result<String, Error>;
-    
+
     async fn query_token_info(&self, token_id: &str) -> Result<Value, Error>;
-    
+
     async fn query_contract_info(&self) -> Result<Value, Error>;
 }
 
@@ -150,12 +148,7 @@ impl CW721Contract for Contract {
         self.execute(&msg, from, None).await
     }
 
-    async fn transfer(
-        &self,
-        token_id: &str,
-        recipient: &str,
-        from: &str,
-    ) -> Result<Value, Error> {
+    async fn transfer(&self, token_id: &str, recipient: &str, from: &str) -> Result<Value, Error> {
         let msg = json!({
             "cw721": {
                 "transfer_nft": {
@@ -210,12 +203,7 @@ impl CW721Contract for Contract {
 // Helper trait for Mosaic Tile NFT contract
 #[async_trait::async_trait]
 pub trait MosaicTileContract: CW721Contract {
-    async fn mint_tile(
-        &self,
-        tile_id: u32,
-        owner: &str,
-        from: &str,
-    ) -> Result<Value, Error> {
+    async fn mint_tile(&self, tile_id: u32, owner: &str, from: &str) -> Result<Value, Error> {
         let msg = json!({
             "mint_tile": {
                 "tile_id": tile_id,
@@ -268,4 +256,4 @@ pub trait MosaicTileContract: CW721Contract {
 }
 
 // Implement MosaicTileContract for any Contract
-impl<T: CW721Contract> MosaicTileContract for T {} 
+impl<T: CW721Contract> MosaicTileContract for T {}

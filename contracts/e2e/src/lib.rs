@@ -4,4 +4,4 @@ pub mod error;
 
 pub use chain::Chain;
 pub use contract::Contract;
-pub use error::Error; 
+pub use error::Error;

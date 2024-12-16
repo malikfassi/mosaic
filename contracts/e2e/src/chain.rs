@@ -17,11 +17,8 @@ impl Chain {
         }
     }
 
-    pub fn default() -> Self {
-        Self {
-            node: "https://rpc.elgafar-1.stargaze-apis.com:443".to_string(),
-            chain_id: "elgafar-1".to_string(),
-        }
+    pub fn get_node(&self) -> &str {
+        &self.node
     }
 
     pub async fn execute_tx(
@@ -94,13 +91,7 @@ impl Chain {
 
             let output = Command::new("starsd")
                 .args([
-                    "query",
-                    "tx",
-                    txhash,
-                    "--node",
-                    &self.node,
-                    "--output",
-                    "json",
+                    "query", "tx", txhash, "--node", &self.node, "--output", "json",
                 ])
                 .output()
                 .map_err(|e| Error::CommandExecution(e.to_string()))?;
@@ -133,13 +124,12 @@ impl Chain {
         )))
     }
 
-    pub async fn query(
-        &self,
-        contract_addr: &str,
-        msg: &Value,
-    ) -> Result<Value, Error> {
+    pub async fn query(&self, contract_addr: &str, msg: &Value) -> Result<Value, Error> {
         let msg_str = msg.to_string();
-        println!("Querying contract {} with message: {}", contract_addr, msg_str);
+        println!(
+            "Querying contract {} with message: {}",
+            contract_addr, msg_str
+        );
         let output = Command::new("starsd")
             .args([
                 "query",
@@ -166,8 +156,13 @@ impl Chain {
         println!("Query response: {}", response);
         Ok(response["data"].clone())
     }
+}
 
-    pub fn get_node(&self) -> &str {
-        &self.node
+impl Default for Chain {
+    fn default() -> Self {
+        Self {
+            node: "https://rpc.elgafar-1.stargaze-apis.com:443".to_string(),
+            chain_id: "elgafar-1".to_string(),
+        }
     }
-} 
+}

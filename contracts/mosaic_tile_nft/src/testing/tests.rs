@@ -1,12 +1,12 @@
+use crate::state::{Color, PIXELS_PER_TILE, TOKEN_COUNT, TOTAL_PIXELS, TOTAL_TILES};
+use crate::ContractError;
 use cosmwasm_std::testing::{MockApi, MockQuerier, MockStorage};
+use cosmwasm_std::BankMsg;
 use cosmwasm_std::{
     coins, from_json,
     testing::{mock_dependencies, mock_env, mock_info},
     Coin, OwnedDeps, Response, Uint128,
 };
-use cosmwasm_std::BankMsg;
-use crate::ContractError;
-use crate::state::{TOTAL_PIXELS, TOTAL_TILES, PIXELS_PER_TILE, Color, TOKEN_COUNT};
 
 use crate::{
     contract::{execute, instantiate, query},
@@ -289,7 +289,12 @@ fn test_invalid_pixel_ids() {
         color: create_color(255, 0, 0),
     };
     let err = execute(deps.as_mut(), env.clone(), info.clone(), msg).unwrap_err();
-    assert!(matches!(err, ContractError::InvalidPixelId { pixel_id: TOTAL_PIXELS }));
+    assert!(matches!(
+        err,
+        ContractError::InvalidPixelId {
+            pixel_id: TOTAL_PIXELS
+        }
+    ));
 
     // Test pixel ID in non-existent tile
     let msg = ExecuteMsg::SetPixelColor {
@@ -312,7 +317,12 @@ fn test_invalid_tile_ids() {
         owner: OWNER.to_string(),
     };
     let err = execute(deps.as_mut(), env, info, msg).unwrap_err();
-    assert!(matches!(err, ContractError::InvalidTileId { tile_id: TOTAL_TILES }));
+    assert!(matches!(
+        err,
+        ContractError::InvalidTileId {
+            tile_id: TOTAL_TILES
+        }
+    ));
 }
 
 #[test]
@@ -437,16 +447,20 @@ fn test_color_persistence() {
 
     // Query tile state and verify colors
     let msg = QueryMsg::TileState { tile_id };
-    let res: TileStateResponse = from_json(query(deps.as_ref(), env.clone(), msg).unwrap()).unwrap();
-    
+    let res: TileStateResponse =
+        from_json(query(deps.as_ref(), env.clone(), msg).unwrap()).unwrap();
+
     for (pixel_in_tile, color) in colors.iter() {
         assert_eq!(&res.pixel_colors[*pixel_in_tile as usize], color);
     }
 
     // Query individual pixels
     for (pixel_in_tile, color) in colors.iter() {
-        let msg = QueryMsg::PixelState { pixel_id: *pixel_in_tile };
-        let res: PixelStateResponse = from_json(query(deps.as_ref(), env.clone(), msg).unwrap()).unwrap();
+        let msg = QueryMsg::PixelState {
+            pixel_id: *pixel_in_tile,
+        };
+        let res: PixelStateResponse =
+            from_json(query(deps.as_ref(), env.clone(), msg).unwrap()).unwrap();
         assert_eq!(res.color, *color);
     }
 }

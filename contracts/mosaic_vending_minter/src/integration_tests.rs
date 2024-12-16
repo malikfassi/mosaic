@@ -6,8 +6,10 @@ mod tests {
     };
     use cosmwasm_std::{coins, Addr, Empty, OwnedDeps, Response, Uint128};
     use cw_multi_test::{App, Contract, ContractWrapper, Executor};
-    use mosaic_tile_nft::msg::{ExecuteMsg as NFTExecuteMsg, InstantiateMsg as NFTInstantiateMsg, QueryMsg as NFTQueryMsg};
-    use mosaic_tile_nft::state::{Position, Color, TokenInfo};
+    use mosaic_tile_nft::msg::{
+        ExecuteMsg as NFTExecuteMsg, InstantiateMsg as NFTInstantiateMsg, QueryMsg as NFTQueryMsg,
+    };
+    use mosaic_tile_nft::state::{Color, Position, TokenInfo};
 
     const OWNER: &str = "owner";
     const BUYER: &str = "buyer";
@@ -55,11 +57,7 @@ mod tests {
     }
 
     // Deploy vending contract
-    fn instantiate_vending(
-        app: &mut App,
-        vending_code_id: u64,
-        nft_addr: String,
-    ) -> String {
+    fn instantiate_vending(app: &mut App, vending_code_id: u64, nft_addr: String) -> String {
         app.instantiate_contract(
             vending_code_id,
             Addr::unchecked(OWNER),
@@ -160,7 +158,9 @@ mod tests {
             (Position { x: 2, y: 2 }, Color { r: 0, g: 255, b: 0 }),
             (Position { x: 3, y: 3 }, Color { r: 0, g: 0, b: 255 }),
         ];
-        let mint_msg = ExecuteMsg::BatchMintPositions { mints: mints.clone() };
+        let mint_msg = ExecuteMsg::BatchMintPositions {
+            mints: mints.clone(),
+        };
 
         app.execute_contract(
             Addr::unchecked(BUYER),
@@ -211,7 +211,9 @@ mod tests {
 
         // Random mint
         let color = Color { r: 255, g: 0, b: 0 };
-        let mint_msg = ExecuteMsg::MintRandom { color: color.clone() };
+        let mint_msg = ExecuteMsg::MintRandom {
+            color: color.clone(),
+        };
 
         let res = app
             .execute_contract(
@@ -315,4 +317,4 @@ mod tests {
 
         assert!(err.to_string().contains("Unauthorized"));
     }
-} 
+}

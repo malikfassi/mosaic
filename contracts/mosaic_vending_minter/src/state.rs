@@ -41,7 +41,7 @@ pub const NEXT_POSITION: Item<Position> = Item::new("next_position");
 // Helper function to get next available position
 pub fn get_next_position(current: Position) -> Option<Position> {
     let mut next = current;
-    
+
     // Move to next position
     next.x += 1;
     if next.x > MAX_POSITION {
@@ -51,7 +51,7 @@ pub fn get_next_position(current: Position) -> Option<Position> {
             return None; // No more positions available
         }
     }
-    
+
     Some(next)
 }
 
@@ -73,13 +73,19 @@ mod tests {
         assert_eq!(next.y, 5);
 
         // Test row wrap
-        let pos = Position { x: MAX_POSITION, y: 5 };
+        let pos = Position {
+            x: MAX_POSITION,
+            y: 5,
+        };
         let next = get_next_position(pos).unwrap();
         assert_eq!(next.x, 0);
         assert_eq!(next.y, 6);
 
         // Test grid end
-        let pos = Position { x: MAX_POSITION, y: MAX_POSITION };
+        let pos = Position {
+            x: MAX_POSITION,
+            y: MAX_POSITION,
+        };
         assert!(get_next_position(pos).is_none());
     }
 
@@ -87,10 +93,19 @@ mod tests {
     fn test_validate_position() {
         // Valid position
         assert!(validate_position(&Position { x: 0, y: 0 }));
-        assert!(validate_position(&Position { x: MAX_POSITION, y: MAX_POSITION }));
+        assert!(validate_position(&Position {
+            x: MAX_POSITION,
+            y: MAX_POSITION
+        }));
 
         // Invalid position
-        assert!(!validate_position(&Position { x: MAX_POSITION + 1, y: 0 }));
-        assert!(!validate_position(&Position { x: 0, y: MAX_POSITION + 1 }));
+        assert!(!validate_position(&Position {
+            x: MAX_POSITION + 1,
+            y: 0
+        }));
+        assert!(!validate_position(&Position {
+            x: 0,
+            y: MAX_POSITION + 1
+        }));
     }
-} 
+}

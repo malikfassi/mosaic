@@ -42,4 +42,4 @@ pub enum ContractError {
 
     #[error("Invalid configuration update")]
     InvalidConfigUpdate {},
-} 
+}

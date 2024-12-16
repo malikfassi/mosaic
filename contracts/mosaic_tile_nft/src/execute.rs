@@ -89,8 +89,8 @@ pub fn execute_set_pixel_color(
     }
 
     // Get tile ID
-    let tile_id = get_tile_id_from_pixel(pixel_id)
-        .ok_or(ContractError::InvalidPixelId { pixel_id })?;
+    let tile_id =
+        get_tile_id_from_pixel(pixel_id).ok_or(ContractError::InvalidPixelId { pixel_id })?;
 
     // Check if tile exists
     let contract = Cw721StorageType::default();

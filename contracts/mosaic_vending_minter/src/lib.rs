@@ -4,4 +4,4 @@ pub mod msg;
 pub mod state;
 
 #[cfg(test)]
-mod integration_tests; 
+mod integration_tests;

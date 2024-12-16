@@ -1,6 +1,6 @@
 use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::{Addr, Uint128};
-use mosaic_tile_nft::state::{Position, Color};
+use mosaic_tile_nft::state::{Color, Position};
 
 #[cw_serde]
 pub struct InstantiateMsg {
@@ -73,7 +73,10 @@ pub enum QueryMsg {
     #[returns(MintPriceResponse)]
     MintPrice { count: u32 },
     #[returns(MintablePositionsResponse)]
-    MintablePositions { start_after: Option<Position>, limit: Option<u32> },
+    MintablePositions {
+        start_after: Option<Position>,
+        limit: Option<u32>,
+    },
 }
 
 #[cw_serde]
@@ -106,4 +109,4 @@ pub struct MintPriceResponse {
 #[cw_serde]
 pub struct MintablePositionsResponse {
     pub positions: Vec<Position>,
-} 
+}

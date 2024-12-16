@@ -23,9 +23,7 @@ pub fn query_tile_state(deps: Deps, tile_id: u32) -> StdResult<TileStateResponse
     let mut pixel_colors = Vec::with_capacity(PIXELS_PER_TILE as usize);
     for i in 0..PIXELS_PER_TILE {
         let pixel_id = tile_id * PIXELS_PER_TILE + i;
-        let packed_color = PIXEL_COLORS
-            .may_load(deps.storage, pixel_id)?
-            .unwrap_or(0);
+        let packed_color = PIXEL_COLORS.may_load(deps.storage, pixel_id)?.unwrap_or(0);
         pixel_colors.push(Color::unpack(packed_color));
     }
 
@@ -55,9 +53,7 @@ pub fn query_pixel_state(deps: Deps, pixel_id: u32) -> StdResult<PixelStateRespo
     let contract = Cw721StorageType::default();
     let token = contract.tokens.load(deps.storage, &tile_id.to_string())?;
 
-    let packed_color = PIXEL_COLORS
-        .may_load(deps.storage, pixel_id)?
-        .unwrap_or(0);
+    let packed_color = PIXEL_COLORS.may_load(deps.storage, pixel_id)?.unwrap_or(0);
 
     Ok(PixelStateResponse {
         tile_id,
@@ -110,9 +106,7 @@ pub fn query_tile_pixels(deps: Deps, tile_id: u32) -> StdResult<TilePixelsRespon
     let mut pixels = Vec::with_capacity(PIXELS_PER_TILE as usize);
     for i in 0..PIXELS_PER_TILE {
         let pixel_id = tile_id * PIXELS_PER_TILE + i;
-        let packed_color = PIXEL_COLORS
-            .may_load(deps.storage, pixel_id)?
-            .unwrap_or(0);
+        let packed_color = PIXEL_COLORS.may_load(deps.storage, pixel_id)?.unwrap_or(0);
 
         pixels.push(PixelStateResponse {
             tile_id,

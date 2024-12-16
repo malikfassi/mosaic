@@ -1,22 +1,22 @@
 use cosmwasm_std::{
-    entry_point, to_binary, Binary, Deps, DepsMut, Env, MessageInfo,
-    Response, StdResult, Addr, Uint128, Event, CosmosMsg, WasmMsg, coin,
+    coin, entry_point, to_binary, Addr, Binary, CosmosMsg, Deps, DepsMut, Env, Event, MessageInfo,
+    Response, StdResult, Uint128, WasmMsg,
 };
 use cw2::set_contract_version;
-use rand::{Rng, SeedableRng};
 use rand::rngs::StdRng;
+use rand::{Rng, SeedableRng};
 
 use crate::error::ContractError;
 use crate::msg::{
-    ExecuteMsg, InstantiateMsg, QueryMsg, ConfigResponse, MintPositionResponse,
-    MintCountResponse, MintPriceResponse, MintablePositionsResponse,
+    ConfigResponse, ExecuteMsg, InstantiateMsg, MintCountResponse, MintPositionResponse,
+    MintPriceResponse, MintablePositionsResponse, QueryMsg,
 };
 use crate::state::{
-    Config, MintPosition, CONFIG, POSITION_TOKENS, TOTAL_MINTED, NEXT_POSITION,
-    get_next_position, validate_position,
+    get_next_position, validate_position, Config, MintPosition, CONFIG, NEXT_POSITION,
+    POSITION_TOKENS, TOTAL_MINTED,
 };
 use mosaic_tile_nft::msg::ExecuteMsg as NFTExecuteMsg;
-use mosaic_tile_nft::state::{Position, Color};
+use mosaic_tile_nft::state::{Color, Position};
 
 // Version info for migration
 const CONTRACT_NAME: &str = "crates.io:mosaic_vending_minter";
@@ -110,8 +110,8 @@ pub fn execute_mint_random(
     // Find next available position
     let mut current_pos = NEXT_POSITION.load(deps.storage)?;
     while POSITION_TOKENS.has(deps.storage, (current_pos.x, current_pos.y)) {
-        current_pos = get_next_position(current_pos)
-            .ok_or(ContractError::NoAvailablePositions {})?;
+        current_pos =
+            get_next_position(current_pos).ok_or(ContractError::NoAvailablePositions {})?;
     }
 
     // Generate token ID
@@ -119,7 +119,11 @@ pub fn execute_mint_random(
     let token_id = format!("tile_{}", total_minted + 1);
 
     // Save position and update counters
-    POSITION_TOKENS.save(deps.storage, (current_pos.x, current_pos.y), &Some(token_id.clone()))?;
+    POSITION_TOKENS.save(
+        deps.storage,
+        (current_pos.x, current_pos.y),
+        &Some(token_id.clone()),
+    )?;
     TOTAL_MINTED.save(deps.storage, &(total_minted + 1))?;
     NEXT_POSITION.save(deps.storage, &current_pos)?;
 
@@ -187,7 +191,11 @@ pub fn execute_mint_position(
     let token_id = format!("tile_{}", total_minted + 1);
 
     // Save position and update counter
-    POSITION_TOKENS.save(deps.storage, (position.x, position.y), &Some(token_id.clone()))?;
+    POSITION_TOKENS.save(
+        deps.storage,
+        (position.x, position.y),
+        &Some(token_id.clone()),
+    )?;
     TOTAL_MINTED.save(deps.storage, &(total_minted + 1))?;
 
     // Create mint message
@@ -249,13 +257,17 @@ pub fn execute_batch_mint_random(
     for (i, color) in colors.into_iter().enumerate() {
         // Find next available position
         while POSITION_TOKENS.has(deps.storage, (current_pos.x, current_pos.y)) {
-            current_pos = get_next_position(current_pos)
-                .ok_or(ContractError::NoAvailablePositions {})?;
+            current_pos =
+                get_next_position(current_pos).ok_or(ContractError::NoAvailablePositions {})?;
         }
 
         // Generate token ID and save position
         let token_id = format!("tile_{}", total_minted + 1);
-        POSITION_TOKENS.save(deps.storage, (current_pos.x, current_pos.y), &Some(token_id.clone()))?;
+        POSITION_TOKENS.save(
+            deps.storage,
+            (current_pos.x, current_pos.y),
+            &Some(token_id.clone()),
+        )?;
 
         // Create mint message
         let mint_msg = NFTExecuteMsg::MintTile {
@@ -272,8 +284,8 @@ pub fn execute_batch_mint_random(
         }));
 
         total_minted += 1;
-        current_pos = get_next_position(current_pos)
-            .ok_or(ContractError::NoAvailablePositions {})?;
+        current_pos =
+            get_next_position(current_pos).ok_or(ContractError::NoAvailablePositions {})?;
     }
 
     // Update state
@@ -334,7 +346,11 @@ pub fn execute_batch_mint_positions(
 
         // Generate token ID and save position
         let token_id = format!("tile_{}", total_minted + 1);
-        POSITION_TOKENS.save(deps.storage, (position.x, position.y), &Some(token_id.clone()))?;
+        POSITION_TOKENS.save(
+            deps.storage,
+            (position.x, position.y),
+            &Some(token_id.clone()),
+        )?;
 
         // Create mint message
         let mint_msg = NFTExecuteMsg::MintTile {
@@ -535,8 +551,14 @@ mod tests {
         let info = mock_info("buyer", &coins(UNIT_PRICE, "ustars"));
         let res = execute(deps.as_mut(), mock_env(), info.clone(), msg).unwrap();
         assert_eq!(1, res.messages.len());
-        assert!(res.attributes.iter().any(|attr| attr.key == "action" && attr.value == "mint_random"));
-        assert!(res.attributes.iter().any(|attr| attr.key == "token_id" && attr.value == "tile_1"));
+        assert!(res
+            .attributes
+            .iter()
+            .any(|attr| attr.key == "action" && attr.value == "mint_random"));
+        assert!(res
+            .attributes
+            .iter()
+            .any(|attr| attr.key == "token_id" && attr.value == "tile_1"));
 
         // Verify state updates
         let total_minted = TOTAL_MINTED.load(deps.as_ref().storage).unwrap();
@@ -547,10 +569,12 @@ mod tests {
         assert_eq!(next_pos.y, 0);
 
         // Test when random minting is disabled
-        CONFIG.update(deps.as_mut().storage, |mut config| -> StdResult<_> {
-            config.random_minting_enabled = false;
-            Ok(config)
-        }).unwrap();
+        CONFIG
+            .update(deps.as_mut().storage, |mut config| -> StdResult<_> {
+                config.random_minting_enabled = false;
+                Ok(config)
+            })
+            .unwrap();
 
         let err = execute(deps.as_mut(), mock_env(), info, msg).unwrap_err();
         assert!(matches!(err, ContractError::RandomMintingDisabled {}));
@@ -577,20 +601,34 @@ mod tests {
         let info = mock_info("buyer", &coins(UNIT_PRICE, "ustars"));
         let res = execute(deps.as_mut(), mock_env(), info.clone(), msg.clone()).unwrap();
         assert_eq!(1, res.messages.len());
-        assert!(res.attributes.iter().any(|attr| attr.key == "action" && attr.value == "mint_position"));
-        assert!(res.attributes.iter().any(|attr| attr.key == "token_id" && attr.value == "tile_1"));
-        assert!(res.attributes.iter().any(|attr| attr.key == "position_x" && attr.value == "5"));
-        assert!(res.attributes.iter().any(|attr| attr.key == "position_y" && attr.value == "5"));
+        assert!(res
+            .attributes
+            .iter()
+            .any(|attr| attr.key == "action" && attr.value == "mint_position"));
+        assert!(res
+            .attributes
+            .iter()
+            .any(|attr| attr.key == "token_id" && attr.value == "tile_1"));
+        assert!(res
+            .attributes
+            .iter()
+            .any(|attr| attr.key == "position_x" && attr.value == "5"));
+        assert!(res
+            .attributes
+            .iter()
+            .any(|attr| attr.key == "position_y" && attr.value == "5"));
 
         // Test minting same position again
         let err = execute(deps.as_mut(), mock_env(), info.clone(), msg).unwrap_err();
         assert!(matches!(err, ContractError::PositionTaken { .. }));
 
         // Test when position minting is disabled
-        CONFIG.update(deps.as_mut().storage, |mut config| -> StdResult<_> {
-            config.position_minting_enabled = false;
-            Ok(config)
-        }).unwrap();
+        CONFIG
+            .update(deps.as_mut().storage, |mut config| -> StdResult<_> {
+                config.position_minting_enabled = false;
+                Ok(config)
+            })
+            .unwrap();
 
         let msg = ExecuteMsg::MintPosition {
             position: Position { x: 6, y: 6 },
@@ -624,8 +662,14 @@ mod tests {
         let info = mock_info("buyer", &coins(UNIT_PRICE * 3, "ustars"));
         let res = execute(deps.as_mut(), mock_env(), info.clone(), msg.clone()).unwrap();
         assert_eq!(3, res.messages.len());
-        assert!(res.attributes.iter().any(|attr| attr.key == "action" && attr.value == "batch_mint_random"));
-        assert!(res.attributes.iter().any(|attr| attr.key == "count" && attr.value == "3"));
+        assert!(res
+            .attributes
+            .iter()
+            .any(|attr| attr.key == "action" && attr.value == "batch_mint_random"));
+        assert!(res
+            .attributes
+            .iter()
+            .any(|attr| attr.key == "count" && attr.value == "3"));
 
         // Verify state updates
         let total_minted = TOTAL_MINTED.load(deps.as_ref().storage).unwrap();
@@ -671,20 +715,32 @@ mod tests {
         let info = mock_info("buyer", &coins(UNIT_PRICE * 3, "ustars"));
         let res = execute(deps.as_mut(), mock_env(), info.clone(), msg.clone()).unwrap();
         assert_eq!(3, res.messages.len());
-        assert!(res.attributes.iter().any(|attr| attr.key == "action" && attr.value == "batch_mint_positions"));
-        assert!(res.attributes.iter().any(|attr| attr.key == "count" && attr.value == "3"));
+        assert!(res
+            .attributes
+            .iter()
+            .any(|attr| attr.key == "action" && attr.value == "batch_mint_positions"));
+        assert!(res
+            .attributes
+            .iter()
+            .any(|attr| attr.key == "count" && attr.value == "3"));
 
         // Test minting same positions again
         let err = execute(deps.as_mut(), mock_env(), info.clone(), msg).unwrap_err();
         assert!(matches!(err, ContractError::PositionTaken { .. }));
 
         // Test batch size exceeded
-        let large_mints = (0..11).map(|i| {
-            (Position { x: i + 10, y: i + 10 }, Color { r: 0, g: 0, b: 0 })
-        }).collect::<Vec<_>>();
-        let msg = ExecuteMsg::BatchMintPositions {
-            mints: large_mints,
-        };
+        let large_mints = (0..11)
+            .map(|i| {
+                (
+                    Position {
+                        x: i + 10,
+                        y: i + 10,
+                    },
+                    Color { r: 0, g: 0, b: 0 },
+                )
+            })
+            .collect::<Vec<_>>();
+        let msg = ExecuteMsg::BatchMintPositions { mints: large_mints };
         let err = execute(deps.as_mut(), mock_env(), info, msg).unwrap_err();
         assert!(matches!(err, ContractError::BatchSizeExceeded {}));
     }
@@ -710,7 +766,10 @@ mod tests {
         // Test successful update
         let info = mock_info(OWNER, &[]);
         let res = execute(deps.as_mut(), mock_env(), info, msg).unwrap();
-        assert!(res.attributes.iter().any(|attr| attr.key == "action" && attr.value == "update_config"));
+        assert!(res
+            .attributes
+            .iter()
+            .any(|attr| attr.key == "action" && attr.value == "update_config"));
 
         let config = CONFIG.load(deps.as_ref().storage).unwrap();
         assert_eq!(config.unit_price, Uint128::from(2_000_000u128));
@@ -722,42 +781,53 @@ mod tests {
         setup_contract(deps.as_mut());
 
         // Test config query
-        let config: ConfigResponse = from_binary(&query(deps.as_ref(), mock_env(), QueryMsg::Config {}).unwrap()).unwrap();
+        let config: ConfigResponse =
+            from_binary(&query(deps.as_ref(), mock_env(), QueryMsg::Config {}).unwrap()).unwrap();
         assert_eq!(config.unit_price, Uint128::from(UNIT_PRICE));
 
         // Test mint position query
         let pos = Position { x: 5, y: 5 };
-        let pos_info: MintPositionResponse = from_binary(&query(
-            deps.as_ref(),
-            mock_env(),
-            QueryMsg::MintPosition { position: pos.clone() },
-        ).unwrap()).unwrap();
+        let pos_info: MintPositionResponse = from_binary(
+            &query(
+                deps.as_ref(),
+                mock_env(),
+                QueryMsg::MintPosition {
+                    position: pos.clone(),
+                },
+            )
+            .unwrap(),
+        )
+        .unwrap();
         assert!(!pos_info.is_minted);
         assert_eq!(pos_info.token_id, None);
 
         // Test mint count query
-        let count: MintCountResponse = from_binary(&query(
-            deps.as_ref(),
-            mock_env(),
-            QueryMsg::MintCount {},
-        ).unwrap()).unwrap();
+        let count: MintCountResponse =
+            from_binary(&query(deps.as_ref(), mock_env(), QueryMsg::MintCount {}).unwrap())
+                .unwrap();
         assert_eq!(count.total_minted, 0);
 
         // Test mint price query
-        let price: MintPriceResponse = from_binary(&query(
-            deps.as_ref(),
-            mock_env(),
-            QueryMsg::MintPrice { count: 3 },
-        ).unwrap()).unwrap();
+        let price: MintPriceResponse = from_binary(
+            &query(deps.as_ref(), mock_env(), QueryMsg::MintPrice { count: 3 }).unwrap(),
+        )
+        .unwrap();
         assert_eq!(price.price, Uint128::from(UNIT_PRICE * 3));
 
         // Test mintable positions query
-        let positions: MintablePositionsResponse = from_binary(&query(
-            deps.as_ref(),
-            mock_env(),
-            QueryMsg::MintablePositions { start_after: None, limit: Some(5) },
-        ).unwrap()).unwrap();
+        let positions: MintablePositionsResponse = from_binary(
+            &query(
+                deps.as_ref(),
+                mock_env(),
+                QueryMsg::MintablePositions {
+                    start_after: None,
+                    limit: Some(5),
+                },
+            )
+            .unwrap(),
+        )
+        .unwrap();
         assert_eq!(positions.positions.len(), 5);
         assert_eq!(positions.positions[0], Position { x: 0, y: 0 });
     }
-} 
+}

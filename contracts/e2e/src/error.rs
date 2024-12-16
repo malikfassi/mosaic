@@ -22,4 +22,4 @@ pub enum Error {
 
     #[error("Contract error: {0}")]
     ContractError(String),
-} 
+}
