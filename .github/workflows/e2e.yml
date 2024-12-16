@@ -57,3 +57,27 @@ jobs:
           previous_run_data: ${{ steps.check.outputs.data }}
           job_status: ${{ job.status }}
           job_data: '{}'
+
+  mosaic_tile_nft_e2e:
+    needs: [mosaic_tile_nft_deploy]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Get deployment data
+        id: get-data
+        uses: ./.github/actions/get-job-data
+        with:
+          execution_plan: ${{ inputs.execution_plan }}
+          job_name: mosaic_tile_nft_deploy
+
+      - name: Setup Rust
+        uses: ./.github/actions/setup-rust
+        
+      - name: Run E2E Tests
+        working-directory: contracts/mosaic_tile_nft
+        env:
+          CONTRACT_ADDRESS: ${{ fromJson(steps.get-data.outputs.data).contract_address }}
+          DEPLOYMENT_WALLET_ADDRESS: ${{ secrets.DEPLOYMENT_WALLET_ADDRESS }}
+        run: |
+          cargo test --test e2e -- --nocapture

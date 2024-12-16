@@ -1,23 +1,19 @@
 use cosmwasm_std::{Addr, Coin};
-use sg_std::StargazeMsgWrapper;
 use sg721::CollectionInfo;
+use sg_std::StargazeMsgWrapper;
 
 const CONTRACT_NAME: &str = "Mosaic Tile NFT";
 const SYMBOL: &str = "TILE";
 
-#[test]
+#[tokio::test]
 async fn test_deploy_and_mint() {
     // Get contract address from deploy job output
-    let contract_addr = std::env::var("CONTRACT_ADDRESS")
-        .expect("CONTRACT_ADDRESS must be set");
-    let deployer_addr = std::env::var("DEPLOYMENT_WALLET_ADDRESS")
-        .expect("DEPLOYMENT_WALLET_ADDRESS must be set");
+    let contract_addr = std::env::var("CONTRACT_ADDRESS").expect("CONTRACT_ADDRESS must be set");
+    let deployer_addr =
+        std::env::var("DEPLOYMENT_WALLET_ADDRESS").expect("DEPLOYMENT_WALLET_ADDRESS must be set");
 
     // Create client
-    let client = starsd::Client::new(
-        "https://rpc.elgafar-1.stargaze-apis.com:443",
-        "elgafar-1",
-    );
+    let client = starsd::Client::new("https://rpc.elgafar-1.stargaze-apis.com:443", "elgafar-1");
 
     // Mint a tile
     let mint_msg = ExecuteMsg::MintTile {
@@ -32,10 +28,7 @@ async fn test_deploy_and_mint() {
 
     // Query tile state
     let tile_state: TileStateResponse = client
-        .query(
-            &contract_addr,
-            &QueryMsg::TileState { tile_id: 1 },
-        )
+        .query(&contract_addr, &QueryMsg::TileState { tile_id: 1 })
         .await
         .expect("Failed to query tile state");
 
@@ -55,10 +48,7 @@ async fn test_deploy_and_mint() {
 
     // Query pixel state
     let pixel_state: PixelStateResponse = client
-        .query(
-            &contract_addr,
-            &QueryMsg::PixelState { pixel_id: 0 },
-        )
+        .query(&contract_addr, &QueryMsg::PixelState { pixel_id: 0 })
         .await
         .expect("Failed to query pixel state");
 
