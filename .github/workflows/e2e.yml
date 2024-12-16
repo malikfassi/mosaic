@@ -11,6 +11,39 @@ on:
         required: true
         type: string
         description: "JSON string containing the execution plan"
+      contract_address:
+        required: true
+        type: string
+        description: "Address of the deployed contract to test"
+      deployer_address:
+        required: true
+        type: string
+        description: "Address of the deployer"
+      minter_address:
+        required: true
+        type: string
+        description: "Address of the minter"
+      owner_address:
+        required: true
+        type: string
+        description: "Address of the owner"
+      user_address:
+        required: true
+        type: string
+        description: "Address of the user"
+    secrets:
+      DEPLOYER_MNEMONIC:
+        required: true
+        description: "Mnemonic for the deployer account"
+      MINTER_MNEMONIC:
+        required: true
+        description: "Mnemonic for the minter account"
+      OWNER_MNEMONIC:
+        required: true
+        description: "Mnemonic for the owner account"
+      USER_MNEMONIC:
+        required: true
+        description: "Mnemonic for the user account"
     outputs:
       result:
         description: "Result of the workflow (success/failure/skipped)"
@@ -35,18 +68,41 @@ jobs:
           execution_plan: ${{ inputs.execution_plan }}
           job_name: ${{ inputs.test_type }}_e2e
 
-      - name: Setup Node.js environment
+      - name: Setup starsd
         if: steps.check.outputs.result != 'skipped'
-        uses: ./.github/actions/setup-node
+        uses: ./.github/actions/setup-starsd
         with:
-          working-directory: .github/workflow-scripts
-          node-version: '20'
-
-      - name: Mock E2E test
-        id: e2e
-        if: steps.check.outputs.result != 'skipped'
+          branch: v14.0.0
+          deployer_mnemonic: ${{ secrets.DEPLOYER_MNEMONIC }}
+          minter_mnemonic: ${{ secrets.MINTER_MNEMONIC }}
+          owner_mnemonic: ${{ secrets.OWNER_MNEMONIC }}
+          user_mnemonic: ${{ secrets.USER_MNEMONIC }}
+        
+      - name: Setup Rust
+        if: steps.check.outputs.result != 'skipped' && inputs.test_type == 'mosaic-tile'
+        uses: ./.github/actions/setup-rust
+        
+      - name: Run Mosaic Tile E2E Tests
+        if: steps.check.outputs.result != 'skipped' && inputs.test_type == 'mosaic-tile'
+        working-directory: contracts/mosaic_tile_nft
+        env:
+          CONTRACT_ADDRESS: ${{ inputs.contract_address }}
+          DEPLOYER_ADDRESS: ${{ inputs.deployer_address }}
+          MINTER_ADDRESS: ${{ inputs.minter_address }}
+          OWNER_ADDRESS: ${{ inputs.owner_address }}
+          USER_ADDRESS: ${{ inputs.user_address }}
         run: |
-          echo "E2E tests are currently disabled"
+          cargo test --test e2e -- --nocapture
+
+      - name: Mock Mosaic Vending E2E Tests
+        if: steps.check.outputs.result != 'skipped' && inputs.test_type == 'mosaic-vending'
+        run: |
+          echo "Mosaic Vending E2E tests are currently disabled"
+
+      - name: Mock Full E2E Tests
+        if: steps.check.outputs.result != 'skipped' && inputs.test_type == 'full'
+        run: |
+          echo "Full E2E tests are currently disabled"
 
       - name: Set result
         id: set-result
@@ -57,27 +113,3 @@ jobs:
           previous_run_data: ${{ steps.check.outputs.data }}
           job_status: ${{ job.status }}
           job_data: '{}'
-
-  mosaic_tile_nft_e2e:
-    needs: [mosaic_tile_nft_deploy]
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-
-      - name: Get deployment data
-        id: get-data
-        uses: ./.github/actions/get-job-data
-        with:
-          execution_plan: ${{ inputs.execution_plan }}
-          job_name: mosaic_tile_nft_deploy
-
-      - name: Setup Rust
-        uses: ./.github/actions/setup-rust
-        
-      - name: Run E2E Tests
-        working-directory: contracts/mosaic_tile_nft
-        env:
-          CONTRACT_ADDRESS: ${{ fromJson(steps.get-data.outputs.data).contract_address }}
-          DEPLOYMENT_WALLET_ADDRESS: ${{ secrets.DEPLOYMENT_WALLET_ADDRESS }}
-        run: |
-          cargo test --test e2e -- --nocapture

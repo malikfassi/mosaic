@@ -54,8 +54,8 @@ pub type Cw721StorageType<'a> =
 pub const TOKEN_COUNT: Item<u64> = Item::new("token_count");
 
 // Mosaic-specific storage
-// (tile_id, pixel_id) -> packed_color
-pub const PIXEL_COLORS: Map<(u32, u32), u32> = Map::new("pixel_colors");
+// pixel_id -> packed_color
+pub const PIXEL_COLORS: Map<u32, u32> = Map::new("pixel_colors");
 pub const DEVELOPER_FEE: Item<Coin> = Item::new("developer_fee");
 pub const OWNER_FEE: Item<Coin> = Item::new("owner_fee");
 pub const MINTER: Item<String> = Item::new("minter");

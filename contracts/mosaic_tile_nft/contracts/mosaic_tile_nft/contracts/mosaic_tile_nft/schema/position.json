@@ -1,14 +1,20 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "title": "NumTokensResponse",
+  "title": "Position",
   "type": "object",
   "required": [
-    "count"
+    "x",
+    "y"
   ],
   "properties": {
-    "count": {
+    "x": {
       "type": "integer",
-      "format": "uint64",
+      "format": "uint32",
+      "minimum": 0.0
+    },
+    "y": {
+      "type": "integer",
+      "format": "uint32",
       "minimum": 0.0
     }
   },

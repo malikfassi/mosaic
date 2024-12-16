@@ -1,0 +1,61 @@
+name: Update Account Balances
+
+on:
+  workflow_dispatch:  # Manual trigger
+  schedule:
+    - cron: '0 */6 * * *'  # Run every 6 hours
+  workflow_run:
+    workflows: ["Mosaic CI/CD"]
+    types:
+      - completed
+
+jobs:
+  update-balances:
+    runs-on: ubuntu-latest
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
+    
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          ref: main
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: |
+          npm install @cosmjs/cosmwasm-stargate
+
+      - name: Get latest addresses
+        id: addresses
+        run: |
+          # Get the latest run ID of the Mosaic CI/CD workflow
+          RUN_ID=$(gh api repos/${{ github.repository }}/actions/workflows/mosaic.yml/runs \
+            --jq '.workflow_runs[0].id')
+          
+          # Get the job outputs from the mosaic_tile_nft_deploy job
+          DEPLOY_OUTPUT=$(gh api repos/${{ github.repository }}/actions/runs/$RUN_ID/jobs \
+            --jq '.jobs[] | select(.name=="mosaic_tile_nft_deploy").outputs')
+          
+          # Extract addresses from the output
+          echo "DEPLOYER_ADDRESS=$(echo $DEPLOY_OUTPUT | jq -r '.data.deployer_address')" >> $GITHUB_ENV
+          echo "MINTER_ADDRESS=$(echo $DEPLOY_OUTPUT | jq -r '.data.minter_address')" >> $GITHUB_ENV
+          echo "OWNER_ADDRESS=$(echo $DEPLOY_OUTPUT | jq -r '.data.owner_address')" >> $GITHUB_ENV
+          echo "USER_ADDRESS=$(echo $DEPLOY_OUTPUT | jq -r '.data.user_address')" >> $GITHUB_ENV
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Update README
+        run: node scripts/update-balances.js
+
+      - name: Commit changes
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git add README.md
+          git diff --quiet && git diff --staged --quiet || git commit -m "docs: update account balances [skip ci]"
+          git push 

@@ -235,3 +235,247 @@ fn test_batch_tile_queries() {
         .iter()
         .all(|t| t.pixels.len() == PIXELS_PER_TILE as usize));
 }
+
+#[test]
+fn test_unauthorized_mint() {
+    let (mut deps, _) = setup_contract();
+    let env = mock_env();
+    let unauthorized = mock_info("unauthorized", &[]);
+
+    let msg = ExecuteMsg::MintTile {
+        tile_id: 0,
+        owner: OWNER.to_string(),
+    };
+
+    let err = execute(deps.as_mut(), env, unauthorized, msg).unwrap_err();
+    assert!(matches!(err, ContractError::Unauthorized {}));
+}
+
+#[test]
+fn test_unauthorized_color_set() {
+    let (mut deps, _) = setup_contract();
+    let env = mock_env();
+    let info = mock_info(MINTER, &[]);
+
+    // First mint a tile
+    let tile_id = 0;
+    let msg = ExecuteMsg::MintTile {
+        tile_id,
+        owner: OWNER.to_string(),
+    };
+    execute(deps.as_mut(), env.clone(), info, msg).unwrap();
+
+    // Try to set color without fees
+    let msg = ExecuteMsg::SetPixelColor {
+        pixel_id: 0,
+        color: create_color(255, 0, 0),
+    };
+    let info = mock_info(OWNER, &[]); // No fees attached
+    let err = execute(deps.as_mut(), env, info, msg).unwrap_err();
+    assert!(matches!(err, ContractError::InsufficientFunds {}));
+}
+
+#[test]
+fn test_invalid_pixel_ids() {
+    let (mut deps, _) = setup_contract();
+    let env = mock_env();
+    let info = mock_info(OWNER, &coins(200, "ustars"));
+
+    // Test pixel ID beyond total pixels
+    let msg = ExecuteMsg::SetPixelColor {
+        pixel_id: TOTAL_PIXELS,
+        color: create_color(255, 0, 0),
+    };
+    let err = execute(deps.as_mut(), env.clone(), info.clone(), msg).unwrap_err();
+    assert!(matches!(err, ContractError::InvalidPixelId { pixel_id: TOTAL_PIXELS }));
+
+    // Test pixel ID in non-existent tile
+    let msg = ExecuteMsg::SetPixelColor {
+        pixel_id: TOTAL_TILES * PIXELS_PER_TILE - 1,
+        color: create_color(255, 0, 0),
+    };
+    let err = execute(deps.as_mut(), env, info, msg).unwrap_err();
+    assert!(matches!(err, ContractError::InvalidPixelId { .. }));
+}
+
+#[test]
+fn test_invalid_tile_ids() {
+    let (mut deps, _) = setup_contract();
+    let env = mock_env();
+    let info = mock_info(MINTER, &[]);
+
+    // Test tile ID beyond total tiles
+    let msg = ExecuteMsg::MintTile {
+        tile_id: TOTAL_TILES,
+        owner: OWNER.to_string(),
+    };
+    let err = execute(deps.as_mut(), env, info, msg).unwrap_err();
+    assert!(matches!(err, ContractError::InvalidTileId { tile_id: TOTAL_TILES }));
+}
+
+#[test]
+fn test_fee_distribution() {
+    let (mut deps, _) = setup_contract();
+    let env = mock_env();
+    let info = mock_info(MINTER, &[]);
+
+    // Mint a tile
+    let tile_id = 0;
+    let msg = ExecuteMsg::MintTile {
+        tile_id,
+        owner: OWNER.to_string(),
+    };
+    execute(deps.as_mut(), env.clone(), info, msg).unwrap();
+
+    // Set pixel color with fees
+    let msg = ExecuteMsg::SetPixelColor {
+        pixel_id: 0,
+        color: create_color(255, 0, 0),
+    };
+
+    let info = mock_info(OWNER, &coins(200, "ustars")); // 100 for developer, 100 for owner
+    let res = execute(deps.as_mut(), env, info, msg).unwrap();
+
+    // Verify fee distribution messages
+    assert_eq!(2, res.messages.len());
+    match &res.messages[0].msg {
+        cosmwasm_std::CosmosMsg::Bank(BankMsg::Send { to_address, amount }) => {
+            assert_eq!(to_address, DEVELOPER);
+            assert_eq!(amount[0].amount, Uint128::from(100u128));
+        }
+        _ => panic!("Expected bank send message"),
+    }
+    match &res.messages[1].msg {
+        cosmwasm_std::CosmosMsg::Bank(BankMsg::Send { to_address, amount }) => {
+            assert_eq!(to_address, OWNER);
+            assert_eq!(amount[0].amount, Uint128::from(100u128));
+        }
+        _ => panic!("Expected bank send message"),
+    }
+}
+
+#[test]
+fn test_batch_fee_calculation() {
+    let (mut deps, _) = setup_contract();
+    let env = mock_env();
+    let info = mock_info(MINTER, &[]);
+
+    // Mint a tile
+    let tile_id = 0;
+    let msg = ExecuteMsg::MintTile {
+        tile_id,
+        owner: OWNER.to_string(),
+    };
+    execute(deps.as_mut(), env.clone(), info, msg).unwrap();
+
+    // Batch set 2 pixels
+    let updates = vec![
+        PixelUpdate {
+            pixel_id: 0,
+            color: create_color(255, 0, 0),
+        },
+        PixelUpdate {
+            pixel_id: 1,
+            color: create_color(0, 255, 0),
+        },
+    ];
+    let msg = ExecuteMsg::BatchSetPixels { updates };
+
+    // Total fees should be 2 * (100 + 100) = 400 ustars
+    let info = mock_info(OWNER, &coins(400, "ustars"));
+    let res = execute(deps.as_mut(), env, info, msg).unwrap();
+
+    // Verify fee distribution messages
+    assert_eq!(2, res.messages.len());
+    match &res.messages[0].msg {
+        cosmwasm_std::CosmosMsg::Bank(BankMsg::Send { to_address, amount }) => {
+            assert_eq!(to_address, DEVELOPER);
+            assert_eq!(amount[0].amount, Uint128::from(200u128)); // 2 * 100
+        }
+        _ => panic!("Expected bank send message"),
+    }
+    match &res.messages[1].msg {
+        cosmwasm_std::CosmosMsg::Bank(BankMsg::Send { to_address, amount }) => {
+            assert_eq!(to_address, OWNER);
+            assert_eq!(amount[0].amount, Uint128::from(200u128)); // 2 * 100
+        }
+        _ => panic!("Expected bank send message"),
+    }
+}
+
+#[test]
+fn test_color_persistence() {
+    let (mut deps, _) = setup_contract();
+    let env = mock_env();
+    let info = mock_info(MINTER, &[]);
+
+    // Mint a tile
+    let tile_id = 0;
+    let msg = ExecuteMsg::MintTile {
+        tile_id,
+        owner: OWNER.to_string(),
+    };
+    execute(deps.as_mut(), env.clone(), info, msg).unwrap();
+
+    // Set pixel colors
+    let colors = vec![
+        (0, create_color(255, 0, 0)),
+        (1, create_color(0, 255, 0)),
+        (2, create_color(0, 0, 255)),
+    ];
+
+    for (pixel_in_tile, color) in colors.iter() {
+        let msg = ExecuteMsg::SetPixelColor {
+            pixel_id: pixel_in_tile,
+            color: color.clone(),
+        };
+        let info = mock_info(OWNER, &coins(200, "ustars"));
+        execute(deps.as_mut(), env.clone(), info, msg).unwrap();
+    }
+
+    // Query tile state and verify colors
+    let msg = QueryMsg::TileState { tile_id };
+    let res: TileStateResponse = from_json(query(deps.as_ref(), env.clone(), msg).unwrap()).unwrap();
+    
+    for (pixel_in_tile, color) in colors.iter() {
+        assert_eq!(&res.pixel_colors[*pixel_in_tile as usize], color);
+    }
+
+    // Query individual pixels
+    for (pixel_in_tile, color) in colors.iter() {
+        let msg = QueryMsg::PixelState { pixel_id: *pixel_in_tile };
+        let res: PixelStateResponse = from_json(query(deps.as_ref(), env.clone(), msg).unwrap()).unwrap();
+        assert_eq!(res.color, *color);
+    }
+}
+
+#[test]
+fn test_tile_ownership() {
+    let (mut deps, _) = setup_contract();
+    let env = mock_env();
+    let info = mock_info(MINTER, &[]);
+
+    // Mint a tile
+    let tile_id = 0;
+    let msg = ExecuteMsg::MintTile {
+        tile_id,
+        owner: OWNER.to_string(),
+    };
+    execute(deps.as_mut(), env.clone(), info.clone(), msg).unwrap();
+
+    // Try to set color from non-owner (but with sufficient fees)
+    let msg = ExecuteMsg::SetPixelColor {
+        pixel_id: 0,
+        color: create_color(255, 0, 0),
+    };
+    let info = mock_info("not_owner", &coins(200, "ustars"));
+    let res = execute(deps.as_mut(), env.clone(), info, msg.clone()).unwrap();
+
+    // Should succeed because anyone can set color if they pay fees
+    assert_eq!(2, res.messages.len());
+
+    // Query tile state to verify owner hasn't changed
+    let msg = QueryMsg::TileState { tile_id };
+    let res: TileStateResponse = from_json(query(deps.as_ref(), env, msg).unwrap()).unwrap();
+    assert_eq!(OWNER, res.owner);
+}

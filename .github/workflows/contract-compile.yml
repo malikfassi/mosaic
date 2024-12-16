@@ -66,6 +66,19 @@ jobs:
           cp target/wasm32-unknown-unknown/release/${{ inputs.contract_name }}.wasm ${{ inputs.contract_name }}/artifacts/
           echo "wasm_path=${{ inputs.contract_name }}/artifacts/${{ inputs.contract_name }}.wasm" >> $GITHUB_OUTPUT
 
+      - name: Generate schema
+        if: steps.check.outputs.result != 'skipped'
+        working-directory: contracts/${{ inputs.contract_name }}
+        run: |
+          cargo run --bin schema
+          
+      - name: Upload schema artifacts
+        if: steps.check.outputs.result != 'skipped'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.set-name.outputs.name }}-schema
+          path: contracts/${{ inputs.contract_name }}/schema/*.json
+
       - name: Upload WASM artifact
         if: steps.check.outputs.result != 'skipped'
         uses: actions/upload-artifact@v4

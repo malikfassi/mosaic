@@ -147,3 +147,14 @@ Please read [CONTRIBUTING.md](CONTRIBUTING.md) for details on our code of conduc
 ## License
 
 This project is licensed under the Apache License 2.0 - see the [LICENSE](LICENSE) file for details.
+
+## Account Balances
+
+*Last updated: Waiting for first update...*
+
+| Role | Address | Balance (STARS) |
+|------|---------|----------------|
+| deployer | `...` | 0.000000 |
+| minter | `...` | 0.000000 |
+| owner | `...` | 0.000000 |
+| user | `...` | 0.000000 |

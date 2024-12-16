@@ -22,12 +22,18 @@ on:
         default: "elgafar-1"
         description: "Chain ID"
     secrets:
-      DEPLOYMENT_WALLET_MNEMONIC:
+      DEPLOYER_MNEMONIC:
         required: true
-        description: "Mnemonic for the deployment wallet"
-      DEPLOYMENT_WALLET_ADDRESS:
+        description: "Mnemonic for the deployer account"
+      MINTER_MNEMONIC:
         required: true
-        description: "Address of the deployment wallet"
+        description: "Mnemonic for the minter account"
+      OWNER_MNEMONIC:
+        required: true
+        description: "Mnemonic for the owner account"
+      USER_MNEMONIC:
+        required: true
+        description: "Mnemonic for the user account"
     outputs:
       result:
         description: "Result of the workflow (success/failure/skipped)"
@@ -53,11 +59,15 @@ jobs:
           job_name: ${{ inputs.contract_name }}_deploy
 
       - name: Setup starsd
+        id: setup
         if: steps.check.outputs.result != 'skipped'
         uses: ./.github/actions/setup-starsd
         with:
           branch: v14.0.0
-          mnemonic: ${{ secrets.DEPLOYMENT_WALLET_MNEMONIC }}
+          deployer_mnemonic: ${{ secrets.DEPLOYER_MNEMONIC }}
+          minter_mnemonic: ${{ secrets.MINTER_MNEMONIC }}
+          owner_mnemonic: ${{ secrets.OWNER_MNEMONIC }}
+          user_mnemonic: ${{ secrets.USER_MNEMONIC }}
           node: ${{ inputs.node }}
           chain_id: ${{ inputs.chain_id }}
 
@@ -108,6 +118,20 @@ jobs:
         with:
           name: ${{ steps.set-name.outputs.name }}
           path: contracts/${{ inputs.contract_name }}/artifacts
+          workflow: contract-compile.yml
+          workflow_conclusion: success
+          run_id: ${{ steps.set-name.outputs.run_id }}
+          repo: ${{ steps.set-name.outputs.repo }}
+          github_token: ${{ github.token }}
+          search_artifacts: true
+          check_artifacts: true
+
+      - name: Download schema artifacts
+        if: steps.check.outputs.result != 'skipped'
+        uses: dawidd6/action-download-artifact@v7
+        with:
+          name: ${{ steps.set-name.outputs.name }}-schema
+          path: contracts/${{ inputs.contract_name }}/schema
           workflow: contract-compile.yml
           workflow_conclusion: success
           run_id: ${{ steps.set-name.outputs.run_id }}
@@ -167,10 +191,10 @@ jobs:
             '{
               "name": "Mosaic Tile NFT",
               "symbol": "TILE",
-              "minter": "${{ secrets.DEPLOYMENT_WALLET_ADDRESS }}",
-              "developer": "${{ secrets.DEPLOYMENT_WALLET_ADDRESS }}",
+              "minter": "'${{ steps.setup.outputs.minter_address }}'",
+              "developer": "'${{ steps.setup.outputs.deployer_address }}'",
               "collection_info": {
-                "creator": "${{ secrets.DEPLOYMENT_WALLET_ADDRESS }}",
+                "creator": "'${{ steps.setup.outputs.minter_address }}'",
                 "description": "A collection of mosaic tiles",
                 "image": "ipfs://...",
                 "external_link": null
@@ -211,8 +235,8 @@ jobs:
           CONTRACT_ADDR=$(echo "$TX_RESULT" | jq -r '.logs[0].events[] | select(.type=="instantiate") | .attributes[] | select(.key=="_contract_address") | .value')
           echo "Contract instantiated at address: $CONTRACT_ADDR"
           
-          # Set output data
-          echo "data={\"code_id\": \"$CODE_ID\", \"contract_address\": \"$CONTRACT_ADDR\"}" >> $GITHUB_OUTPUT
+          # Set output data with all addresses
+          echo "data={\"code_id\": \"$CODE_ID\", \"contract_address\": \"$CONTRACT_ADDR\", \"deployer_address\": \"${{ steps.setup.outputs.deployer_address }}\", \"minter_address\": \"${{ steps.setup.outputs.minter_address }}\", \"owner_address\": \"${{ steps.setup.outputs.owner_address }}\", \"user_address\": \"${{ steps.setup.outputs.user_address }}\"}" >> $GITHUB_OUTPUT
 
       - name: Set result
         id: set-result

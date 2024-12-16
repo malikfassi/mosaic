@@ -1,12 +1,21 @@
 name: 'Setup starsd'
-description: 'Sets up starsd binary'
+description: 'Sets up starsd binary and configures test accounts'
 
 inputs:
   branch:
     description: 'Branch to build from'
     required: true
-  mnemonic:
+  deployer_mnemonic:
     description: 'Mnemonic for the deployer account'
+    required: true
+  minter_mnemonic:
+    description: 'Mnemonic for the minter account'
+    required: true
+  owner_mnemonic:
+    description: 'Mnemonic for the owner account'
+    required: true
+  user_mnemonic:
+    description: 'Mnemonic for the user account'
     required: true
   node:
     description: 'RPC endpoint'
@@ -16,6 +25,20 @@ inputs:
     description: 'Chain ID'
     required: false
     default: 'elgafar-1'
+
+outputs:
+  deployer_address:
+    description: "Address of the deployer account"
+    value: ${{ steps.setup-keys.outputs.deployer_address }}
+  minter_address:
+    description: "Address of the minter account"
+    value: ${{ steps.setup-keys.outputs.minter_address }}
+  owner_address:
+    description: "Address of the owner account"
+    value: ${{ steps.setup-keys.outputs.owner_address }}
+  user_address:
+    description: "Address of the user account"
+    value: ${{ steps.setup-keys.outputs.user_address }}
 
 runs:
   using: "composite"
@@ -44,12 +67,38 @@ runs:
       working-directory: stargaze
       run: make install
 
-    - name: Configure starsd
+    - name: Configure starsd keys
+      id: setup-keys
       shell: bash
-      if: always()
       run: |
         # Import deployer key
-        echo "${{ inputs.mnemonic }}" | \
+        echo "${{ inputs.deployer_mnemonic }}" | \
           starsd keys add deployer \
           --recover \
           --keyring-backend test
+        DEPLOYER_ADDRESS=$(starsd keys show deployer -a --keyring-backend test)
+        echo "deployer_address=$DEPLOYER_ADDRESS" >> $GITHUB_OUTPUT
+
+        # Import minter key
+        echo "${{ inputs.minter_mnemonic }}" | \
+          starsd keys add minter \
+          --recover \
+          --keyring-backend test
+        MINTER_ADDRESS=$(starsd keys show minter -a --keyring-backend test)
+        echo "minter_address=$MINTER_ADDRESS" >> $GITHUB_OUTPUT
+
+        # Import owner key
+        echo "${{ inputs.owner_mnemonic }}" | \
+          starsd keys add owner \
+          --recover \
+          --keyring-backend test
+        OWNER_ADDRESS=$(starsd keys show owner -a --keyring-backend test)
+        echo "owner_address=$OWNER_ADDRESS" >> $GITHUB_OUTPUT
+
+        # Import user key
+        echo "${{ inputs.user_mnemonic }}" | \
+          starsd keys add user \
+          --recover \
+          --keyring-backend test
+        USER_ADDRESS=$(starsd keys show user -a --keyring-backend test)
+        echo "user_address=$USER_ADDRESS" >> $GITHUB_OUTPUT

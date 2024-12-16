@@ -2,6 +2,7 @@ use cosmwasm_std::{
     to_json_binary, BankMsg, Coin, DepsMut, Empty, Env, MessageInfo, Response, Uint128, WasmMsg,
 };
 use cw721_base::{msg::ExecuteMsg as Cw721ExecuteMsg, state::TokenInfo};
+use std::collections::HashMap;
 
 use crate::{
     error::ContractError,
@@ -87,10 +88,9 @@ pub fn execute_set_pixel_color(
         return Err(ContractError::InvalidPixelId { pixel_id });
     }
 
-    // Get tile ID and pixel info
-    let tile_id =
-        get_tile_id_from_pixel(pixel_id).ok_or(ContractError::InvalidPixelId { pixel_id })?;
-    let pixel_in_tile = pixel_id % 100;
+    // Get tile ID
+    let tile_id = get_tile_id_from_pixel(pixel_id)
+        .ok_or(ContractError::InvalidPixelId { pixel_id })?;
 
     // Validate fees
     let developer_fee = DEVELOPER_FEE.load(deps.storage)?;
@@ -107,27 +107,22 @@ pub fn execute_set_pixel_color(
     let developer = DEVELOPER.load(deps.storage)?;
 
     // Update the color in storage
-    PIXEL_COLORS.save(deps.storage, (tile_id, pixel_in_tile), &color.pack())?;
+    PIXEL_COLORS.save(deps.storage, pixel_id, &color.pack())?;
 
     // Send fees
-    let mut messages = vec![];
-    if !developer_fee.amount.is_zero() {
-        messages.push(BankMsg::Send {
+    Ok(Response::new()
+        .add_message(BankMsg::Send {
             to_address: developer,
             amount: vec![developer_fee],
-        });
-    }
-    if !owner_fee.amount.is_zero() {
-        messages.push(BankMsg::Send {
+        })
+        .add_message(BankMsg::Send {
             to_address: token.owner.to_string(),
             amount: vec![owner_fee],
-        });
-    }
-
-    Ok(Response::new()
-        .add_messages(messages)
+        })
         .add_attribute("action", "set_pixel_color")
-        .add_attribute("pixel_id", pixel_id.to_string()))
+        .add_attribute("pixel_id", pixel_id.to_string())
+        .add_attribute("tile_id", tile_id.to_string())
+        .add_attribute("color", format!("{:?}", color)))
 }
 
 pub fn execute_batch_set_pixels(
@@ -154,14 +149,12 @@ pub fn execute_batch_set_pixels(
         return Err(ContractError::InsufficientFunds {});
     }
 
-    // Group updates by tile for efficient storage and fee distribution
-    let mut updates_by_tile: std::collections::HashMap<u32, Vec<(u32, Color)>> =
-        std::collections::HashMap::new();
-    let mut tile_owners: std::collections::HashMap<u32, String> = std::collections::HashMap::new();
+    // Group updates by tile for fee calculation
+    let mut tile_owners: HashMap<u32, String> = HashMap::new();
+    let mut updates_by_tile: HashMap<u32, Vec<(u32, Color)>> = HashMap::new();
 
-    // First pass: validate all pixels and group them
-    let updates_clone = updates.clone();
-    for update in updates {
+    for update in &updates {
+        // Validate pixel ID
         if !validate_pixel_id(update.pixel_id) {
             return Err(ContractError::InvalidPixelId {
                 pixel_id: update.pixel_id,
@@ -173,7 +166,6 @@ pub fn execute_batch_set_pixels(
                 pixel_id: update.pixel_id,
             }
         })?;
-        let pixel_in_tile = update.pixel_id % 100;
 
         // Get tile owner if we haven't yet
         if let std::collections::hash_map::Entry::Vacant(e) = tile_owners.entry(tile_id) {
@@ -185,13 +177,13 @@ pub fn execute_batch_set_pixels(
         updates_by_tile
             .entry(tile_id)
             .or_default()
-            .push((pixel_in_tile, update.color));
+            .push((update.pixel_id, update.color.clone()));
     }
 
     // Apply all updates
-    for (tile_id, pixel_updates) in updates_by_tile {
-        for (pixel_in_tile, color) in pixel_updates {
-            PIXEL_COLORS.save(deps.storage, (tile_id, pixel_in_tile), &color.pack())?;
+    for (_, pixel_updates) in updates_by_tile {
+        for (pixel_id, color) in pixel_updates {
+            PIXEL_COLORS.save(deps.storage, pixel_id, &color.pack())?;
         }
     }
 
@@ -208,7 +200,7 @@ pub fn execute_batch_set_pixels(
 
     // Send fees to each tile owner proportionally
     for (tile_id, owner) in tile_owners {
-        let tile_updates = updates_clone
+        let tile_updates = updates
             .iter()
             .filter(|u| get_tile_id_from_pixel(u.pixel_id) == Some(tile_id))
             .count() as u128;
@@ -225,7 +217,7 @@ pub fn execute_batch_set_pixels(
     Ok(Response::new()
         .add_messages(messages)
         .add_attribute("action", "batch_set_pixels")
-        .add_attribute("update_count", updates_clone.len().to_string()))
+        .add_attribute("update_count", updates.len().to_string()))
 }
 
 // Helper function to check if provided funds are sufficient

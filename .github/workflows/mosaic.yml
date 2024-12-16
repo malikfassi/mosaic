@@ -79,8 +79,7 @@ jobs:
       contract_name: mosaic_tile_nft
       execution_plan: ${{ needs.generate_execution_plan.outputs.execution_plan }}
     secrets:
-      DEPLOYMENT_WALLET_MNEMONIC: ${{ secrets.DEPLOYMENT_WALLET_MNEMONIC }}
-      DEPLOYMENT_WALLET_ADDRESS: ${{ secrets.DEPLOYMENT_WALLET_ADDRESS }}
+      DEPLOYER_MNEMONIC: ${{ secrets.DEPLOYER_MNEMONIC }}
 
   # Mosaic Vending Contract
   mosaic_vending_minter_clippy:
@@ -124,8 +123,8 @@ jobs:
       contract_name: mosaic_vending_minter
       execution_plan: ${{ needs.generate_execution_plan.outputs.execution_plan }}
     secrets:
-      DEPLOYMENT_WALLET_MNEMONIC: ${{ secrets.DEPLOYMENT_WALLET_MNEMONIC }}
-      DEPLOYMENT_WALLET_ADDRESS: ${{ secrets.DEPLOYMENT_WALLET_ADDRESS }}
+      DEPLOYER_MNEMONIC: ${{ secrets.DEPLOYER_MNEMONIC }}
+
   # E2E Tests
 
   mosaic_tile_nft_e2e:
@@ -137,6 +136,16 @@ jobs:
     with:
       execution_plan: ${{ needs.generate_execution_plan.outputs.execution_plan }}
       test_type: mosaic-tile
+      contract_address: ${{ fromJson(needs.mosaic_tile_nft_deploy.outputs.data).contract_address }}
+      deployer_address: ${{ fromJson(needs.mosaic_tile_nft_deploy.outputs.data).deployer_address }}
+      minter_address: ${{ fromJson(needs.mosaic_tile_nft_deploy.outputs.data).minter_address }}
+      owner_address: ${{ fromJson(needs.mosaic_tile_nft_deploy.outputs.data).owner_address }}
+      user_address: ${{ fromJson(needs.mosaic_tile_nft_deploy.outputs.data).user_address }}
+    secrets:
+      DEPLOYER_MNEMONIC: ${{ secrets.DEPLOYER_MNEMONIC }}
+      MINTER_MNEMONIC: ${{ secrets.MINTER_MNEMONIC }}
+      OWNER_MNEMONIC: ${{ secrets.OWNER_MNEMONIC }}
+      USER_MNEMONIC: ${{ secrets.USER_MNEMONIC }}
   
   mosaic_vending_minter_e2e:
     needs: [
@@ -147,6 +156,16 @@ jobs:
     with:
       execution_plan: ${{ needs.generate_execution_plan.outputs.execution_plan }}
       test_type: mosaic-vending
+      contract_address: ${{ fromJson(needs.mosaic_vending_minter_deploy.outputs.data).contract_address }}
+      deployer_address: ${{ fromJson(needs.mosaic_vending_minter_deploy.outputs.data).deployer_address }}
+      minter_address: ${{ fromJson(needs.mosaic_vending_minter_deploy.outputs.data).minter_address }}
+      owner_address: ${{ fromJson(needs.mosaic_vending_minter_deploy.outputs.data).owner_address }}
+      user_address: ${{ fromJson(needs.mosaic_vending_minter_deploy.outputs.data).user_address }}
+    secrets:
+      DEPLOYER_MNEMONIC: ${{ secrets.DEPLOYER_MNEMONIC }}
+      MINTER_MNEMONIC: ${{ secrets.MINTER_MNEMONIC }}
+      OWNER_MNEMONIC: ${{ secrets.OWNER_MNEMONIC }}
+      USER_MNEMONIC: ${{ secrets.USER_MNEMONIC }}
 
   full_e2e:
     needs: [
