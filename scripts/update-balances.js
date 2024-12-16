@@ -1,7 +1,6 @@
 import { CosmWasmClient } from '@cosmjs/cosmwasm-stargate';
-import { promises as fs } from 'fs';
-import path from 'path';
 import { fileURLToPath } from 'url';
+import path from 'path';
 import fetch from 'node-fetch';
 
 const RPC_ENDPOINT = process.env.STARGAZE_RPC || 'https://rpc.elgafar-1.stargaze-apis.com:443';
@@ -70,42 +69,6 @@ async function updateGist(balances) {
     }
 
     console.log('Gist updated successfully');
-    return badgeData;
-}
-
-async function updateReadme(balances, badgeData) {
-    // Create markdown table
-    const timestamp = new Date().toISOString();
-    const table = [
-        '## Account Balances',
-        '',
-        `*Last updated: ${timestamp}*`,
-        '',
-        '| Role | Address | Balance |',
-        '|------|---------|---------|',
-        ...balances.map(({ role, address }) => 
-            `| ${role} | \`${address}\` | ![${role} balance](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/raw/${GIST_ID}/${role}-balance.json) |`
-        ),
-        '',
-        `**Total Balance:** ![Total balance](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/raw/${GIST_ID}/total-balance.json)`,
-        ''
-    ].join('\n');
-
-    // Read current README
-    const readmePath = path.join(process.env.GITHUB_WORKSPACE || path.resolve(__dirname, '..'), 'README.md');
-    let readme = await fs.readFile(readmePath, 'utf8');
-
-    // Replace or append balance section
-    const balanceSection = /## Account Balances[\s\S]*?(?=##|$)/;
-    if (balanceSection.test(readme)) {
-        readme = readme.replace(balanceSection, table);
-    } else {
-        readme = `${readme}\n${table}`;
-    }
-
-    // Write updated README
-    await fs.writeFile(readmePath, readme);
-    console.log('README updated successfully');
 }
 
 async function updateBalances() {
@@ -131,11 +94,8 @@ async function updateBalances() {
         })
     );
 
-    // Update gist first to get badge data
-    const badgeData = await updateGist(balances);
-
-    // Then update README with badge URLs
-    await updateReadme(balances, badgeData);
+    // Update gist with balance data
+    await updateGist(balances);
 }
 
 updateBalances().catch(console.error); 

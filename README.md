@@ -150,7 +150,7 @@ This project is licensed under the Apache License 2.0 - see the [LICENSE](LICENS
 
 ## Account Balances
 
-*Last updated: 2024-12-16T20:15:41.183Z*
+*Last updated: 2024-12-16T20:25:30.755Z*
 
 | Role | Address | Balance |
 |------|---------|---------|
