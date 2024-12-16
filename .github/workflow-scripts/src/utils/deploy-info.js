@@ -1,4 +1,5 @@
 import { getGistFiles } from './gist.js';
+import fs from 'fs/promises';
 
 export async function getDeployAddresses(gistId, token) {
     if (!gistId || !token) {
@@ -56,4 +57,24 @@ export async function getDeployAddresses(gistId, token) {
     }
 
     return addresses;
+}
+
+export async function saveDeployInfo(data) {
+    try {
+        await fs.writeFile('deploy-info.json', JSON.stringify(data, null, 2));
+        console.log('Deploy info saved to deploy-info.json');
+    } catch (error) {
+        console.error('Error saving deploy info:', error);
+        throw error;
+    }
+}
+
+export async function loadDeployInfo() {
+    try {
+        const data = await fs.readFile('deploy-info.json', 'utf8');
+        return JSON.parse(data);
+    } catch (error) {
+        console.warn('No existing deploy-info.json found');
+        return null;
+    }
 } 
