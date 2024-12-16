@@ -19,6 +19,26 @@ async function queryBalance(client, address) {
     };
 }
 
+async function getGistFiles() {
+    if (!GIST_ID || !GIST_TOKEN) {
+        throw new Error('Missing required environment variables: GIST_ID or GIST_SECRET');
+    }
+
+    const response = await fetch(`https://api.github.com/gists/${GIST_ID}`, {
+        headers: {
+            'Authorization': `token ${GIST_TOKEN}`,
+            'Content-Type': 'application/json',
+        }
+    });
+
+    if (!response.ok) {
+        throw new Error(`Failed to fetch gist: ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    return data.files;
+}
+
 async function updateGist(balances) {
     if (!GIST_ID || !GIST_TOKEN) {
         console.log('Skipping gist update - missing GIST_ID or GIST_TOKEN');
@@ -71,16 +91,50 @@ async function updateGist(balances) {
     console.log('Gist updated successfully');
 }
 
+async function getAddressesFromExecutionPlan() {
+    const files = await getGistFiles();
+    const addresses = {
+        deployer: null,
+        minter: null,
+        owner: null,
+        user: null
+    };
+
+    // Look for the mosaic_tile_nft_deploy job output
+    for (const [filename, file] of Object.entries(files)) {
+        if (filename.includes('mosaic_tile_nft_deploy')) {
+            try {
+                const content = JSON.parse(file.content);
+                if (content.job?.data) {
+                    const data = content.job.data;
+                    addresses.deployer = data.deployer_address;
+                    addresses.minter = data.minter_address;
+                    addresses.owner = data.owner_address;
+                    addresses.user = data.user_address;
+                    break;
+                }
+            } catch (error) {
+                console.warn(`Failed to parse file ${filename}:`, error);
+            }
+        }
+    }
+
+    // Validate that we have all addresses
+    for (const [role, address] of Object.entries(addresses)) {
+        if (!address) {
+            throw new Error(`Missing ${role} address in execution plan data`);
+        }
+    }
+
+    return addresses;
+}
+
 async function updateBalances() {
     const client = await CosmWasmClient.connect(RPC_ENDPOINT);
     
-    // Get addresses from environment
-    const addresses = {
-        deployer: process.env.DEPLOYER_ADDRESS,
-        minter: process.env.MINTER_ADDRESS,
-        owner: process.env.OWNER_ADDRESS,
-        user: process.env.USER_ADDRESS
-    };
+    // Get addresses from execution plan
+    const addresses = await getAddressesFromExecutionPlan();
+    console.log('Found addresses:', addresses);
 
     // Query balances
     const balances = await Promise.all(
