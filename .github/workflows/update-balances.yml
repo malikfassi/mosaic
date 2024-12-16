@@ -28,7 +28,8 @@ jobs:
       - name: Debug environment
         run: |
           echo "Debug: Checking environment variables"
-          echo "Has GIST_ID: ${{ vars.GIST_ID != '' }}"
+          echo "Has GIST_ID (execution plan): ${{ vars.GIST_ID != '' }}"
+          echo "Has PROJECT_GIST_ID (balances): ${{ vars.PROJECT_GIST_ID != '' }}"
           echo "Has GIST_SECRET: ${{ secrets.GIST_SECRET != '' }}"
           echo "Node version: $(node --version)"
           echo "NPM version: $(npm --version)"
@@ -40,7 +41,10 @@ jobs:
       - name: Update balances
         env:
           GIST_ID: ${{ vars.GIST_ID }}
+          PROJECT_GIST_ID: ${{ vars.PROJECT_GIST_ID }}
           GIST_SECRET: ${{ secrets.GIST_SECRET }}
         run: |
           echo "Debug: Running update-balances.js"
+          echo "Debug: Using execution plan gist: $GIST_ID"
+          echo "Debug: Using balance badges gist: $PROJECT_GIST_ID"
           node scripts/update-balances.js

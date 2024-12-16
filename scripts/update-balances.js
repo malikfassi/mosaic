@@ -4,7 +4,8 @@ import path from 'path';
 import fetch from 'node-fetch';
 
 const RPC_ENDPOINT = process.env.STARGAZE_RPC || 'https://rpc.elgafar-1.stargaze-apis.com:443';
-const GIST_ID = process.env.GIST_ID || 'c67eb85b7002c9e7746d744ce70acbfb';
+const EXECUTION_PLAN_GIST_ID = process.env.GIST_ID;
+const PROJECT_GIST_ID = process.env.PROJECT_GIST_ID || 'c67eb85b7002c9e7746d744ce70acbfb';
 const GIST_TOKEN = process.env.GIST_SECRET;
 
 const __filename = fileURLToPath(import.meta.url);
@@ -20,12 +21,12 @@ async function queryBalance(client, address) {
 }
 
 async function getGistFiles() {
-    if (!GIST_ID || !GIST_TOKEN) {
+    if (!EXECUTION_PLAN_GIST_ID || !GIST_TOKEN) {
         throw new Error('Missing required environment variables: GIST_ID or GIST_SECRET');
     }
 
-    console.log('Debug: Fetching gist files from:', GIST_ID);
-    const response = await fetch(`https://api.github.com/gists/${GIST_ID}`, {
+    console.log('Debug: Fetching execution plan from gist:', EXECUTION_PLAN_GIST_ID);
+    const response = await fetch(`https://api.github.com/gists/${EXECUTION_PLAN_GIST_ID}`, {
         headers: {
             'Authorization': `token ${GIST_TOKEN}`,
             'Content-Type': 'application/json',
@@ -42,8 +43,8 @@ async function getGistFiles() {
 }
 
 async function updateGist(balances) {
-    if (!GIST_ID || !GIST_TOKEN) {
-        console.log('Skipping gist update - missing GIST_ID or GIST_TOKEN');
+    if (!PROJECT_GIST_ID || !GIST_TOKEN) {
+        console.log('Skipping gist update - missing PROJECT_GIST_ID or GIST_SECRET');
         return;
     }
 
@@ -69,6 +70,8 @@ async function updateGist(balances) {
         style: 'flat-square'
     };
 
+    console.log('Debug: Updating balance badges in gist:', PROJECT_GIST_ID);
+    
     // Update gist
     const files = {};
     Object.entries(badgeData).forEach(([filename, content]) => {
@@ -77,7 +80,7 @@ async function updateGist(balances) {
         };
     });
 
-    const response = await fetch(`https://api.github.com/gists/${GIST_ID}`, {
+    const response = await fetch(`https://api.github.com/gists/${PROJECT_GIST_ID}`, {
         method: 'PATCH',
         headers: {
             'Authorization': `token ${GIST_TOKEN}`,
@@ -90,7 +93,7 @@ async function updateGist(balances) {
         throw new Error(`Failed to update gist: ${response.statusText}`);
     }
 
-    console.log('Gist updated successfully');
+    console.log('Balance badges updated successfully');
 }
 
 async function getAddressesFromExecutionPlan() {
