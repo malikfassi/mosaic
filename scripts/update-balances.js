@@ -5,7 +5,7 @@ import { fileURLToPath } from 'url';
 import fetch from 'node-fetch';
 
 const RPC_ENDPOINT = process.env.STARGAZE_RPC || 'https://rpc.elgafar-1.stargaze-apis.com:443';
-const GIST_ID = process.env.GIST_ID;
+const GIST_ID = process.env.GIST_ID || 'c67eb85b7002c9e7746d744ce70acbfb';
 const GIST_TOKEN = process.env.GIST_SECRET;
 
 const __filename = fileURLToPath(import.meta.url);

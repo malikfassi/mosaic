@@ -154,9 +154,9 @@ This project is licensed under the Apache License 2.0 - see the [LICENSE](LICENS
 
 | Role | Address | Balance |
 |------|---------|---------|
-| deployer | `stars1pnet2e7tz7klwy48r7h3wl0n97td0haqjvs7mx` | ![deployer balance](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/raw/1ff46a4915f58fa0fce5cab7577f94f1/deployer-balance.json) |
-| minter | `stars1x2pf9az2lwq7uk7vzhct6606cggz70wtqpkn2l` | ![minter balance](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/raw/1ff46a4915f58fa0fce5cab7577f94f1/minter-balance.json) |
-| owner | `stars1uaw3k28gx0zfkfjsuv0vaufzxqdumlshazllmm` | ![owner balance](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/raw/1ff46a4915f58fa0fce5cab7577f94f1/owner-balance.json) |
-| user | `stars1rw6cfwwnqygdcpwrsxl9lkf4h0nsf3e6wf9frj` | ![user balance](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/raw/1ff46a4915f58fa0fce5cab7577f94f1/user-balance.json) |
+| deployer | `stars1pnet2e7tz7klwy48r7h3wl0n97td0haqjvs7mx` | ![deployer balance](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/raw/c67eb85b7002c9e7746d744ce70acbfb/deployer-balance.json) |
+| minter | `stars1x2pf9az2lwq7uk7vzhct6606cggz70wtqpkn2l` | ![minter balance](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/raw/c67eb85b7002c9e7746d744ce70acbfb/minter-balance.json) |
+| owner | `stars1uaw3k28gx0zfkfjsuv0vaufzxqdumlshazllmm` | ![owner balance](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/raw/c67eb85b7002c9e7746d744ce70acbfb/owner-balance.json) |
+| user | `stars1rw6cfwwnqygdcpwrsxl9lkf4h0nsf3e6wf9frj` | ![user balance](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/raw/c67eb85b7002c9e7746d744ce70acbfb/user-balance.json) |
 
-**Total Balance:** ![Total balance](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/raw/1ff46a4915f58fa0fce5cab7577f94f1/total-balance.json)
+**Total Balance:** ![Total balance](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/raw/c67eb85b7002c9e7746d744ce70acbfb/total-balance.json)
