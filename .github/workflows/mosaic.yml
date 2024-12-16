@@ -137,10 +137,6 @@ jobs:
       execution_plan: ${{ needs.generate_execution_plan.outputs.execution_plan }}
       test_type: mosaic-tile
       contract_address: ${{ fromJson(needs.mosaic_tile_nft_deploy.outputs.data).contract_address }}
-      deployer_address: ${{ fromJson(needs.mosaic_tile_nft_deploy.outputs.data).deployer_address }}
-      minter_address: ${{ fromJson(needs.mosaic_tile_nft_deploy.outputs.data).minter_address }}
-      owner_address: ${{ fromJson(needs.mosaic_tile_nft_deploy.outputs.data).owner_address }}
-      user_address: ${{ fromJson(needs.mosaic_tile_nft_deploy.outputs.data).user_address }}
     secrets:
       DEPLOYER_MNEMONIC: ${{ secrets.DEPLOYER_MNEMONIC }}
       MINTER_MNEMONIC: ${{ secrets.MINTER_MNEMONIC }}
@@ -157,10 +153,6 @@ jobs:
       execution_plan: ${{ needs.generate_execution_plan.outputs.execution_plan }}
       test_type: mosaic-vending
       contract_address: ${{ fromJson(needs.mosaic_vending_minter_deploy.outputs.data).contract_address }}
-      deployer_address: ${{ fromJson(needs.mosaic_vending_minter_deploy.outputs.data).deployer_address }}
-      minter_address: ${{ fromJson(needs.mosaic_vending_minter_deploy.outputs.data).minter_address }}
-      owner_address: ${{ fromJson(needs.mosaic_vending_minter_deploy.outputs.data).owner_address }}
-      user_address: ${{ fromJson(needs.mosaic_vending_minter_deploy.outputs.data).user_address }}
     secrets:
       DEPLOYER_MNEMONIC: ${{ secrets.DEPLOYER_MNEMONIC }}
       MINTER_MNEMONIC: ${{ secrets.MINTER_MNEMONIC }}
