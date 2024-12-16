@@ -1,0 +1,13 @@
+{
+  "dependencies": {
+    "@cosmjs/cosmwasm-stargate": "^0.32.2",
+    "node-fetch": "^3.3.2"
+  },
+  "description": "Mosaic NFT Project",
+  "name": "mosaic",
+  "scripts": {
+    "update-balances": "node scripts/update-balances.js"
+  },
+  "type": "module",
+  "version": "1.0.0"
+}
