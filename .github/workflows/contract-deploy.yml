@@ -26,13 +26,13 @@ on:
         required: true
         description: "Mnemonic for the deployer account"
       MINTER_MNEMONIC:
-        required: true
+        required: false
         description: "Mnemonic for the minter account"
       OWNER_MNEMONIC:
-        required: true
+        required: false
         description: "Mnemonic for the owner account"
       USER_MNEMONIC:
-        required: true
+        required: false
         description: "Mnemonic for the user account"
     outputs:
       result:

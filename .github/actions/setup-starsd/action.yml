@@ -10,13 +10,13 @@ inputs:
     required: true
   minter_mnemonic:
     description: 'Mnemonic for the minter account'
-    required: true
+    required: false
   owner_mnemonic:
     description: 'Mnemonic for the owner account'
-    required: true
+    required: false
   user_mnemonic:
     description: 'Mnemonic for the user account'
-    required: true
+    required: false
   node:
     description: 'RPC endpoint'
     required: false
@@ -79,26 +79,32 @@ runs:
         DEPLOYER_ADDRESS=$(starsd keys show deployer -a --keyring-backend test)
         echo "deployer_address=$DEPLOYER_ADDRESS" >> $GITHUB_OUTPUT
 
-        # Import minter key
-        echo "${{ inputs.minter_mnemonic }}" | \
-          starsd keys add minter \
-          --recover \
-          --keyring-backend test
-        MINTER_ADDRESS=$(starsd keys show minter -a --keyring-backend test)
-        echo "minter_address=$MINTER_ADDRESS" >> $GITHUB_OUTPUT
+        # Import minter key if provided
+        if [ ! -z "${{ inputs.minter_mnemonic }}" ]; then
+          echo "${{ inputs.minter_mnemonic }}" | \
+            starsd keys add minter \
+            --recover \
+            --keyring-backend test
+          MINTER_ADDRESS=$(starsd keys show minter -a --keyring-backend test)
+          echo "minter_address=$MINTER_ADDRESS" >> $GITHUB_OUTPUT
+        fi
 
-        # Import owner key
-        echo "${{ inputs.owner_mnemonic }}" | \
-          starsd keys add owner \
-          --recover \
-          --keyring-backend test
-        OWNER_ADDRESS=$(starsd keys show owner -a --keyring-backend test)
-        echo "owner_address=$OWNER_ADDRESS" >> $GITHUB_OUTPUT
+        # Import owner key if provided
+        if [ ! -z "${{ inputs.owner_mnemonic }}" ]; then
+          echo "${{ inputs.owner_mnemonic }}" | \
+            starsd keys add owner \
+            --recover \
+            --keyring-backend test
+          OWNER_ADDRESS=$(starsd keys show owner -a --keyring-backend test)
+          echo "owner_address=$OWNER_ADDRESS" >> $GITHUB_OUTPUT
+        fi
 
-        # Import user key
-        echo "${{ inputs.user_mnemonic }}" | \
-          starsd keys add user \
-          --recover \
-          --keyring-backend test
-        USER_ADDRESS=$(starsd keys show user -a --keyring-backend test)
-        echo "user_address=$USER_ADDRESS" >> $GITHUB_OUTPUT
+        # Import user key if provided
+        if [ ! -z "${{ inputs.user_mnemonic }}" ]; then
+          echo "${{ inputs.user_mnemonic }}" | \
+            starsd keys add user \
+            --recover \
+            --keyring-backend test
+          USER_ADDRESS=$(starsd keys show user -a --keyring-backend test)
+          echo "user_address=$USER_ADDRESS" >> $GITHUB_OUTPUT
+        fi
