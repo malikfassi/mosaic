@@ -14,23 +14,7 @@ on:
       contract_address:
         required: true
         type: string
-        description: "Address of the deployed contract to test"
-      deployer_address:
-        required: true
-        type: string
-        description: "Address of the deployer"
-      minter_address:
-        required: true
-        type: string
-        description: "Address of the minter"
-      owner_address:
-        required: true
-        type: string
-        description: "Address of the owner"
-      user_address:
-        required: true
-        type: string
-        description: "Address of the user"
+        description: "Address of the deployed contract to test" 
     secrets:
       DEPLOYER_MNEMONIC:
         required: true
@@ -69,6 +53,7 @@ jobs:
           job_name: ${{ inputs.test_type }}_e2e
 
       - name: Setup starsd
+        id: setup-starsd
         if: steps.check.outputs.result != 'skipped'
         uses: ./.github/actions/setup-starsd
         with:
@@ -86,11 +71,11 @@ jobs:
         if: steps.check.outputs.result != 'skipped' && inputs.test_type == 'mosaic-tile'
         working-directory: contracts/mosaic_tile_nft
         env:
-          CONTRACT_ADDRESS: ${{ inputs.contract_address }}
-          DEPLOYER_ADDRESS: ${{ inputs.deployer_address }}
-          MINTER_ADDRESS: ${{ inputs.minter_address }}
-          OWNER_ADDRESS: ${{ inputs.owner_address }}
-          USER_ADDRESS: ${{ inputs.user_address }}
+          CONTRACT_ADDRESS: ${{ steps.setup-starsd.outputs.contract_address }}
+          DEPLOYER_ADDRESS: ${{ steps.setup-starsd.outputs.deployer_address }}
+          MINTER_ADDRESS: ${{ steps.setup-starsd.outputs.minter_address }}
+          OWNER_ADDRESS: ${{ steps.setup-starsd.outputs.owner_address }}
+          USER_ADDRESS: ${{ steps.setup-starsd.outputs.user_address }}
         run: |
           cargo test --test e2e -- --nocapture
 

@@ -171,6 +171,8 @@ jobs:
     needs: [
       generate_execution_plan,
       frontend_build,
+      mosaic_tile_nft_deploy,
+      mosaic_vending_minter_deploy,
       mosaic_tile_nft_e2e,
       mosaic_vending_minter_e2e
     ]
@@ -178,6 +180,12 @@ jobs:
     with:
       execution_plan: ${{ needs.generate_execution_plan.outputs.execution_plan }}
       test_type: full
+      contract_address: ${{ fromJson(needs.mosaic_tile_nft_deploy.outputs.data).contract_address }}
+    secrets:
+      DEPLOYER_MNEMONIC: ${{ secrets.DEPLOYER_MNEMONIC }}
+      MINTER_MNEMONIC: ${{ secrets.MINTER_MNEMONIC }}
+      OWNER_MNEMONIC: ${{ secrets.OWNER_MNEMONIC }}
+      USER_MNEMONIC: ${{ secrets.USER_MNEMONIC }}
 
   gather_results:
     needs: [
