@@ -1,35 +1,48 @@
-import { COMPONENTS, COMPONENT_TYPES } from '../workflow-config.js';
-import { getGistFiles, getLatestRun } from './gist.js';
-import { calculateComponentHash } from './component.js';
+import { getGistFiles } from './gist.js';
 
 export async function getDeployAddresses(gistId, token) {
     if (!gistId || !token) {
         throw new Error('Missing required parameters: gistId or token');
     }
 
-    // Get gist files and calculate component hash
+    // Get gist files
     const gistFiles = await getGistFiles(gistId, token);
-    const componentHash = calculateComponentHash(COMPONENTS[COMPONENT_TYPES.MOSAIC_TILE]);
-    console.log('Debug: Component hash for mosaic tile:', componentHash);
+    console.log('Debug: Found gist files:', Object.keys(gistFiles));
 
-    // Find latest successful deploy run
-    const deployJobPattern = `mosaic_tile_nft_deploy.${componentHash}`;
-    console.log('Debug: Looking for deploy job with pattern:', deployJobPattern);
-    
-    const latestRun = getLatestRun(gistFiles, deployJobPattern);
-    if (!latestRun) {
-        throw new Error('No successful deploy job found');
+    // Find all deploy job files
+    const deployFiles = Object.entries(gistFiles)
+        .filter(([filename]) => filename.includes('mosaic_tile_nft_deploy'))
+        .map(([filename, file]) => {
+            try {
+                const content = JSON.parse(file.content);
+                return {
+                    filename,
+                    timestamp: new Date(content.timestamp),
+                    data: content.job.data
+                };
+            } catch (error) {
+                console.warn(`Failed to parse file ${filename}:`, error);
+                return null;
+            }
+        })
+        .filter(file => file !== null);
+
+    console.log('Debug: Found deploy files:', deployFiles.map(f => f.filename));
+
+    if (deployFiles.length === 0) {
+        throw new Error('No deploy job files found');
     }
 
-    console.log('Debug: Found deploy data from run:', latestRun.timestamp);
-    const data = latestRun.job.data;
+    // Sort by timestamp and get the latest
+    const latestDeploy = deployFiles.sort((a, b) => b.timestamp - a.timestamp)[0];
+    console.log('Debug: Using latest deploy from:', latestDeploy.timestamp);
     
     // Extract addresses
     const addresses = {
-        deployer: data.deployer_address,
-        minter: data.minter_address,
-        owner: data.owner_address,
-        user: data.user_address
+        deployer: latestDeploy.data.deployer_address,
+        minter: latestDeploy.data.minter_address,
+        owner: latestDeploy.data.owner_address,
+        user: latestDeploy.data.user_address
     };
 
     // Validate addresses
