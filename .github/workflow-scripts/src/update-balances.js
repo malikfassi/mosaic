@@ -1,6 +1,7 @@
 import { getClient, queryAllBalances } from './utils/chain.js';
 import { getDeployAddresses } from './utils/deploy.js';
-import { createBadgeFiles, updateGistFiles } from './utils/badges.js';
+import { createBadgeFiles } from './utils/badges.js';
+import { updateGistFiles } from './utils/gist.js';
 
 const EXECUTION_PLAN_GIST_ID = process.env.GIST_ID;
 const PROJECT_GIST_ID = process.env.PROJECT_GIST_ID;
