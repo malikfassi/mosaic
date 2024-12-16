@@ -150,11 +150,13 @@ This project is licensed under the Apache License 2.0 - see the [LICENSE](LICENS
 
 ## Account Balances
 
-*Last updated: 2024-12-16T20:10:50.436Z*
+*Last updated: 2024-12-16T20:15:41.183Z*
 
-| Role | Address | Balance (STARS) |
-|------|---------|----------------|
-| deployer | `stars1pnet2e7tz7klwy48r7h3wl0n97td0haqjvs7mx` | 9998.905565 |
-| minter | `stars1x2pf9az2lwq7uk7vzhct6606cggz70wtqpkn2l` | 5000.000000 |
-| owner | `stars1uaw3k28gx0zfkfjsuv0vaufzxqdumlshazllmm` | 0.000000 |
-| user | `stars1rw6cfwwnqygdcpwrsxl9lkf4h0nsf3e6wf9frj` | 0.000000 |
+| Role | Address | Balance |
+|------|---------|---------|
+| deployer | `stars1pnet2e7tz7klwy48r7h3wl0n97td0haqjvs7mx` | ![deployer balance](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/raw/1ff46a4915f58fa0fce5cab7577f94f1/deployer-balance.json) |
+| minter | `stars1x2pf9az2lwq7uk7vzhct6606cggz70wtqpkn2l` | ![minter balance](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/raw/1ff46a4915f58fa0fce5cab7577f94f1/minter-balance.json) |
+| owner | `stars1uaw3k28gx0zfkfjsuv0vaufzxqdumlshazllmm` | ![owner balance](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/raw/1ff46a4915f58fa0fce5cab7577f94f1/owner-balance.json) |
+| user | `stars1rw6cfwwnqygdcpwrsxl9lkf4h0nsf3e6wf9frj` | ![user balance](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/raw/1ff46a4915f58fa0fce5cab7577f94f1/user-balance.json) |
+
+**Total Balance:** ![Total balance](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/raw/1ff46a4915f58fa0fce5cab7577f94f1/total-balance.json)
