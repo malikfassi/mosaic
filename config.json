@@ -11,35 +11,35 @@
         "denom": "ustars"
       }
     },
-    "tile": {
-      "total_tiles": 10000,
-      "total_pixels_per_tile": 100
-    },
     "services": {
+      "chain": {
+        "chain_id": "stargaze-1",
+        "gas_price": {
+          "amount": "0.025",
+          "denom": "ustars"
+        },
+        "rpc_endpoint": "http://localhost:26657",
+        "ws_endpoint": "ws://localhost:26657/websocket"
+      },
+      "indexer": {
+        "batch_size": 100,
+        "enabled": true,
+        "poll_interval": 1,
+        "start_height": 1
+      },
       "ipfs": {
         "api_endpoint": "http://localhost:5001",
         "gateway": "http://localhost:8080",
         "pin_policy": {
           "enabled": true,
-          "max_size": 1048576,  // 1MB in bytes
-          "retention_period": 2592000  // 30 days in seconds
+          "max_size": 1048576,
+          "retention_period": 2592000
         }
-      },
-      "chain": {
-        "rpc_endpoint": "http://localhost:26657",
-        "ws_endpoint": "ws://localhost:26657/websocket",
-        "chain_id": "stargaze-1",
-        "gas_price": {
-          "amount": "0.025",
-          "denom": "ustars"
-        }
-      },
-      "indexer": {
-        "enabled": true,
-        "batch_size": 100,
-        "poll_interval": 1,
-        "start_height": 1
       }
+    },
+    "tile": {
+      "total_pixels_per_tile": 100,
+      "total_tiles": 10000
     }
   }
 }

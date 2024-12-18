@@ -29,6 +29,9 @@ pub enum ContractError {
 
     #[error("Base contract error: {0}")]
     Base(String),
+
+    #[error("Feature disabled: {feature}")]
+    FeatureDisabled { feature: String },
 }
 
 impl PartialEq for ContractError {
@@ -45,6 +48,7 @@ impl PartialEq for ContractError {
             },
             (ContractError::InvalidExpiration {}, ContractError::InvalidExpiration {}) => true,
             (ContractError::Base(a), ContractError::Base(b)) => a == b,
+            (ContractError::FeatureDisabled { feature: a }, ContractError::FeatureDisabled { feature: b }) => a == b,
             _ => false,
         }
     }

@@ -63,8 +63,13 @@ impl<'a> MosaicContract<'a> {
         match msg {
             // Forward all base NFT functionality to base contract
             ExecuteMsg::Base(base_msg) => {
-                self.base.execute(deps, env, info, base_msg)
-                    .map_err(|e| ContractError::Base(e.to_string()))
+                match base_msg {
+                    sg721::ExecuteMsg::Burn { .. } => {
+                        Err(ContractError::FeatureDisabled { feature: "burn".to_string() })
+                    }
+                    _ => self.base.execute(deps, env, info, base_msg)
+                        .map_err(|e| ContractError::Base(e.to_string()))
+                }
             }
             // Custom pixel color functionality
             ExecuteMsg::SetPixelColor { current_tile_metadata, pixel_update } => {
