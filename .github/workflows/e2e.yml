@@ -6,7 +6,7 @@ on:
       test_type:
         required: true
         type: string
-        description: "Type of E2E test to run (mosaic-tile/mosaic-vending/full)"
+        description: "Type of E2E test to run (mosaic-tile/full)"
       execution_plan:
         required: true
         type: string
@@ -78,11 +78,6 @@ jobs:
           USER_ADDRESS: ${{ steps.setup-starsd.outputs.user_address }}
         run: |
           cargo test --test e2e -- --nocapture
-
-      - name: Mock Mosaic Vending E2E Tests
-        if: steps.check.outputs.result != 'skipped' && inputs.test_type == 'mosaic-vending'
-        run: |
-          echo "Mosaic Vending E2E tests are currently disabled"
 
       - name: Mock Full E2E Tests
         if: steps.check.outputs.result != 'skipped' && inputs.test_type == 'full'

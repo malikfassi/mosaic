@@ -2,7 +2,6 @@
 
 [![Frontend CI](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/malikfassi/1ff46a4915f58fa0fce5cab7577f94f1/raw/frontend-ci.json)](https://github.com/malikfassi/mosaic/actions/workflows/pixel-canvas.yml)
 [![Mosaic Tile CI](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/malikfassi/1ff46a4915f58fa0fce5cab7577f94f1/raw/mosaic-tile-ci.json)](https://github.com/malikfassi/mosaic/actions/workflows/pixel-canvas.yml)
-[![Mosaic Vending CI](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/malikfassi/1ff46a4915f58fa0fce5cab7577f94f1/raw/mosaic-vending-ci.json)](https://github.com/malikfassi/mosaic/actions/workflows/pixel-canvas.yml)
 
 A decentralized pixel art canvas powered by Stargaze NFTs.
 
@@ -14,7 +13,6 @@ A decentralized pixel art canvas powered by Stargaze NFTs.
 |-----------|------|
 | Frontend | `{{ .Hashes.Frontend }}` |
 | Mosaic Tile Contract | `{{ .Hashes.MosaicTile }}` |
-| Mosaic Vending Contract | `{{ .Hashes.MosaicVending }}` |
 
 ## Latest Deployment
 
@@ -23,7 +21,6 @@ A decentralized pixel art canvas powered by Stargaze NFTs.
 | Contract | Address |
 |----------|---------|
 | Mosaic Tile | `{{ .Deploy.MosaicTileAddress }}` |
-| Mosaic Vending | `{{ .Deploy.MosaicVendingAddress }}` |
 
 ## Account Balances
 

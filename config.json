@@ -1,0 +1,45 @@
+{
+  "mosaic": {
+    "fees": {
+      "base_fee": {
+        "amount": "20000000",
+        "denom": "ustars"
+      },
+      "developer_royalties": 5,
+      "mint_price": {
+        "amount": "500000000",
+        "denom": "ustars"
+      }
+    },
+    "tile": {
+      "total_tiles": 10000,
+      "total_pixels_per_tile": 100
+    },
+    "services": {
+      "ipfs": {
+        "api_endpoint": "http://localhost:5001",
+        "gateway": "http://localhost:8080",
+        "pin_policy": {
+          "enabled": true,
+          "max_size": 1048576,  // 1MB in bytes
+          "retention_period": 2592000  // 30 days in seconds
+        }
+      },
+      "chain": {
+        "rpc_endpoint": "http://localhost:26657",
+        "ws_endpoint": "ws://localhost:26657/websocket",
+        "chain_id": "stargaze-1",
+        "gas_price": {
+          "amount": "0.025",
+          "denom": "ustars"
+        }
+      },
+      "indexer": {
+        "enabled": true,
+        "batch_size": 100,
+        "poll_interval": 1,
+        "start_height": 1
+      }
+    }
+  }
+}

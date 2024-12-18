@@ -7,8 +7,7 @@ import { Button } from '@/components/ui/button';
 import { ColorPicker } from '@/components/ColorPicker';
 
 interface Pixel {
-  x: number;
-  y: number;
+  pixel_id: number;
   color: string;
 }
 
@@ -93,7 +92,9 @@ export function PixelCanvas() {
       return;
     }
 
-    setSelectedPixel({ x, y, color: selectedColor });
+    // Convert x,y to pixel_id
+    const pixel_id = y * (CANVAS_SIZE / PIXEL_SIZE) + x;
+    setSelectedPixel({ pixel_id, color: selectedColor });
     setIsDrawing(true);
   };
 
@@ -111,7 +112,9 @@ export function PixelCanvas() {
       return;
     }
 
-    setSelectedPixel({ x, y, color: selectedColor });
+    // Convert x,y to pixel_id
+    const pixel_id = y * (CANVAS_SIZE / PIXEL_SIZE) + x;
+    setSelectedPixel({ pixel_id, color: selectedColor });
   };
 
   const handleMouseUp = () => {
@@ -129,7 +132,7 @@ export function PixelCanvas() {
       // TODO: Implement contract interaction
       toast({
         title: 'Pixel Drawn',
-        description: `Drew pixel at (${selectedPixel.x}, ${selectedPixel.y}) with color ${selectedPixel.color}`,
+        description: `Drew pixel at (${selectedPixel.pixel_id}) with color ${selectedPixel.color}`,
       });
     } catch (error) {
       toast({

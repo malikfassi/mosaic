@@ -5,8 +5,7 @@ Cargo.lock
 .cargo-ok
 
 # CosmWasm
-contracts/*/target/
-contracts/target/
+mosaic-contract/target/
 
 # Node.js
 node_modules/

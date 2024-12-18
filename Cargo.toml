@@ -1,0 +1,44 @@
+[package]
+name = "mosaic-contract"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.73.0"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[features]
+library = []
+
+[dependencies]
+cosmwasm-std = "1.5.0"
+cosmwasm-schema = "1.5.0"
+cw-storage-plus = "1.2.0"
+cw2 = "1.1.0"
+cw721 = "0.18.0"
+cw721-base = { version = "0.18.0", features = ["library"] }
+sg721 = { version = "3.5.0" }
+sg721-base = { version = "3.5.0" }
+sg-std = "3.2.0"
+schemars = "0.8.11"
+serde = { version = "1.0", default-features = false, features = ["derive"] }
+thiserror = "1.0.31"
+cw-ownable = "0.5.1"
+cw-utils = "1.0.3"
+url = "2.2.2"
+sha2 = { version = "0.10.2", default-features = false }
+serde_json = "1.0"
+anybuf = "0.3.0"
+
+[dev-dependencies]
+cw-multi-test = "0.20.0"
+cosmwasm-testing = { package = "cosmwasm-vm", version = "1.5.0" }
+anyhow = "1.0"
+
+[profile.release]
+rpath = false
+lto = true
+overflow-checks = true
+opt-level = 3
+debug = false
+debug-assertions = false

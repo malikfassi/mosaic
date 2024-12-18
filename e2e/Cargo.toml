@@ -1,0 +1,17 @@
+[package]
+name = "e2e-framework"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+mosaic-contract = { path = "../mosaic-contract" }
+mosaic-ipfs = { path = "../mosaic-ipfs" }
+cosmwasm-std.workspace = true
+cosmwasm-storage.workspace = true
+cw-storage-plus.workspace = true
+schemars.workspace = true
+serde.workspace = true
+thiserror.workspace = true
+
+[dev-dependencies]
+tokio-test = "0.4"

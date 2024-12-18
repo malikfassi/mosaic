@@ -16,7 +16,6 @@ function generateDiscordMessage(planResults) {
     // Add component sections
     sections.push(...generateComponentSection(COMPONENT_TYPES.FRONTEND, jobs));
     sections.push(...generateComponentSection(COMPONENT_TYPES.MOSAIC_TILE, jobs));
-    sections.push(...generateComponentSection(COMPONENT_TYPES.MOSAIC_VENDING, jobs));
     
     // Add full E2E section if present
     if (jobs.full_e2e) {

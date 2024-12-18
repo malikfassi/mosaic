@@ -45,12 +45,10 @@ async function generateReadmeData() {
         hashes: {
             frontend: hashes[COMPONENT_TYPES.FRONTEND].slice(0, 8),
             mosaicTile: hashes[COMPONENT_TYPES.MOSAIC_TILE].slice(0, 8),
-            mosaicVending: hashes[COMPONENT_TYPES.MOSAIC_VENDING].slice(0, 8)
         },
         deploy: {
             timestamp: addresses.timestamp,
             mosaicTileAddress: addresses.minter,
-            mosaicVendingAddress: addresses.owner
         },
         balances: Object.entries(addressMap).reduce((acc, [role, address]) => ({
             ...acc,
@@ -74,10 +72,8 @@ async function updateReadme(data) {
         .replace('{{ .LastUpdated }}', data.lastUpdated)
         .replace('{{ .Hashes.Frontend }}', data.hashes.frontend)
         .replace('{{ .Hashes.MosaicTile }}', data.hashes.mosaicTile)
-        .replace('{{ .Hashes.MosaicVending }}', data.hashes.mosaicVending)
         .replace('{{ .Deploy.Timestamp }}', data.deploy.timestamp)
         .replace('{{ .Deploy.MosaicTileAddress }}', data.deploy.mosaicTileAddress)
-        .replace('{{ .Deploy.MosaicVendingAddress }}', data.deploy.mosaicVendingAddress);
 
     // Replace balance section
     const balanceRows = Object.entries(data.balances)

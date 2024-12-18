@@ -17,13 +17,11 @@ import (
 type ComponentHashes struct {
 	Frontend      string
 	MosaicTile    string
-	MosaicVending string
 }
 
 type DeployInfo struct {
 	Timestamp          string
 	MosaicTileAddress string
-	MosaicVendingAddress string
 }
 
 type BalanceInfo struct {
@@ -92,7 +90,6 @@ func getLatestDeployInfo() (DeployInfo, error) {
 		Job struct {
 			Data struct {
 				MosaicTileAddress    string `json:"mosaic_tile_address"`
-				MosaicVendingAddress string `json:"mosaic_vending_address"`
 			} `json:"data"`
 		} `json:"job"`
 	}
@@ -106,7 +103,6 @@ func getLatestDeployInfo() (DeployInfo, error) {
 			deployInfo = DeployInfo{
 				Timestamp:            latestDeploy.Timestamp,
 				MosaicTileAddress:    latestDeploy.Job.Data.MosaicTileAddress,
-				MosaicVendingAddress: latestDeploy.Job.Data.MosaicVendingAddress,
 			}
 			break
 		}
@@ -129,11 +125,6 @@ func main() {
 		os.Exit(1)
 	}
 
-	mosaicVendingHash, err := calculateDirectoryHash("contracts/mosaic_vending_minter")
-	if err != nil {
-		fmt.Printf("Error calculating mosaic vending hash: %v\n", err)
-		os.Exit(1)
-	}
 
 	// Get latest deploy info
 	deployInfo, err := getLatestDeployInfo()
@@ -148,7 +139,6 @@ func main() {
 		Hashes: ComponentHashes{
 			Frontend:      frontendHash,
 			MosaicTile:    mosaicTileHash,
-			MosaicVending: mosaicVendingHash,
 		},
 		Deploy: deployInfo,
 		Balances: map[string]BalanceInfo{
