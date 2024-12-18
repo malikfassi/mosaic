@@ -5,6 +5,7 @@
         "amount": "20000000",
         "denom": "ustars"
       },
+      "developer_address": "stars1...",
       "developer_royalties": 5,
       "mint_price": {
         "amount": "500000000",
